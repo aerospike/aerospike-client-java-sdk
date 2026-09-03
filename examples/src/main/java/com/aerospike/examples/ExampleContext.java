@@ -19,7 +19,6 @@ package com.aerospike.examples;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.policy.Behavior;
 
 /**
  * Shared state for an example run.
@@ -48,7 +47,7 @@ public class ExampleContext {
     }
 
     public Session session() {
-        return cluster.createSession(Behavior.DEFAULT);
+        return cluster.createSession(Example.EXAMPLE_BEHAVIOR);
     }
 
     public DataSet dataSet() {

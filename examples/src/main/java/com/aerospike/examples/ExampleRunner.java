@@ -21,8 +21,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.ResultCode;
 
 public class ExampleRunner {
     private final Console console;
@@ -106,8 +108,16 @@ public class ExampleRunner {
             result = ExampleResult.skipped(definition.name(), elapsedMillis(start), e.getMessage());
         }
         catch (Throwable t) {
-            console.error("%s Failed: %s", definition.name(), t.getMessage());
-            result = ExampleResult.failed(definition.name(), elapsedMillis(start), t);
+            String enterpriseOnly = enterpriseOnlyReason(t);
+
+            if (enterpriseOnly != null) {
+                console.warn("%s Skipped: %s", definition.name(), enterpriseOnly);
+                result = ExampleResult.skipped(definition.name(), elapsedMillis(start), enterpriseOnly);
+            }
+            else {
+                console.error("%s Failed: %s", definition.name(), t.getMessage());
+                result = ExampleResult.failed(definition.name(), elapsedMillis(start), t);
+            }
         }
         finally {
             console.info(definition.name() + " End");
@@ -127,6 +137,30 @@ public class ExampleRunner {
         }
 
         return result;
+    }
+
+    /**
+     * A Community server rejects Enterprise-only features with {@link ResultCode#ENTERPRISE_ONLY}.
+     * That is a server capability gate rather than an example defect, so it is reported as a skip,
+     * the same as the strong-consistency and string-AEL gates. The exception is often wrapped, so
+     * the whole cause chain is searched.
+     *
+     * @return the skip reason, or null when this failure is not an edition gate
+     */
+    private static String enterpriseOnlyReason(Throwable t) {
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cause instanceof AerospikeException ae
+                    && ae.getResultCode() == ResultCode.ENTERPRISE_ONLY) {
+                return "server is Community Edition; this example needs an Enterprise feature: "
+                    + ae.getBaseMessage();
+            }
+
+            if (cause.getCause() == cause) {
+                break;
+            }
+        }
+
+        return null;
     }
 
     private Example instantiate(ExampleDefinition definition) throws Exception {

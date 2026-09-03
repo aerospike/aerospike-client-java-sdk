@@ -26,6 +26,10 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.examples.ExampleContext;
 import com.aerospike.examples.ExampleFixture;
+import com.aerospike.examples.ExceptionHandlingExample;
+import com.aerospike.examples.SecondaryIndexExample;
+import com.aerospike.examples.TransactionExample;
+import com.aerospike.examples.UdfExample;
 
 public final class ExampleFixtures {
     private static final String COMMON_INDEX_NAME = "ageidx";
@@ -293,6 +297,107 @@ public final class ExampleFixtures {
                 ExampleAssertions.assertBinEquals(session, widgets, 2, "qty", 20L);
                 ExampleAssertions.assertBinEquals(session, gadgets, 1, "name", "notifications");
             });
+    }
+
+    public static ExampleFixture udfExample() {
+        // Not expressed via truncating(...) because the registered Lua module is cluster state
+        // that outlives the set and has to be removed explicitly.
+        return new ExampleFixture() {
+            @Override
+            public void setup(ExampleContext context) {
+                removeUdfIfExists(context.session(), UdfExample.SERVER_PATH);
+                ExampleAssertions.truncate(context.session(), context.dataSet(UdfExample.SET));
+            }
+
+            @Override
+            public void verify(ExampleContext context) {
+                Session session = context.session();
+                DataSet dataSet = context.dataSet(UdfExample.SET);
+
+                ExampleAssertions.assertCount(session, dataSet, 3);
+                // 100 + 50 (single-key bonus) + 10 (batch bonus).
+                ExampleAssertions.assertBinEquals(session, dataSet, "acct-1", "balance", 160L);
+                // 600 + 10 (batch bonus) + 25 (chained bonus).
+                ExampleAssertions.assertBinEquals(session, dataSet, "acct-2", "balance", 635L);
+                ExampleAssertions.assertBinEquals(session, dataSet, "acct-3", "balance", 1510L);
+                ExampleAssertions.assertBinEquals(session, dataSet, "acct-3", "note", "audited");
+            }
+
+            @Override
+            public void cleanup(ExampleContext context) {
+                removeUdfIfExists(context.session(), UdfExample.SERVER_PATH);
+                ExampleAssertions.truncate(context.session(), context.dataSet(UdfExample.SET));
+            }
+        };
+    }
+
+    public static ExampleFixture transactionExample() {
+        return truncating(
+            TransactionExample.SET,
+            context -> {
+                Session session = context.session();
+                DataSet dataSet = context.dataSet(TransactionExample.SET);
+
+                // Only the two committed transfers apply: the aborted overdraft and the failed
+                // transaction must leave no trace.
+                ExampleAssertions.assertBinEquals(session, dataSet, "alice", "balance", 650L);
+                ExampleAssertions.assertBinEquals(session, dataSet, "bob", "balance", 1250L);
+            });
+    }
+
+    public static ExampleFixture exceptionHandlingExample() {
+        return truncating(
+            ExceptionHandlingExample.SET,
+            context -> {
+                Session session = context.session();
+                DataSet dataSet = context.dataSet(ExceptionHandlingExample.SET);
+
+                // Every failure in the example is rejected by the server, so the seeded record
+                // must be untouched.
+                ExampleAssertions.assertCount(session, dataSet, 1);
+                ExampleAssertions.assertBinEquals(session, dataSet, "alice", "name", "Alice");
+                ExampleAssertions.assertBinEquals(session, dataSet, "alice", "visits", 3L);
+            });
+    }
+
+    public static ExampleFixture secondaryIndexExample() {
+        return new ExampleFixture() {
+            @Override
+            public void setup(ExampleContext context) {
+                dropExampleIndexes(context);
+                ExampleAssertions.truncate(context.session(), context.dataSet(SecondaryIndexExample.SET));
+            }
+
+            @Override
+            public void verify(ExampleContext context) {
+                ExampleAssertions.assertCount(
+                    context.session(), context.dataSet(SecondaryIndexExample.SET), 4);
+            }
+
+            @Override
+            public void cleanup(ExampleContext context) {
+                dropExampleIndexes(context);
+                ExampleAssertions.truncate(context.session(), context.dataSet(SecondaryIndexExample.SET));
+            }
+
+            private void dropExampleIndexes(ExampleContext context) {
+                Session session = context.session();
+                DataSet dataSet = context.dataSet(SecondaryIndexExample.SET);
+
+                for (String indexName : SecondaryIndexExample.INDEX_NAMES) {
+                    dropIndexIfExists(session, dataSet, indexName);
+                }
+            }
+        };
+    }
+
+    private static void removeUdfIfExists(Session session, String serverPath) {
+        try {
+            session.removeUdf(serverPath);
+        }
+        catch (AerospikeException ignored) {
+            // The cleanup path should be idempotent for local reruns and CI retries.
+        }
     }
 
     private static void dropIndexIfExists(Session session, DataSet dataSet, String indexName) {
