@@ -58,9 +58,13 @@ public class CommonExample extends Example {
             System.out.printf("%s %s %s\n", dashes, header, dashes);
         }
     }
+    private static Record readRecord(Session session, DataSet set, int id) {
+        return session.query(set.id(id)).execute().getFirst().orElseThrow().recordOrThrow();
+    }
+
     @Override
     public void runExample() throws Exception {
-        Session session = cluster().createSession(Behavior.DEFAULT);
+        Session session = cluster().createSession(EXAMPLE_BEHAVIOR);
         DataSet set = dataSet();
 
         System.out.println("Write 1 record");
@@ -143,6 +147,38 @@ public class CommonExample extends Example {
         while (rs.hasNext()) {
         	Record rec = rs.next().recordOrThrow();
         	System.out.println("Record = " + rec);
+        }
+
+        System.out.println("Write verbs: insert / update / upsert / replace / replaceIfExists");
+
+        // insert: create only. Raises RecordExistsException if the record is already there.
+        session.insert(set.id(900))
+            .bin("name").setTo("Ada")
+            .bin("dept").setTo("eng")
+            .execute();
+
+        // update: the record must already exist. Named bins are merged into it.
+        session.update(set.id(900)).bin("dept").setTo("research").execute();
+
+        // upsert: create or merge. This is the verb used everywhere above.
+        session.upsert(set.id(900)).bin("level").setTo(7).execute();
+        System.out.println("After insert + update + upsert: " + readRecord(session, set, 900));
+
+        // replace: create or overwrite the whole record. Bins not named here are dropped.
+        session.replace(set.id(900)).bin("name").setTo("Ada").execute();
+        System.out.println("After replace (dept and level dropped): " + readRecord(session, set, 900));
+
+        // replaceIfExists: the same whole-record overwrite, but the record must already exist.
+        session.replaceIfExists(set.id(900)).bin("name").setTo("Ada Lovelace").execute();
+        System.out.println("After replaceIfExists: " + readRecord(session, set, 900));
+
+        // On a missing record it reports the miss rather than creating the record.
+        try {
+            session.replaceIfExists(set.id(901)).bin("name").setTo("Nobody").execute();
+            System.out.println("Error: expected RecordNotFoundException");
+        }
+        catch (AerospikeException.RecordNotFoundException e) {
+            System.out.println("replaceIfExists on a missing record: " + e.getBaseMessage());
         }
 
         System.out.println("Exists 1 record");

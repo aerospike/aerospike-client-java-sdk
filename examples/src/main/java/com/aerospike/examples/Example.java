@@ -29,6 +29,8 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
@@ -40,6 +42,18 @@ import com.aerospike.client.sdk.util.Version;
  * setup/verify/cleanup fixture flow are owned by {@link ExampleRunner}.
  */
 public abstract class Example {
+    /**
+     * Behavior shared by examples and their fixtures.
+     *
+     * <p>A strong-consistency namespace rejects a non-durable delete with
+     * {@code FAIL_FORBIDDEN}, so examples that delete records need durable deletes to run
+     * against SC. The selector is scoped to {@code cp()}, which leaves AP namespaces on the
+     * default behavior rather than making every example pay for tombstones.</p>
+     */
+    public static final Behavior EXAMPLE_BEHAVIOR = Behavior.DEFAULT.deriveWithChanges(
+        "examples",
+        builder -> builder.on(Selectors.writes().cp(), ops -> ops.useDurableDelete(true)));
+
     protected Console console;
     private ExampleContext context;
 

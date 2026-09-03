@@ -117,6 +117,39 @@ public final class ExampleRegistry {
             "extended",
             "mapping",
             "records");
+        register(
+            examples,
+            "UdfExample",
+            UdfExample.class,
+            ExampleFixtures.udfExample(),
+            "extended",
+            "udf",
+            "records");
+        register(
+            examples,
+            "TransactionExample",
+            TransactionExample.class,
+            ExampleFixtures.transactionExample(),
+            "extended",
+            "transactions",
+            "records",
+            "server-specific");
+        register(
+            examples,
+            "ExceptionHandlingExample",
+            ExceptionHandlingExample.class,
+            ExampleFixtures.exceptionHandlingExample(),
+            "extended",
+            "errors",
+            "records");
+        register(
+            examples,
+            "SecondaryIndexExample",
+            SecondaryIndexExample.class,
+            ExampleFixtures.secondaryIndexExample(),
+            "extended",
+            "index",
+            "records");
         register(examples, "QueryExamples", QueryExamples.class, ExampleFixtures.queryExamples(), "extended", "records");
         register(examples, "EcommerceExample", EcommerceExample.class, ExampleFixtures.ecommerceExample(), "extended", "records");
         register(examples, "RosterExample", RosterExample.class, ExampleFixture.NONE, "server-specific");

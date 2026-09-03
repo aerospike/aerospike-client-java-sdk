@@ -18,12 +18,10 @@ package com.aerospike.examples;
 
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.policy.Behavior;
-
 public class BatchExample extends Example {
     @Override
     public void runExample() throws Exception {
-        Session session = cluster().createSession(Behavior.DEFAULT);
+        Session session = cluster().createSession(EXAMPLE_BEHAVIOR);
         
         System.out.println("*************");
         System.out.println("* Batch tests");
