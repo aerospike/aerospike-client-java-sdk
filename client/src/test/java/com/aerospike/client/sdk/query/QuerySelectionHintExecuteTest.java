@@ -25,17 +25,21 @@ import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.prepareQ
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.List;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.KnownDefect;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
@@ -163,12 +167,56 @@ public class QuerySelectionHintExecuteTest extends ClusterTest {
         assertEquals(ageRangeRows, ages);
     }
 
-    /** {@code LONG_RELAX_AP} relaxes AP-mode guarantees; on a healthy cluster rows are unchanged. */
+    /** {@code LONG_RELAX_AP} relaxes AP-mode guarantees; on a healthy AP cluster rows are unchanged. */
     @Test
     void executeQueryDurationLongRelaxApReturnsMatchingRows() {
+        assumeFalse(args.scMode, "LONG_RELAX_AP relaxes AP guarantees; SC rejects it");
+
         List<Integer> ages = ageRows(hint -> hint.queryDuration(QueryDuration.LONG_RELAX_AP));
 
         assertEquals(ageRangeRows, ages);
+    }
+
+    /**
+     * The same hint on a strong-consistency namespace is rejected rather than ignored.
+     *
+     * <p>{@code LONG_RELAX_AP} sets {@code INFO2_RELAX_AP_LONG_QUERY}, and the server refuses the
+     * combination outright rather than silently downgrading to {@code LONG}:</p>
+     *
+     * <pre>
+     * // as/src/query/query.c - basic query setup
+     * _job-&gt;relax = (m-&gt;info2 &amp; AS_MSG_INFO2_RELAX_AP_LONG_QUERY) != 0;
+     *
+     * if (_job-&gt;relax &amp;&amp; ns-&gt;cp) {
+     *     cf_warning(AS_QUERY, "basic query in SC can't use 'relax' policy");
+     *     cf_free(job);
+     *     return AS_ERR_PARAMETER;
+     * }
+     * </pre>
+     *
+     * <p>So relaxing consistency is not merely meaningless under SC, it is refused. Confirmed in the server
+     * log for this exact run:</p>
+     *
+     * <pre>
+     * WARNING (query): (query.c:1783) basic query in SC can't use 'relax' policy
+     * </pre>
+     *
+     * <p>The caller should therefore see {@code PARAMETER_ERROR}. Instead the rejection is swallowed and the
+     * query looks like it matched nothing, which is what this test currently pins.</p>
+     */
+    @Test
+    @Tag(KnownDefect.TAG)
+    void executeQueryDurationLongRelaxApOnStrongConsistencyIsRejected() {
+        assumeTrue(args.scMode, "asserts the SC-only rejection");
+
+        KnownDefect.pinned(
+            "the server rejects this query outright with AS_ERR_PARAMETER, but QueryNodeExecutor.parseRow"
+                + " treats any non-zero result code arriving with INFO3_PARTITION_DONE as a transient"
+                + " unavailable partition and schedules a retry, so a permanent whole-query rejection reaches"
+                + " the caller as an empty result set with no exception. Expected an AerospikeException with"
+                + " ResultCode.PARAMETER_ERROR. Any query-level fatal error carrying that flag is affected,"
+                + " not just this one",
+            () -> assertEquals(List.of(), ageRows(hint -> hint.queryDuration(QueryDuration.LONG_RELAX_AP))));
     }
 
     /** Runs {@link #ageRangeWhere} over the public path; a {@code null} configurator means no hint. */
