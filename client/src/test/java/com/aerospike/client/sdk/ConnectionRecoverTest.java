@@ -30,11 +30,14 @@ import java.net.Socket;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Pool;
@@ -74,7 +77,8 @@ class ConnectionRecoverTest {
      */
     @Test
     void rejectedAuthDuringDrainClosesConnectionWithoutPooling() throws Exception {
-        Harness harness = newHarness(socket -> writeBytes(socket, (byte) 1));
+        Harness harness = newHarness(
+            socket -> writeBytes(socket, authResponseRemainder((byte) 1)));
 
         ConnectionRecover recover = newRecover(harness, partialAuthHeaderReadTimeout());
         Pool pool = harness.conn.getPool();
@@ -96,12 +100,8 @@ class ConnectionRecoverTest {
      */
     @Test
     void successfulAuthDuringDrainReturnsConnectionToPool() throws Exception {
-        Harness harness = newHarness(socket -> {
-            // Result code 0, then eight detail bytes implied by a size-10 proto header.
-            writeBytes(socket,
-                (byte) 0, (byte) 0, (byte) 0, (byte) 0,
-                (byte) 0, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
-        });
+        Harness harness = newHarness(
+            socket -> writeBytes(socket, authResponseRemainder((byte) 0)));
 
         ConnectionRecover recover = newRecover(harness, partialAuthHeaderReadTimeout());
         Pool pool = harness.conn.getPool();
@@ -147,8 +147,10 @@ class ConnectionRecoverTest {
 
         Node node = new Node(cluster, nv);
 
-        server.expectConnection(onPooledConnection);
+        LoopbackSocketServer.ExpectedConnection pooledConnection =
+            server.expectConnection(onPooledConnection);
         Connection conn = node.getConnection(5_000, 5_000);
+        pooledConnection.awaitHandled();
 
         return new Harness(node, conn);
     }
@@ -158,8 +160,17 @@ class ConnectionRecoverTest {
     }
 
     private static Connection.ReadTimeout partialAuthHeaderReadTimeout() {
-        // Nine of ten auth-header bytes were read before the socket timed out.
-        return new Connection.ReadTimeout(new byte[10], 9, 10, Command.STATE_READ_AUTH_HEADER);
+        // Nine bytes were read before the auth result code at byte offset 9 timed out.
+        byte[] buffer = new byte[ADMIN_HEADER_SIZE];
+        Buffer.longToBytes(ADMIN_PROTO, buffer, 0);
+        return new Connection.ReadTimeout(buffer, PARTIAL_AUTH_HEADER_BYTES, ADMIN_HEADER_SIZE,
+            Command.STATE_READ_AUTH_HEADER);
+    }
+
+    private static byte[] authResponseRemainder(byte resultCode) {
+        byte[] bytes = new byte[ADMIN_HEADER_SIZE - PARTIAL_AUTH_HEADER_BYTES];
+        bytes[0] = resultCode;
+        return bytes;
     }
 
     private static void writeBytes(Socket socket, byte... bytes) {
@@ -178,9 +189,14 @@ class ConnectionRecoverTest {
 
     private record Harness(Node node, Connection conn) {}
 
+    private static final int ADMIN_HEADER_SIZE = 24;
+    private static final int ADMIN_HEADER_REMAINING = 16;
+    private static final int PARTIAL_AUTH_HEADER_BYTES = 9;
+    private static final long ADMIN_PROTO = (2L << 56) | (2L << 48) | ADMIN_HEADER_REMAINING;
+
     private static final class LoopbackSocketServer implements AutoCloseable {
         private final ServerSocket server;
-        private final Queue<Consumer<Socket>> handlers = new ConcurrentLinkedQueue<>();
+        private final Queue<ExpectedConnection> handlers = new ConcurrentLinkedQueue<>();
 
         LoopbackSocketServer() throws IOException {
             server = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
@@ -191,18 +207,20 @@ class ConnectionRecoverTest {
             return server.getLocalPort();
         }
 
-        void expectConnection(Consumer<Socket> handler) {
-            handlers.add(handler);
+        ExpectedConnection expectConnection(Consumer<Socket> handler) {
+            ExpectedConnection expected = new ExpectedConnection(handler);
+            handlers.add(expected);
+            return expected;
         }
 
         private void acceptLoop() {
             while (!server.isClosed()) {
                 try {
                     Socket socket = server.accept();
-                    Consumer<Socket> handler = handlers.poll();
+                    ExpectedConnection expected = handlers.poll();
 
-                    if (handler != null) {
-                        handler.accept(socket);
+                    if (expected != null) {
+                        expected.handle(socket);
                     }
                     else {
                         // Unexpected connection: keep it open so client-side connect() succeeds.
@@ -220,6 +238,37 @@ class ConnectionRecoverTest {
         @Override
         public void close() throws IOException {
             server.close();
+        }
+
+        private static final class ExpectedConnection {
+            private final Consumer<Socket> handler;
+            private final CountDownLatch handled = new CountDownLatch(1);
+            private volatile Throwable failure;
+
+            private ExpectedConnection(Consumer<Socket> handler) {
+                this.handler = handler;
+            }
+
+            private void handle(Socket socket) {
+                try {
+                    handler.accept(socket);
+                }
+                catch (Throwable t) {
+                    failure = t;
+                }
+                finally {
+                    handled.countDown();
+                }
+            }
+
+            private void awaitHandled() throws InterruptedException {
+                assertTrue(handled.await(5, TimeUnit.SECONDS),
+                    "loopback server did not handle the expected connection");
+
+                if (failure != null) {
+                    throw new AssertionError("loopback server handler failed", failure);
+                }
+            }
         }
     }
 }
