@@ -465,6 +465,68 @@ public class OperateStringTest extends ClusterTest {
                             "StringOperation.concat(flags, [!,?], stringBin)"));
                 }
             }
+
+            @Test
+            public void createOnlyStringAppendCreatesMissingBin() {
+                String binName = "createOnlyFresh";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY, binName, "created")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("created", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void createOnlyStringAppendOnLiveBinReturnsBinExists() {
+                String binName = "createOnlyLive";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.CREATE_ONLY, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
+            }
+
+            @Test
+            public void createOnlyNoFailStringAppendOnLiveBinIsNoOp() {
+                String binName = "coNoFail";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY | StringWriteFlags.NO_FAIL, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("original", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void updateOnlyStringAppendOnMissingBinDoesNotCreate() {
+                String binName = "updMissing";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.UPDATE_ONLY, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertNull(rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void noFailDoesNotSuppressWrongTypeStringModify() {
+                String binName = "wrongType";
+                seed(key, b -> b.bin(binName).setTo(123));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.NO_FAIL, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_TYPE_ERROR, ae.getResultCode());
+            }
         }
 
         @Nested
@@ -612,6 +674,18 @@ public class OperateStringTest extends ClusterTest {
                             "StringExp.normalizeNFC(flags, nfcBin)"),
                         () -> assertEquals("Hello!?", rec.getString("concatenated"),
                             "StringExp.concat(flags, [!,?], stringBin s)"));
+                }
+            }
+
+            @Test
+            public void noFailSuppressedStringExpModifyReturnsOriginalString() {
+                Exp s = Exp.stringBin(STRING_BIN);
+
+                try (RecordStream rs = session.query(key)
+                    .bin("repeatFail").selectFrom(StringExp.repeat(StringWriteFlags.NO_FAIL, Exp.val(-1), s))
+                    .execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("Hello", rec.getString("repeatFail"));
                 }
             }
         }

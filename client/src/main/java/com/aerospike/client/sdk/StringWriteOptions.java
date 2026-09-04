@@ -22,36 +22,74 @@ import com.aerospike.client.sdk.operation.StringWriteFlags;
  * Write options for string modify operations on {@link BinBuilder}. Passed as a lambda
  * to overloads such as {@link BinBuilder#upper(java.util.function.Consumer)}.
  *
+ * <p>{@code createOnly()} and {@code updateOnly()} are mutually exclusive;
+ * calling both throws {@link IllegalStateException} immediately at the call site.
+ * {@code createOnly()} is invalid for string operations with a CDT path.</p>
+ *
  * <pre>{@code
  * session.update(key)
- *     .bin("name").upper(opt -> opt.noFail())
+ *     .bin("name").upper(opt -> opt.updateOnly().noFail())
  *     .execute();
  * }</pre>
  */
 public final class StringWriteOptions {
-    private int flags = StringWriteFlags.DEFAULT;
+    private int writeMode = StringWriteFlags.DEFAULT;
+    private boolean noFail = false;
+    private int extraFlags = StringWriteFlags.DEFAULT;
 
     /**
-     * Do not raise an error if the operation cannot be applied to the bin (for example
-     * wrong bin type). The bin is left unchanged and a null result is returned for that
-     * operation. See server docs: {@code NO_FAIL} does not bypass CDT path failures for
-     * nested string contexts.
+     * Apply only if the string bin does not already exist.
+     * Mutually exclusive with {@link #updateOnly()}.
      */
-    public StringWriteOptions noFail() {
-        this.flags |= StringWriteFlags.NO_FAIL;
+    public StringWriteOptions createOnly() {
+        if (writeMode != StringWriteFlags.DEFAULT) {
+            throw new IllegalStateException(
+                "createOnly() and updateOnly() are mutually exclusive");
+        }
+        this.writeMode = StringWriteFlags.CREATE_ONLY;
         return this;
     }
 
     /**
-     * Bitwise-OR additional {@link StringWriteFlags} (use only when composing flags
-     * not exposed as methods).
+     * Apply only if the string bin already exists. If the bin is missing, the
+     * operation is a no-op and does not create the bin.
+     * Mutually exclusive with {@link #createOnly()}.
+     */
+    public StringWriteOptions updateOnly() {
+        if (writeMode != StringWriteFlags.DEFAULT) {
+            throw new IllegalStateException(
+                "createOnly() and updateOnly() are mutually exclusive");
+        }
+        this.writeMode = StringWriteFlags.UPDATE_ONLY;
+        return this;
+    }
+
+    /**
+     * Do not raise an error if a parsed modify operation cannot be applied. Does
+     * not suppress wrong bin type, invalid UTF-8, invalid flags, malformed CDT paths,
+     * or {@link #createOnly()} with a CDT {@code CTX}. A suppressed modify leaves the
+     * string unchanged.
+     */
+    public StringWriteOptions noFail() {
+        this.noFail = true;
+        return this;
+    }
+
+    /**
+     * Bitwise-OR additional {@link StringWriteFlags}. This is an advanced escape
+     * hatch for raw flag composition; invalid combinations are rejected when the
+     * string operation is built.
      */
     public StringWriteOptions withFlags(int extraFlags) {
-        this.flags |= extraFlags;
+        this.extraFlags |= extraFlags;
         return this;
     }
 
     int toFlags() {
+        int flags = writeMode | extraFlags;
+        if (noFail) {
+            flags |= StringWriteFlags.NO_FAIL;
+        }
         return flags;
     }
 }
