@@ -22,6 +22,7 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.query.KeyRecord;
@@ -63,10 +64,15 @@ public final class QueryNodeExecutor extends NodeExecutor {
         Key key = parser.parseFieldsQuery(bval);
 
         if ((parser.info3 & Command.INFO3_PARTITION_DONE) != 0) {
-            // When an error code is received, mark partition as unavailable
-            // for the current round. Unavailable partitions will be retried
-            // in the next round. Generation is overloaded as partitionId.
+            // Generation is overloaded as partitionId.
             if (parser.resultCode != 0) {
+                // PARTITION_UNAVAILABLE is the only per-partition condition reported this way, and
+                // is retried in the next round. Every other code rejects the whole query, so
+                // retrying would spend all the rounds and then report the partitions as unavailable
+                // instead of the reason the server gave.
+                if (parser.resultCode != ResultCode.PARTITION_UNAVAILABLE) {
+                    throw parser.toException();
+                }
                 tracker.partitionUnavailable(nodePartitions, parser.generation);
             }
             return true;
