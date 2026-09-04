@@ -6,7 +6,8 @@ Server string read/modify operations require **Aerospike Database 8.1.3** or lat
 
 | Surface | Role |
 |--------|------|
-| [`BinBuilder`](../client/src/main/java/com/aerospike/client/sdk/BinBuilder.java) | Fluent `session.upsert(key).bin("s").strlen().…` — each method queues one op on the named bin (including after list/map path context for nested string values). |
+| [`BinBuilder`](../client/src/main/java/com/aerospike/client/sdk/BinBuilder.java) | Fluent `session.upsert(key).bin("s").strlen().…` — each method queues one op on the named top-level bin. |
+| [`StringOperation`](../client/src/main/java/com/aerospike/client/sdk/operation/StringOperation.java) | Low-level operation factories for `appendOperations(...)`, including optional `CTX` navigation into string values nested inside list/map bins. |
 | [`StringExp`](../client/src/main/java/com/aerospike/client/sdk/exp/StringExp.java) | Expression API for filters, `selectFrom` / AEL, and composable reads. |
 
 Cross-type string conversion of whole bins uses **`readAsString()`** on `BinBuilder` (server top-level string representation of int, float, string, bool, or UTF-8 blob). It is **not** named `toString()` to avoid clashing with `Object#toString`; unlike string sub-ops composed inside CDT paths, that conversion does not take a nested path.
@@ -16,7 +17,9 @@ Cross-type string conversion of whole bins uses **`readAsString()`** on `BinBuil
 - **Indices** — Unicode **codepoints**, left-to-right; negatives count from the end (`-1` = last). Out-of-range indices are clamped (no error for reads in the usual sense).
 - **`substr` / `snip` (two integer bounds)** — half-open **`[start, end)`**, matching AEL **`from` / `to`** (`to` exclusive). One-argument forms run through the **end of the string**.
 - **`find`** — Substring search; the optional second argument is **occurrence** (1 = first, -1 = last), **not** a start offset. If the second argument is omitted, the server default is **1** (first match). Some older implementation tables described `FIND` with a “start offset”; treat that as **errata** — live server and AEL use **occurrence**.
-- **Modify write flags** — [`StringWriteOptions`](../client/src/main/java/com/aerospike/client/sdk/StringWriteOptions.java) / [`StringWriteFlags`](../client/src/main/java/com/aerospike/client/sdk/operation/StringWriteFlags.java): `NO_FAIL` skips failures when the string sub-op cannot apply to the resolved value. It does **not** bypass **CDT path** errors when `CTX` navigates into a list/map (path resolution is still CDT).
+- **Modify write flags** — [`StringWriteOptions`](../client/src/main/java/com/aerospike/client/sdk/StringWriteOptions.java) / [`StringWriteFlags`](../client/src/main/java/com/aerospike/client/sdk/operation/StringWriteFlags.java) expose `DEFAULT`, `CREATE_ONLY`, `UPDATE_ONLY`, and `NO_FAIL`. `CREATE_ONLY` applies only when the top-level string bin does not exist and is valid only on `insert`, `overwrite`, `concat`, `append`, `prepend`, `padStart`, `padEnd`, and `repeat`; it is invalid with `CTX` and mutually exclusive with `UPDATE_ONLY`. `UPDATE_ONLY` applies only when the string bin exists; a missing bin is a no-op and is not created. `NO_FAIL` suppresses parsed modify failures such as `CREATE_ONLY` on a live bin or an unreachable `CTX` path that resolves to `OP_NOT_APPLICABLE`, leaving the value unchanged. It does not suppress bad flag combinations, `CREATE_ONLY` with `CTX`, malformed CDT paths, wrong bin type, or invalid UTF-8.
+
+Nested string writes are available through [`StringOperation`](../client/src/main/java/com/aerospike/client/sdk/operation/StringOperation.java) factories that accept `CTX`, appended with `appendOperations(...)`, or by composing [`StringExp`](../client/src/main/java/com/aerospike/client/sdk/exp/StringExp.java) inside CDT `modifyBy(...)` paths. Fluent `BinBuilder` string methods operate on the selected top-level bin.
 
 ## AEL and `StringExp`
 
