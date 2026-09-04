@@ -16,6 +16,9 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.Info;
+import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.util.Version;
 
 public class QueryRPSTest extends ClusterTest {
@@ -95,6 +99,45 @@ public class QueryRPSTest extends ClusterTest {
         finally {
             rs.close();
         }
+    }
+
+    /**
+     * A records-per-second limit is invalid on a short query, and the rejection must reach the
+     * caller. The server refuses the combination while setting the job up:
+     *
+     * <pre>
+     * // as/src/query/query.c - get_query_rps()
+     * if (as_transaction_is_short_query(tr)) {
+     *     cf_warning(AS_QUERY, "short query has recs-per-sec field");
+     *     return false;                      // basic_query_job_start returns AS_ERR_PARAMETER
+     * }
+     * </pre>
+     *
+     * <p>The client sends both the {@code RECORDS_PER_SECOND} field and {@code INFO1_SHORT_QUERY}
+     * without objecting, so the refusal arrives after {@code execute()} has already handed back a
+     * stream. It therefore reaches the caller through the stream rather than being thrown by
+     * {@code execute()}, which is what makes this worth an integration test: before CLIENT-5406 the
+     * executor completed the stream normally on failure, so a rejected query was indistinguishable
+     * from one that matched nothing.</p>
+     *
+     * <p>Runs on any namespace. {@code QuerySelectionHintExecuteTest} covers the same contract via
+     * {@code LONG_RELAX_AP}, but only on strong consistency, so it is skipped on an AP cluster.</p>
+     */
+    @Test
+    public void shortQueryWithRecordsPerSecondReportsRejection() {
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            try (RecordStream rs = session.query(dataSet)
+                .recordsPerSecond(rps)
+                .withHint(hint -> hint.queryDuration(QueryDuration.SHORT))
+                .execute()) {
+
+                while (rs.hasNext()) {
+                    rs.next();
+                }
+            }
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
     }
 
     @Test

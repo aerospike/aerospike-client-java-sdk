@@ -355,8 +355,18 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
         return new Iterator<>() {
             Object next = fetch();
 
+            /**
+             * {@inheritDoc}
+             *
+             * <p>Throws a terminal {@link #error} rather than reporting exhaustion. Callers iterate
+             * with {@code while (hasNext())}, so answering {@code false} for a failed query would
+             * present it as one that matched nothing and {@link #next()} would never be reached.</p>
+             */
             @Override public boolean hasNext() {
-                return !(next == END || next instanceof Err);
+                if (next instanceof Err e) {
+                    throw terminate(e);
+                }
+                return next != END;
             }
 
             @Override public RecordResult next() {
@@ -364,15 +374,17 @@ public final class AsyncRecordStream implements AutoCloseable, Iterable<RecordRe
                     throw new NoSuchElementException();
                 }
                 if (next instanceof Err e) {
-                    // Propagate as unchecked
-                    RuntimeException re = (e.t instanceof RuntimeException r) ? r : new RuntimeException(e.t);
-                    // Advance to END so further calls behave
-                    next = END;
-                    throw re;
+                    throw terminate(e);
                 }
                 RecordResult rr = (RecordResult) next;
                 next = fetch();
                 return rr;
+            }
+
+            /** Propagates as unchecked, leaving the stream exhausted so a caller that catches it can stop. */
+            private RuntimeException terminate(Err e) {
+                next = END;
+                return (e.t instanceof RuntimeException re) ? re : new RuntimeException(e.t);
             }
 
             private Object fetch() {

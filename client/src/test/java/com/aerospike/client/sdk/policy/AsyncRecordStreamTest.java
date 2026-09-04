@@ -313,6 +313,33 @@ public class AsyncRecordStreamTest {
     }
 
     @Test
+    public void testHasNextThrowsTerminalError() {
+        // Consumers iterate with while (hasNext()), so hasNext() must raise a terminal error rather
+        // than answering false. Reporting exhaustion presents a query the server rejected as one
+        // that matched nothing, and next() is never reached to raise it.
+        Assertions.assertTimeout(Duration.ofMillis(2000), () -> {
+            try (AsyncRecordStream stream = new AsyncRecordStream(10)) {
+                stream.publish(createResult(1));
+                stream.error(new RuntimeException("Test error"));
+
+                assertTrue(stream.hasNext());
+                stream.next();
+
+                try {
+                    stream.hasNext();
+                    throw new AssertionError("Expected hasNext() to throw the terminal error");
+                }
+                catch (RuntimeException thrown) {
+                    assertEquals("Test error", thrown.getMessage());
+                }
+
+                // Left exhausted, so a caller that catches the error can stop rather than loop.
+                assertFalse(stream.hasNext());
+            }
+        });
+    }
+
+    @Test
     public void testErrorWithFullQueueNoHang() {
         // Error with full queue should not hang
         Assertions.assertTimeout(Duration.ofMillis(2000), () -> {
