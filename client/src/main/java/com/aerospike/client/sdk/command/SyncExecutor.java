@@ -58,7 +58,7 @@ public abstract class SyncExecutor {
         Node node;
         AerospikeException exception = null;
         long begin = 0;
-        LatencyType latencyType = cluster.isExtendedMetricsEnabled()? getLatencyType() : LatencyType.NONE;
+        LatencyType latencyType = cluster.isMetricsOperationalEnabled()? getLatencyType() : LatencyType.NONE;
         boolean isClientTimeout;
 
         // Execute command until successful, timed out or maximum iterations have been reached.

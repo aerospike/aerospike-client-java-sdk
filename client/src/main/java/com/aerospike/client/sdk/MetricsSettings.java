@@ -16,14 +16,12 @@
  */
 package com.aerospike.client.sdk;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import com.aerospike.client.sdk.ExtendedMetricsSettings.ExtendedMetricsTweaks;
+import com.aerospike.client.sdk.MetricsExtended.MetricsExtendedTweaks;
 import com.aerospike.client.sdk.metrics.MetricsListener;
-import com.aerospike.client.sdk.metrics.MetricsTier;
 
 /**
  * Metrics settings that apply to an entire Cluster instance.
@@ -31,41 +29,22 @@ import com.aerospike.client.sdk.metrics.MetricsTier;
 public class MetricsSettings {
     private final MetricsListener listener;
     private final Map<String,String> labels;
-    private final Duration latencyWarn;
-    private final Duration connectCreateWarn;
     private final String reportDir;
     private final Long reportSizeLimit;
     private final Double exportSampleRate;
-    private final Integer interval;
-    private final Integer batchSizeWarn;
-    private final Integer shortQueryRecordsMax;
-    private final Integer longQueryRecordsMin;
+    private final Integer exportInterval;
     private final Boolean enabled;
-    private final ExtendedMetricsSettings extended;
-    private final MetricsTier tier;
+    private final MetricsExtended extended;
 
     MetricsSettings(Builder builder) {
         this.listener = builder.listener;
         this.labels = builder.labels;
-        this.latencyWarn = builder.latencyWarn;
-        this.connectCreateWarn = builder.connectCreateWarn;
         this.reportDir = builder.reportDir;
         this.reportSizeLimit = builder.reportSizeLimit;
         this.exportSampleRate = builder.exportSampleRate;
-        this.interval = builder.interval;
-        this.batchSizeWarn = builder.batchSizeWarn;
-        this.shortQueryRecordsMax = builder.shortQueryRecordsMax;
-        this.longQueryRecordsMin = builder.longQueryRecordsMin;
+        this.exportInterval = builder.exportInterval;
         this.enabled = builder.enabled;
-        this.extended = new ExtendedMetricsSettings(builder.extended);
-
-        if (this.enabled != null && this.enabled) {
-            this.tier = (extended.getEnabled() != null && extended.getEnabled())?
-                MetricsTier.EXTENDED : MetricsTier.STANDARD;
-        }
-        else {
-            this.tier = MetricsTier.NONE;
-        }
+        this.extended = new MetricsExtended(builder.extended);
    }
 
     /**
@@ -89,24 +68,14 @@ public class MetricsSettings {
             ? this.listener : base.listener;
         merged.labels = this.labels != null
             ? this.labels : base.labels;
-        merged.latencyWarn = this.latencyWarn != null
-            ? this.latencyWarn : base.latencyWarn;
-        merged.connectCreateWarn = this.connectCreateWarn != null
-            ? this.connectCreateWarn : base.connectCreateWarn;
         merged.reportDir = this.reportDir != null
             ? this.reportDir : base.reportDir;
         merged.reportSizeLimit = this.reportSizeLimit != null
             ? this.reportSizeLimit : base.reportSizeLimit;
         merged.exportSampleRate = this.exportSampleRate != null
             ? this.exportSampleRate : base.exportSampleRate;
-        merged.interval = this.interval != null
-            ? this.interval : base.interval;
-        merged.batchSizeWarn = this.batchSizeWarn != null
-            ? this.batchSizeWarn : base.batchSizeWarn;
-        merged.shortQueryRecordsMax = this.shortQueryRecordsMax != null
-            ? this.shortQueryRecordsMax : base.shortQueryRecordsMax;
-        merged.longQueryRecordsMin = this.longQueryRecordsMin != null
-            ? this.longQueryRecordsMin : base.longQueryRecordsMin;
+        merged.exportInterval = this.exportInterval != null
+            ? this.exportInterval : base.exportInterval;
         merged.enabled = this.enabled != null
             ? this.enabled : base.enabled;
 
@@ -118,18 +87,12 @@ public class MetricsSettings {
     // Getters
     public MetricsListener getListener() { return listener; }
     public Map<String,String> getLabels() { return labels; }
-    public Duration getLatencyWarn() { return latencyWarn; }
-    public Duration getConnectCreateWarn() { return connectCreateWarn; }
     public String getReportDir() { return reportDir; }
     public Long getReportSizeLimit() { return reportSizeLimit; }
     public Double getExportSampleRate() { return exportSampleRate; }
-    public Integer getInterval() { return interval; }
-    public Integer getBatchSizeWarn() { return batchSizeWarn; }
-    public Integer getShortQueryRecordsMax() { return shortQueryRecordsMax; }
-    public Integer getLongQueryRecordsMin() { return longQueryRecordsMin; }
+    public Integer getExportInterval() { return exportInterval; }
     public Boolean getEnabled() { return enabled; }
-    public ExtendedMetricsSettings getExtended() { return extended; }
-    public MetricsTier getTier() { return tier; }
+    public MetricsExtended getExtended() { return extended; }
 
     @Override
     public boolean equals(Object o) {
@@ -143,24 +106,18 @@ public class MetricsSettings {
         return
             Objects.equals(listener, that.listener) &&
             Objects.equals(labels, that.labels) &&
-            Objects.equals(latencyWarn, that.latencyWarn) &&
-            Objects.equals(connectCreateWarn, that.connectCreateWarn) &&
             Objects.equals(reportDir, that.reportDir) &&
             Objects.equals(reportSizeLimit, that.reportSizeLimit) &&
             Objects.equals(exportSampleRate, that.exportSampleRate) &&
-            Objects.equals(interval, that.interval) &&
-            Objects.equals(batchSizeWarn, that.batchSizeWarn) &&
-            Objects.equals(shortQueryRecordsMax, that.shortQueryRecordsMax) &&
-            Objects.equals(longQueryRecordsMin, that.longQueryRecordsMin) &&
+            Objects.equals(exportInterval, that.exportInterval) &&
             Objects.equals(enabled, that.enabled) &&
             Objects.equals(extended, that.extended);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(listener, labels, latencyWarn, connectCreateWarn, reportDir,
-            reportSizeLimit, exportSampleRate, interval, batchSizeWarn,
-            shortQueryRecordsMax, longQueryRecordsMin, enabled, extended);
+        return Objects.hash(listener, labels, reportDir, reportSizeLimit, exportSampleRate,
+            exportInterval, enabled, extended);
     }
 
     @Override
@@ -168,15 +125,10 @@ public class MetricsSettings {
         return "MetricsSettings{" +
             "listener=" + ((listener != null)? listener.getClass().getName() : "null") +
             ", labels=" + labels +
-            ", latencyWarn=" + latencyWarn.toMillis() + "ms" +
-            ", connectCreateWarn=" + connectCreateWarn.toMillis() + "ms" +
             ", reportDir=" + reportDir +
             ", reportSizeLimit=" + reportSizeLimit +
             ", exportSampleRate=" + exportSampleRate +
-            ", interval=" + interval +
-            ", batchSizeWarn=" + batchSizeWarn +
-            ", shortQueryRecordsMax=" + shortQueryRecordsMax +
-            ", longQueryRecordsMin=" + longQueryRecordsMin +
+            ", exportInterval=" + exportInterval +
             ", enabled=" + enabled +
             ", extended=" + extended +
             '}';
@@ -188,17 +140,12 @@ public class MetricsSettings {
     public static class Builder {
         private MetricsListener listener;
         private Map<String,String> labels;
-        private Duration latencyWarn;
-        private Duration connectCreateWarn;
         private String reportDir;
         private Long reportSizeLimit;
         private Double exportSampleRate;
-        private Integer interval;
-        private Integer batchSizeWarn;
-        private Integer shortQueryRecordsMax;
-        private Integer longQueryRecordsMin;
+        private Integer exportInterval;
         private Boolean enabled;
-        private ExtendedMetricsSettings.Builder extended = ExtendedMetricsSettings.builder();
+        private MetricsExtended.Builder extended = MetricsExtended.builder();
 
         /**
          * Builds the MetricsSettings instance.
@@ -218,17 +165,12 @@ public class MetricsSettings {
     public interface MetricsTweaks {
         MetricsTweaks listener(MetricsListener listener);
         MetricsTweaks labels(Map<String,String> labels);
-        MetricsTweaks latencyWarn(Duration duration);
-        MetricsTweaks connectCreateWarn(Duration duration);
         MetricsTweaks reportDir(String dir);
         MetricsTweaks reportSizeLimit(Long limit);
         MetricsTweaks exportSampleRate(Double rate);
-        MetricsTweaks interval(Integer limit);
-        MetricsTweaks batchSizeWarn(Integer n);
-        MetricsTweaks shortQueryRecordsMax(Integer n);
-        MetricsTweaks longQueryRecordsMin(Integer n);
+        MetricsTweaks exportInterval(Integer limit);
         MetricsTweaks enabled(Boolean b);
-        MetricsTweaks extended(Consumer<ExtendedMetricsTweaks> configurator);
+        MetricsTweaks extended(Consumer<MetricsExtendedTweaks> configurator);
     }
 
     // -----------------------------------------------------------------------------------
@@ -255,18 +197,6 @@ public class MetricsSettings {
         }
 
         @Override
-        public MetricsTweaks latencyWarn(Duration duration) {
-            builder.latencyWarn = duration;
-            return this;
-        }
-
-        @Override
-        public MetricsTweaks connectCreateWarn(Duration duration) {
-            builder.connectCreateWarn = duration;
-            return this;
-        }
-
-        @Override
         public MetricsTweaks reportDir(String dir) {
             builder.reportDir = dir;
             return this;
@@ -285,26 +215,8 @@ public class MetricsSettings {
         }
 
         @Override
-        public MetricsTweaks interval(Integer interval) {
-            builder.interval = interval;
-            return this;
-        }
-
-        @Override
-        public MetricsTweaks batchSizeWarn(Integer n) {
-            builder.batchSizeWarn = n;
-            return this;
-        }
-
-        @Override
-        public MetricsTweaks shortQueryRecordsMax(Integer n) {
-            builder.shortQueryRecordsMax = n;
-            return this;
-        }
-
-        @Override
-        public MetricsTweaks longQueryRecordsMin(Integer n) {
-            builder.longQueryRecordsMin = n;
+        public MetricsTweaks exportInterval(Integer interval) {
+            builder.exportInterval = interval;
             return this;
         }
 
@@ -315,8 +227,8 @@ public class MetricsSettings {
         }
 
         @Override
-        public MetricsTweaks extended(Consumer<ExtendedMetricsTweaks> configurator) {
-            configurator.accept(new ExtendedMetricsSettings.ExtendedMetricsTweaksImpl(builder.extended));
+        public MetricsTweaks extended(Consumer<MetricsExtendedTweaks> configurator) {
+            configurator.accept(new MetricsExtended.MetricsExtendedTweaksImpl(builder.extended));
             return this;
         }
     }

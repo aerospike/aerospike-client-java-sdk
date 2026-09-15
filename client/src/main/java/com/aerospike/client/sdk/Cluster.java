@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.metrics.MetricsListener;
-import com.aerospike.client.sdk.metrics.MetricsTier;
 import com.aerospike.client.sdk.metrics.MetricsWriter;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
@@ -82,7 +81,8 @@ public class Cluster implements Closeable {
     private boolean versionGE812;
     private boolean versionGE82;
     private boolean metricsEnabled;
-    private boolean extendedMetricsEnabled;
+    private boolean metricsOperationalEnabled;
+    private boolean metricsUsageEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
@@ -307,12 +307,12 @@ public class Cluster implements Closeable {
         if (settings.getMetrics() != null) {
             MetricsSettings metrics = settings.getMetrics();
 
-            if (metrics.getTier() != MetricsTier.NONE && !metricsEnabled) {
+            if (metrics.getEnabled() && !metricsEnabled) {
                 synchronized(metricsLock) {
                     enableMetricsInternal(metrics);
                 }
             }
-            else if (metrics.getTier() == MetricsTier.NONE && metricsEnabled) {
+            else if (!metrics.getEnabled() && metricsEnabled) {
                 synchronized(metricsLock) {
                     disableMetricsInternal();
                 }
@@ -378,7 +378,9 @@ public class Cluster implements Closeable {
             this.metricsListener.onDisable(this);
         }
 
-        if (settings.getTier() == MetricsTier.EXTENDED) {
+        MetricsExtended me = settings.getExtended();
+
+        if (me.getOperational().getEnabled()) {
             Node[] nodeArray = nodes;
 
             for (Node node : nodeArray) {
@@ -388,7 +390,8 @@ public class Cluster implements Closeable {
 
         this.metricsListener.onEnable(this, settings);
         this.metricsEnabled = true;
-        this.extendedMetricsEnabled = settings.getTier() == MetricsTier.EXTENDED;
+        this.metricsOperationalEnabled = me.getOperational().getEnabled();
+        this.metricsUsageEnabled = me.getUsage().getEnabled();
 
         if (logMetrics.isInfoEnabled()) {
             logMetrics.info("Metrics enabled.");
@@ -409,7 +412,7 @@ public class Cluster implements Closeable {
     private void disableMetricsInternal() {
         if (metricsEnabled) {
             metricsEnabled = false;
-            extendedMetricsEnabled = false;
+            metricsOperationalEnabled = false;
             metricsListener.onDisable(this);
 
             if (log.isInfoEnabled()) {
@@ -423,8 +426,8 @@ public class Cluster implements Closeable {
     /**
      * Return if extended metrics is enabled.
      */
-    public boolean isExtendedMetricsEnabled() {
-        return extendedMetricsEnabled;
+    public boolean isMetricsOperationalEnabled() {
+        return metricsOperationalEnabled;
     }
 
     /**
@@ -604,7 +607,7 @@ public class Cluster implements Closeable {
      * Increment command count when metrics are enabled.
      */
     public final void addCommandCount() {
-        if (extendedMetricsEnabled) {
+        if (metricsOperationalEnabled) {
             commandCount.increment();
         }
     }
@@ -830,7 +833,7 @@ public class Cluster implements Closeable {
         MetricsSettings ms = effectiveSystemSettings.getMetrics();
 
         synchronized(metricsLock) {
-            if (metricsEnabled && (tendCount % ms.getInterval()) == 0) {
+            if (metricsEnabled && (tendCount % ms.getExportInterval()) == 0) {
                 metricsListener.onSnapshot(this);
             }
         }

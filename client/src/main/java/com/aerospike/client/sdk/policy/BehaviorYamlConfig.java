@@ -325,37 +325,18 @@ public class BehaviorYamlConfig {
 
     public static class SystemMetricsConfig {
         private Map<String,String> labels;
-        private Duration latencyWarn;
-        private Duration connectCreateWarn;
         private String reportDir;
         private Long reportSizeLimit;
         private Double exportSampleRate;
-        private Integer interval;
-        private Integer batchSizeWarn;
-        private Integer shortQueryRecordsMax;
-        private Integer longQueryRecordsMin;
+        private Integer exportInterval;
         private Boolean enabled;
-        private ExtendedMetricsConfig extended;
+        private MetricsExtendedConfig extended;
 
         public Map<String, String> getLabels() {
             return labels;
         }
         public void setLabels(Map<String, String> labels) {
             this.labels = labels;
-        }
-
-        public Duration getLatencyWarn() {
-            return latencyWarn;
-        }
-        public void setLatencyWarn(Duration latencyWarn) {
-            this.latencyWarn = latencyWarn;
-        }
-
-        public Duration getConnectCreateWarn() {
-            return connectCreateWarn;
-        }
-        public void setConnectCreateWarn(Duration connectCreateWarn) {
-            this.connectCreateWarn = connectCreateWarn;
         }
 
         public String getReportDir() {
@@ -379,32 +360,11 @@ public class BehaviorYamlConfig {
             this.exportSampleRate = exportSampleRate;
         }
 
-        public Integer getInterval() {
-            return interval;
+        public Integer getExportInterval() {
+            return exportInterval;
         }
-        public void setInterval(Integer interval) {
-            this.interval = interval;
-        }
-
-        public Integer getBatchSizeWarn() {
-            return batchSizeWarn;
-        }
-        public void setBatchSizeWarn(Integer batchSizeWarn) {
-            this.batchSizeWarn = batchSizeWarn;
-        }
-
-        public Integer getShortQueryRecordsMax() {
-            return shortQueryRecordsMax;
-        }
-        public void setShortQueryRecordsMax(Integer shortQueryRecordsMax) {
-            this.shortQueryRecordsMax = shortQueryRecordsMax;
-        }
-
-        public Integer getLongQueryRecordsMin() {
-            return longQueryRecordsMin;
-        }
-        public void setLongQueryRecordsMin(Integer longQueryRecordsMin) {
-            this.longQueryRecordsMin = longQueryRecordsMin;
+        public void setExportInterval(Integer interval) {
+            this.exportInterval = interval;
         }
 
         public Boolean getEnabled() {
@@ -414,15 +374,34 @@ public class BehaviorYamlConfig {
             this.enabled = enabled;
         }
 
-        public ExtendedMetricsConfig getExtended() {
+        public MetricsExtendedConfig getExtended() {
             return extended;
         }
-        public void setExtended(ExtendedMetricsConfig extended) {
+        public void setExtended(MetricsExtendedConfig extended) {
             this.extended = extended;
         }
     }
 
-    public static class ExtendedMetricsConfig {
+    public static class MetricsExtendedConfig {
+        private MetricsOperationalConfig operational;
+        private MetricsUsageConfig usage;
+
+        public MetricsOperationalConfig getOperational() {
+            return operational;
+        }
+        public void setOperational(MetricsOperationalConfig operational) {
+            this.operational = operational;
+        }
+
+        public MetricsUsageConfig getUsage() {
+            return usage;
+        }
+        public void setUsage(MetricsUsageConfig usage) {
+            this.usage = usage;
+        }
+    }
+
+    public static class MetricsOperationalConfig {
         private TimeUnit latencyUnit;
         private Integer latencyColumns;
         private Integer latencyShift;
@@ -448,6 +427,17 @@ public class BehaviorYamlConfig {
         public void setLatencyShift(Integer latencyShift) {
             this.latencyShift = latencyShift;
         }
+
+        public Boolean getEnabled() {
+            return enabled;
+        }
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
+    public static class MetricsUsageConfig {
+        private Boolean enabled;
 
         public Boolean getEnabled() {
             return enabled;

@@ -33,7 +33,8 @@ import org.slf4j.LoggerFactory;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
-import com.aerospike.client.sdk.ExtendedMetricsSettings;
+import com.aerospike.client.sdk.MetricsExtended;
+import com.aerospike.client.sdk.MetricsOperational;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.MetricsSettings;
@@ -83,10 +84,11 @@ public final class MetricsWriter implements MetricsListener {
         this.sb = new StringBuilder(8192);
 		this.maxSize = settings.getReportSizeLimit();
 
-		ExtendedMetricsSettings extended = settings.getExtended();
-		this.latencyUnit = extended.getLatencyUnit();
-		this.latencyColumns = extended.getLatencyColumns();
-		this.latencyShift = extended.getLatencyShift();
+		MetricsExtended extended = settings.getExtended();
+        MetricsOperational operational = extended.getOperational();
+		this.latencyUnit = operational.getLatencyUnit();
+		this.latencyColumns = operational.getLatencyColumns();
+		this.latencyShift = operational.getLatencyShift();
 
 		try {
 			Files.createDirectories(Paths.get(dir));

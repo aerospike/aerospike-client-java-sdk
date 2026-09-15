@@ -20,15 +20,15 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Extended metrics settings.
+ * Metrics extended operational settings.
  */
-public class ExtendedMetricsSettings {
+public class MetricsOperational {
     private final TimeUnit latencyUnit;
     private final Integer latencyColumns;
     private final Integer latencyShift;
     private final Boolean enabled;
 
-    ExtendedMetricsSettings(Builder builder) {
+    MetricsOperational(Builder builder) {
         this.latencyUnit = builder.latencyUnit;
         this.latencyColumns = builder.latencyColumns;
         this.latencyShift = builder.latencyShift;
@@ -36,7 +36,7 @@ public class ExtendedMetricsSettings {
     }
 
     /**
-     * Creates a new builder for MetricsSettings.
+     * Create a new builder.
      */
     public static Builder builder() {
         return new Builder();
@@ -46,7 +46,7 @@ public class ExtendedMetricsSettings {
      * Merges this settings instance with a base, using base values for any null fields.
      * This enables the 4-level priority hierarchy.
      */
-    Builder mergeWith(ExtendedMetricsSettings base) {
+    Builder mergeWith(MetricsOperational base) {
         Builder merged = builder();
 
         merged.latencyUnit = this.latencyUnit != null
@@ -75,7 +75,7 @@ public class ExtendedMetricsSettings {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ExtendedMetricsSettings that = (ExtendedMetricsSettings) o;
+        MetricsOperational that = (MetricsOperational) o;
         return
             Objects.equals(latencyUnit, that.latencyUnit) &&
             Objects.equals(latencyColumns, that.latencyColumns) &&
@@ -90,7 +90,7 @@ public class ExtendedMetricsSettings {
 
     @Override
     public String toString() {
-        return "ExtendedMetricsSettings{" +
+        return "MetricsOperational{" +
             "latencyUnit=" + latencyUnit+
             ", latencyColumns=" + latencyColumns +
             ", latencyShift=" + latencyShift +
@@ -107,8 +107,8 @@ public class ExtendedMetricsSettings {
         private Integer latencyShift;
         private Boolean enabled;
 
-        public ExtendedMetricsSettings build() {
-            return new ExtendedMetricsSettings(this);
+        public MetricsOperational build() {
+            return new MetricsOperational(this);
         }
     }
 
@@ -119,44 +119,44 @@ public class ExtendedMetricsSettings {
     /**
      * Interface for configuring metrics signal related settings.
      */
-    public interface ExtendedMetricsTweaks {
-        ExtendedMetricsTweaks latencyUnit(TimeUnit unit);
-        ExtendedMetricsTweaks latencyColumns(Integer limit);
-        ExtendedMetricsTweaks latencyShift(Integer limit);
-        ExtendedMetricsTweaks enabled(Boolean b);
+    public interface MetricsOperationalTweaks {
+        MetricsOperationalTweaks latencyUnit(TimeUnit unit);
+        MetricsOperationalTweaks latencyColumns(Integer limit);
+        MetricsOperationalTweaks latencyShift(Integer limit);
+        MetricsOperationalTweaks enabled(Boolean b);
     }
 
     // -----------------------------------------------------------------------------------
     // Internal implementations of tweaks interfaces
     // -----------------------------------------------------------------------------------
 
-    static class ExtendedMetricsTweaksImpl implements ExtendedMetricsTweaks {
+    static class MetricsOperationalTweaksImpl implements MetricsOperationalTweaks {
         private final Builder builder;
 
-        ExtendedMetricsTweaksImpl(Builder builder) {
+        MetricsOperationalTweaksImpl(Builder builder) {
             this.builder = builder;
         }
 
         @Override
-        public ExtendedMetricsTweaks latencyUnit(TimeUnit unit) {
+        public MetricsOperationalTweaks latencyUnit(TimeUnit unit) {
             builder.latencyUnit = unit;
             return this;
         }
 
         @Override
-        public ExtendedMetricsTweaks latencyColumns(Integer n) {
+        public MetricsOperationalTweaks latencyColumns(Integer n) {
             builder.latencyColumns = n;
             return this;
         }
 
         @Override
-        public ExtendedMetricsTweaks latencyShift(Integer n) {
+        public MetricsOperationalTweaks latencyShift(Integer n) {
             builder.latencyShift = n;
             return this;
         }
 
         @Override
-        public ExtendedMetricsTweaks enabled(Boolean b) {
+        public MetricsOperationalTweaks enabled(Boolean b) {
             builder.enabled = b;
             return this;
         }

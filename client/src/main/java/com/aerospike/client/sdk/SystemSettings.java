@@ -118,21 +118,21 @@ public class SystemSettings {
         )
         .metrics(ops -> ops
             .labels(new HashMap<>())
-            .latencyWarn(Duration.ofMillis(50))
-            .connectCreateWarn(Duration.ofMillis(500))
             .reportDir(".")
             .reportSizeLimit(0L)
             .exportSampleRate(1.0)
-            .interval(30)
-            .batchSizeWarn(500)
-            .shortQueryRecordsMax(100)
-            .longQueryRecordsMin(10)
+            .exportInterval(30)
             .enabled(false)
             .extended(ops2 -> ops2
-                .latencyUnit(TimeUnit.MILLISECONDS)
-                .latencyColumns(7)
-                .latencyShift(1)
-                .enabled(false)
+                .operational(ops3 -> ops3
+                    .latencyUnit(TimeUnit.MILLISECONDS)
+                    .latencyColumns(7)
+                    .latencyShift(1)
+                    .enabled(false)
+                )
+                .usage(ops4 -> ops4
+                    .enabled(false)
+                )
             )
         )
         .build();

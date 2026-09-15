@@ -531,12 +531,6 @@ public class BehaviorYamlLoader {
                 if (metricsConfig.getLabels() != null) {
                     ops.labels(metricsConfig.getLabels());
                 }
-                if (metricsConfig.getLatencyWarn() != null) {
-                    ops.latencyWarn(metricsConfig.getLatencyWarn());
-                }
-                if (metricsConfig.getConnectCreateWarn() != null) {
-                    ops.connectCreateWarn(metricsConfig.getConnectCreateWarn());
-                }
                 if (metricsConfig.getReportDir() != null) {
                     ops.reportDir(metricsConfig.getReportDir());
                 }
@@ -546,35 +540,39 @@ public class BehaviorYamlLoader {
                 if (metricsConfig.getExportSampleRate() != null) {
                     ops.exportSampleRate(metricsConfig.getExportSampleRate());
                 }
-                if (metricsConfig.getInterval() != null) {
-                    ops.interval(metricsConfig.getInterval());
-                }
-                if (metricsConfig.getBatchSizeWarn() != null) {
-                    ops.batchSizeWarn(metricsConfig.getBatchSizeWarn());
-                }
-                if (metricsConfig.getShortQueryRecordsMax() != null) {
-                    ops.shortQueryRecordsMax(metricsConfig.getShortQueryRecordsMax());
-                }
-                if (metricsConfig.getLongQueryRecordsMin() != null) {
-                    ops.longQueryRecordsMin(metricsConfig.getLongQueryRecordsMin());
+                if (metricsConfig.getExportInterval() != null) {
+                    ops.exportInterval(metricsConfig.getExportInterval());
                 }
                 if (metricsConfig.getEnabled() != null) {
                     ops.enabled(metricsConfig.getEnabled());
                 }
                 if (metricsConfig.getExtended() != null) {
-                    BehaviorYamlConfig.ExtendedMetricsConfig extendedConfig = metricsConfig.getExtended();
+                    BehaviorYamlConfig.MetricsExtendedConfig extendedConfig = metricsConfig.getExtended();
                     ops.extended(ext -> {
-                        if (extendedConfig.getLatencyUnit() != null) {
-                            ext.latencyUnit(extendedConfig.getLatencyUnit());
+                        if (extendedConfig.getOperational() != null) {
+                            BehaviorYamlConfig.MetricsOperationalConfig operationalConfig = extendedConfig.getOperational();
+                            ext.operational(opc -> {
+                                if (operationalConfig.getLatencyUnit() != null) {
+                                    opc.latencyUnit(operationalConfig.getLatencyUnit());
+                                }
+                                if (operationalConfig.getLatencyColumns() != null) {
+                                    opc.latencyColumns(operationalConfig.getLatencyColumns());
+                                }
+                                if (operationalConfig.getLatencyShift() != null) {
+                                    opc.latencyShift(operationalConfig.getLatencyShift());
+                                }
+                                if (operationalConfig.getEnabled() != null) {
+                                    opc.enabled(operationalConfig.getEnabled());
+                                }
+                            });
                         }
-                        if (extendedConfig.getLatencyColumns() != null) {
-                            ext.latencyColumns(extendedConfig.getLatencyColumns());
-                        }
-                        if (extendedConfig.getLatencyShift() != null) {
-                            ext.latencyShift(extendedConfig.getLatencyShift());
-                        }
-                        if (extendedConfig.getEnabled() != null) {
-                            ext.enabled(extendedConfig.getEnabled());
+                        if (extendedConfig.getUsage() != null) {
+                            BehaviorYamlConfig.MetricsUsageConfig usageConfig = extendedConfig.getUsage();
+                            ext.usage(usage -> {
+                                if (usageConfig.getEnabled() != null) {
+                                    usage.enabled(usageConfig.getEnabled());
+                                }
+                            });
                         }
                     });
                 }

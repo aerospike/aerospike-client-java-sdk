@@ -20,7 +20,7 @@ package com.aerospike.client.sdk.metrics;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import com.aerospike.client.sdk.ExtendedMetricsSettings;
+import com.aerospike.client.sdk.MetricsOperational;
 
 public class Histograms {
 	private final ConcurrentHashMap<String, LatencyBuckets[]> histoMap = new ConcurrentHashMap<>();
@@ -34,7 +34,7 @@ public class Histograms {
 	 * A Histograms object is a container for a map of namespaces to histograms (as defined by their associated
 	 * LatencyBuckets) & their histogram properties
 	 */
-	public Histograms(ExtendedMetricsSettings settings) {
+	public Histograms(MetricsOperational settings) {
         this.latencyUnit = settings.getLatencyUnit();
         this.latencyColumns = settings.getLatencyColumns();
 		this.latencyShift = settings.getLatencyShift();
