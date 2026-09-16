@@ -32,7 +32,7 @@ public class UdfExecutor extends SyncExecutor {
     public UdfExecutor(Cluster cluster, UdfCommand cmd) {
         super(cluster, cmd);
         this.udf = cmd;
-        cluster.addCommandCount();
+        cluster.addCommandCountSingle();
     }
 
     @Override

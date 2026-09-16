@@ -154,7 +154,7 @@ public final class MetricsWriter implements MetricsListener {
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
 		sb.append(" header(3)");
-		sb.append(" cluster[name,clientType,clientVersion,appId,label[],cpu,mem,recoverQueueSize,invalidNodeCount,commandCount,retryCount,node[]]");
+		sb.append(" cluster[name,clientType,clientVersion,appId,label[],cpu,mem,recoverQueueSize,invalidNodeCount,commandCountSingle,commandCountBatch,commandCountQuery,retryCount,node[]]");
 		sb.append(" label[name,value]");
 		sb.append(" node[name,address,port,conn,namespace[]]");
 		sb.append(" conn[inUse,inPool,opened,closed]");
@@ -222,8 +222,12 @@ public final class MetricsWriter implements MetricsListener {
 		sb.append(cluster.getRecoverQueueSize());
 		sb.append(',');
 		sb.append(cluster.getInvalidNodeCount()); // Cumulative. Not reset on each interval.
+        sb.append(',');
+        sb.append(cluster.getCommandCountSingle());  // Cumulative. Not reset on each interval.
+        sb.append(',');
+        sb.append(cluster.getCommandCountBatch());  // Cumulative. Not reset on each interval.
 		sb.append(',');
-		sb.append(cluster.getCommandCount());  // Cumulative. Not reset on each interval.
+		sb.append(cluster.getCommandCountQuery());  // Cumulative. Not reset on each interval.
 		sb.append(',');
 		sb.append(cluster.getRetryCount()); // Cumulative. Not reset on each interval.
 		sb.append(",[");

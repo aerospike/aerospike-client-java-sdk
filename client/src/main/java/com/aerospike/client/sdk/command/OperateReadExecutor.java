@@ -31,7 +31,7 @@ public class OperateReadExecutor extends SyncExecutor {
     public OperateReadExecutor(Cluster cluster, OperateReadCommand cmd) {
         super(cluster, cmd);
         this.operate = cmd;
-        cluster.addCommandCount();
+        cluster.addCommandCountSingle();
     }
 
     @Override

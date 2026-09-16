@@ -67,7 +67,9 @@ public class Cluster implements Closeable {
     volatile Node[] nodes;
     volatile HashMap<String,Partitions> partitionMap;
     private final ThreadFactory threadFactory;
-    private final LongAdder commandCount;
+    private final LongAdder commandCountSingle; // feature.shape.point
+    private final LongAdder commandCountBatch;  // feature.shape.batch
+    private final LongAdder commandCountQuery;  // feature.shape.query
     private final LongAdder retryCount;
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
@@ -89,7 +91,9 @@ public class Cluster implements Closeable {
         nodes = new Node[0];
         partitionMap = new HashMap<String,Partitions>();
         threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
-        commandCount = new LongAdder();
+        commandCountSingle = new LongAdder();
+        commandCountBatch = new LongAdder();
+        commandCountQuery = new LongAdder();
         retryCount = new LongAdder();
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
@@ -413,6 +417,7 @@ public class Cluster implements Closeable {
         if (metricsEnabled) {
             metricsEnabled = false;
             metricsOperationalEnabled = false;
+            metricsUsageEnabled = false;
             metricsListener.onDisable(this);
 
             if (log.isInfoEnabled()) {
@@ -606,17 +611,49 @@ public class Cluster implements Closeable {
     /**
      * Increment command count when metrics are enabled.
      */
-    public final void addCommandCount() {
-        if (metricsOperationalEnabled) {
-            commandCount.increment();
+    public final void addCommandCountSingle() {
+        if (metricsUsageEnabled) {
+            commandCountSingle.increment();
         }
     }
 
     /**
      * Return command count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getCommandCount() {
-        return commandCount.longValue();
+    public final long getCommandCountSingle() {
+        return commandCountSingle.longValue();
+    }
+
+    /**
+     * Increment command count when metrics are enabled.
+     */
+    public final void addCommandCountBatch() {
+        if (metricsUsageEnabled) {
+            commandCountBatch.increment();
+        }
+    }
+
+    /**
+     * Return command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getCommandCountBatch() {
+        return commandCountBatch.longValue();
+    }
+
+    /**
+     * Increment command count when metrics are enabled.
+     */
+    public final void addCommandCountQuery() {
+        if (metricsUsageEnabled) {
+            commandCountQuery.increment();
+        }
+    }
+
+    /**
+     * Return command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getCommandCountQuery() {
+        return commandCountQuery.longValue();
     }
 
     /**

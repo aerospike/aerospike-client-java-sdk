@@ -58,7 +58,7 @@ public final class QueryExecutor implements IQueryExecutor {
         this.done = new AtomicBoolean();
         this.random = new RandomShift();
 
-        cluster.addCommandCount();
+        cluster.addCommandCountQuery();
     }
 
     public void execute() {
