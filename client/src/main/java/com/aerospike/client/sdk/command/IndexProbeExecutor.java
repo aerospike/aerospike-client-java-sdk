@@ -44,7 +44,6 @@ public final class IndexProbeExecutor extends SyncExecutor {
         this.probe = cmd;
         this.nodes = cluster.validateNodes();
         this.nodeIndex = new RandomShift().nextInt(nodes.length);
-        cluster.addCommandCountSingle();
     }
 
     @Override

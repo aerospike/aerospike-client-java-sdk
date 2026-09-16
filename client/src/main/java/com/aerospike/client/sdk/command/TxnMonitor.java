@@ -164,6 +164,9 @@ public final class TxnMonitor {
             args, OpType.UPSERT, 0, txn.getTimeout(), null, false, settings
             );
 
+        cluster.addSingleCount();
+        cluster.addBlockingCount();
+
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);
         exec.execute();
     }

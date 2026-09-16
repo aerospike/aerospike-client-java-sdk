@@ -93,6 +93,9 @@ public final class IndexProbeCommand extends Command {
      * Run explain against the cluster and return the server query plan.
      */
     public QueryPlan execute() {
+        cluster.addSingleCount();
+        cluster.addBlockingCount();
+
         IndexProbeExecutor exec = new IndexProbeExecutor(cluster, this);
         exec.execute();
         return exec.getPlan();

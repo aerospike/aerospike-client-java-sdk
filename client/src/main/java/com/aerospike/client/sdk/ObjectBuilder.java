@@ -1091,6 +1091,9 @@ public class ObjectBuilder<T> {
                 final T element = elements.get(i);
                 final int idx = i;
 
+                cluster.addSingleCount();
+                cluster.addBlockingCount();
+
                 es.submit(() -> {
                     try {
                         Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
@@ -1185,6 +1188,9 @@ public class ObjectBuilder<T> {
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
+        cluster.addSingleCount();
+        cluster.addBlockingCount();
+
         try {
             Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
@@ -1255,6 +1261,9 @@ public class ObjectBuilder<T> {
         T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
         boolean isBatch
     ) {
+        cluster.addSingleCount();
+        cluster.addDeferredCount();
+
         cluster.startVirtualThread(() -> {
             try {
                 Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);

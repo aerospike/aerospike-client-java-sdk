@@ -67,9 +67,12 @@ public class Cluster implements Closeable {
     volatile Node[] nodes;
     volatile HashMap<String,Partitions> partitionMap;
     private final ThreadFactory threadFactory;
-    private final LongAdder commandCountSingle; // feature.shape.point
-    private final LongAdder commandCountBatch;  // feature.shape.batch
-    private final LongAdder commandCountQuery;  // feature.shape.query
+    private final LongAdder singleCount;     // feature.shape.point
+    private final LongAdder batchCount;      // feature.shape.batch
+    private final LongAdder queryCount;      // feature.shape.query
+    private final LongAdder blockingCount;   // feature.api.blocking
+    private final LongAdder deferredCount;   // feature.api.deferred
+    private final LongAdder backgroundCount; // feature.api.background
     private final LongAdder retryCount;
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
@@ -91,9 +94,12 @@ public class Cluster implements Closeable {
         nodes = new Node[0];
         partitionMap = new HashMap<String,Partitions>();
         threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
-        commandCountSingle = new LongAdder();
-        commandCountBatch = new LongAdder();
-        commandCountQuery = new LongAdder();
+        singleCount = new LongAdder();
+        batchCount = new LongAdder();
+        queryCount = new LongAdder();
+        blockingCount = new LongAdder();
+        deferredCount = new LongAdder();
+        backgroundCount = new LongAdder();
         retryCount = new LongAdder();
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
@@ -609,51 +615,99 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment command count when metrics are enabled.
+     * Increment single key command count when usage metrics are enabled.
      */
-    public final void addCommandCountSingle() {
+    public final void addSingleCount() {
         if (metricsUsageEnabled) {
-            commandCountSingle.increment();
+            singleCount.increment();
         }
     }
 
     /**
-     * Return command count. The value is cumulative and not reset per metrics interval.
+     * Return single key command count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getCommandCountSingle() {
-        return commandCountSingle.longValue();
+    public final long getSingleCount() {
+        return singleCount.longValue();
     }
 
     /**
-     * Increment command count when metrics are enabled.
+     * Increment batch command count when usage metrics are enabled.
      */
-    public final void addCommandCountBatch() {
+    public final void addBatchCount() {
         if (metricsUsageEnabled) {
-            commandCountBatch.increment();
+            batchCount.increment();
         }
     }
 
     /**
-     * Return command count. The value is cumulative and not reset per metrics interval.
+     * Return batch command count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getCommandCountBatch() {
-        return commandCountBatch.longValue();
+    public final long getBatchCount() {
+        return batchCount.longValue();
     }
 
     /**
-     * Increment command count when metrics are enabled.
+     * Increment query command count when usage metrics are enabled.
      */
-    public final void addCommandCountQuery() {
+    public final void addQueryCount() {
         if (metricsUsageEnabled) {
-            commandCountQuery.increment();
+            queryCount.increment();
         }
     }
 
     /**
-     * Return command count. The value is cumulative and not reset per metrics interval.
+     * Return query command count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getCommandCountQuery() {
-        return commandCountQuery.longValue();
+    public final long getQueryCount() {
+        return queryCount.longValue();
+    }
+
+    /**
+     * Increment sync command count when usage metrics are enabled.
+     */
+    public final void addBlockingCount() {
+        if (metricsUsageEnabled) {
+            blockingCount.increment();
+        }
+    }
+
+    /**
+     * Return sync command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getBlockingCount() {
+        return blockingCount.longValue();
+    }
+
+    /**
+     * Increment async command count when usage metrics are enabled.
+     */
+    public final void addDeferredCount() {
+        if (metricsUsageEnabled) {
+            deferredCount.increment();
+        }
+    }
+
+    /**
+     * Return async command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getDeferredCount() {
+        return deferredCount.longValue();
+    }
+
+    /**
+     * Increment background command count when usage metrics are enabled.
+     */
+    public final void addBackgroundCount() {
+        if (metricsUsageEnabled) {
+            backgroundCount.increment();
+        }
+    }
+
+    /**
+     * Return background command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getBackgroundCount() {
+        return backgroundCount.longValue();
     }
 
     /**

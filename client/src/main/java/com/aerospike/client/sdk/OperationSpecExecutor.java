@@ -465,6 +465,9 @@ class OperationSpecExecutor {
         boolean failOnFilteredOut = spec.isFailOnFilteredOut();
         long ttl = resolveTtl(spec, defaultExpirationInSeconds);
 
+        cluster.addSingleCount();
+        cluster.addBlockingCount();
+
         try {
             if (spec.isQuery()) {
                 return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key,

@@ -30,7 +30,6 @@ public class DeleteExecutor extends SyncExecutor {
     public DeleteExecutor(Cluster cluster, WriteCommand cmd) {
         super(cluster, cmd);
         this.delete = cmd;
-        cluster.addCommandCountSingle();
     }
 
     @Override

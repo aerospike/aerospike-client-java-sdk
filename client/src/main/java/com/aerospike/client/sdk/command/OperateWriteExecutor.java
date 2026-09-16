@@ -31,7 +31,6 @@ public class OperateWriteExecutor extends SyncExecutor {
     public OperateWriteExecutor(Cluster cluster, OperateWriteCommand cmd) {
         super(cluster, cmd);
         this.operate = cmd;
-        cluster.addCommandCountSingle();
     }
 
     @Override

@@ -31,7 +31,6 @@ public final class ReadExecutor extends SyncExecutor {
     public ReadExecutor(Cluster cluster, ReadCommand cmd) {
         super(cluster, cmd);
         this.read = cmd;
-        cluster.addCommandCountSingle();
     }
 
     @Override

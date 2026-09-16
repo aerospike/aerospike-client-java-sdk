@@ -30,7 +30,6 @@ public final class ExistsExecutor extends SyncExecutor {
     public ExistsExecutor(Cluster cluster, ReadCommand cmd) {
         super(cluster, cmd);
         this.read = cmd;
-        cluster.addCommandCountSingle();
     }
 
     @Override

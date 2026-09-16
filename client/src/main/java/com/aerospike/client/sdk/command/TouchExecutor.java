@@ -30,7 +30,6 @@ public class TouchExecutor extends SyncExecutor {
     public TouchExecutor(Cluster cluster, WriteCommand cmd) {
         super(cluster, cmd);
         this.touch = cmd;
-        cluster.addCommandCountSingle();
     }
 
     @Override
