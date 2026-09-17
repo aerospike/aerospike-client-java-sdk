@@ -22,6 +22,9 @@ package com.aerospike.client.sdk.command;
 public enum CommitStatus {
     OK("Commit succeeded"),
     ALREADY_COMMITTED("Already committed"),
+    ALREADY_ABORTED("Already aborted"),
+    VERIFY_FAILED("Transaction verify failed"),
+    MARK_ROLL_FORWARD_ABANDONED("Transaction mark roll forward abandonded"),
     ROLL_FORWARD_ABANDONED("Transaction client roll forward abandoned. Server will eventually commit the transaction."),
     CLOSE_ABANDONED("Transaction has been rolled forward, but transaction client close was abandoned. Server will eventually close the transaction.");
 

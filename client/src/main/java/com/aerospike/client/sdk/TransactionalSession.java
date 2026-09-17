@@ -362,13 +362,15 @@ public class TransactionalSession extends Session{
                 return tr.commit(rollPolicy);
 
             case VERIFIED:
+            case COMMIT_FAILED:
                 return tr.commit(rollPolicy);
 
             case COMMITTED:
                 return CommitStatus.ALREADY_COMMITTED;
 
             case ABORTED:
-                throw AerospikeException.toException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
+                throw AerospikeException.toException(ResultCode.TXN_ALREADY_ABORTED,
+                    "Transaction already aborted");
         }
     }
 
@@ -382,8 +384,11 @@ public class TransactionalSession extends Session{
             case VERIFIED:
                 return tr.abort(rollPolicy);
 
+            case COMMIT_FAILED:
+                throw new AerospikeException.Abort(ResultCode.TXN_FAILED, AbortStatus.COMMIT_FAILED);
+
             case COMMITTED:
-                throw AerospikeException.toException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
+                throw new AerospikeException.Abort(ResultCode.TXN_ALREADY_COMMITTED, AbortStatus.ALREADY_COMMITTED);
 
             case ABORTED:
                 return AbortStatus.ALREADY_ABORTED;

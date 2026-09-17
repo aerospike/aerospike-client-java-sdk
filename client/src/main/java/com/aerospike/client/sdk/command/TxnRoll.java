@@ -171,11 +171,13 @@ public final class TxnRoll {
                     // The transaction was already inDoubt and just failed again,
                     // so the new exception should also be inDoubt.
                     aec.setInDoubt(true);
+                    txn.markCommitFailed();
                 }
                 else if (ae.getInDoubt()){
                     // The current exception is inDoubt.
                     aec.setInDoubt(true);
                     txn.setInDoubt(true);
+                    txn.markCommitFailed();
                 }
                 throw aec;
             }
@@ -185,6 +187,7 @@ public final class TxnRoll {
 
                 if (txn.getInDoubt()) {
                     aec.setInDoubt(true);
+                    txn.markCommitFailed();
                 }
                 throw aec;
             }

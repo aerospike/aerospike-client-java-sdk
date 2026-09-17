@@ -18,6 +18,7 @@ package com.aerospike.client.sdk;
 
 import java.util.List;
 
+import com.aerospike.client.sdk.command.AbortStatus;
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.CommitError;
@@ -858,6 +859,23 @@ public class AerospikeException extends RuntimeException {
             recordsToString(sb, "verify errors:", verifyRecords);
             recordsToString(sb, "roll errors:", rollRecords);
             return msg + sb.toString();
+        }
+    }
+
+    /**
+     * Transaction abort failed.
+     */
+    public static final class Abort extends TransactionException {
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Error status of the attempted commit.
+         */
+        public final AbortStatus status;
+
+        public Abort(int resultCode, AbortStatus status) {
+            super(resultCode, status.str);
+            this.status = status;
         }
     }
 

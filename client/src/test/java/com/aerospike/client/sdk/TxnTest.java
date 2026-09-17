@@ -16,6 +16,10 @@
  */
 package com.aerospike.client.sdk;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -29,6 +33,14 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.AbortStatus;
+import com.aerospike.client.AerospikeException;
+import com.aerospike.client.Bin;
+import com.aerospike.client.Key;
+import com.aerospike.client.Record;
+import com.aerospike.client.ResultCode;
+import com.aerospike.client.policy.Policy;
+import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.policy.Behavior;
 
@@ -225,6 +237,124 @@ public class TxnTest extends ClusterTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void txnAbortBlockedAfterCommitFailed() {
+        Key key = args.set.id("txnAbortBlockedAfterCommitFailed");
+
+        session.upsert(key)
+            .bin(binName).setTo("val1")
+            .execute();
+
+        session.doInTransaction(txnSession -> {
+            txnSession.upsert(key)
+                .bin(binName).setTo("val2")
+                .execute();
+
+            // Simulate an in-doubt outcome before mark-roll-forward fails.
+       });
+
+        WritePolicy wp = client.copyWritePolicyDefault();
+        wp.txn = txn;
+        client.put(wp, key, new Bin(binName, "val2"));
+
+        // Simulate an in-doubt outcome before mark-roll-forward fails.
+        txn.setInDoubt(true);
+        deleteTxnMonitor(txn);
+
+        try {
+            client.commit(txn);
+            fail("Expected commit to fail");
+        }
+        catch (AerospikeException.Commit ce) {
+            assertTrue(ce.getInDoubt());
+            assertEquals(Txn.State.COMMIT_FAILED, txn.getState());
+        }
+
+        try {
+            client.abort(txn);
+            fail("Expected abort to be blocked");
+        }
+        catch (AerospikeException ae) {
+            assertEquals(ResultCode.TXN_FAILED, ae.getResultCode());
+            assertEquals(Txn.State.COMMIT_FAILED, txn.getState());
+        }
+
+        // Commit retry is allowed from COMMIT_FAILED (may fail again at mark-roll-forward).
+        try {
+            client.commit(txn);
+        }
+        catch (AerospikeException.Commit ce) {
+            assertEquals(Txn.State.COMMIT_FAILED, txn.getState());
+        }
+        catch (AerospikeException ae) {
+            fail("Unexpected commit rejection: " + ae);
+        }
+    }
+
+    @Test
+    public void txnAbortAllowedAfterCleanMarkFailure() {
+        Key key = args.set.id("txnAbortAllowedAfterCleanMarkFailure");
+
+        session.upsert(key)
+            .bin(binName).setTo("val1")
+            .execute();
+
+        Txn txn = new Txn();
+
+        WritePolicy wp = client.copyWritePolicyDefault();
+        wp.txn = txn;
+        client.put(wp, key, new Bin(binName, "val2"));
+
+        deleteTxnMonitor(txn);
+
+        try {
+            client.commit(txn);
+            fail("Expected commit to fail");
+        }
+        catch (AerospikeException.Commit ce) {
+            Throwable cause = ce.getCause();
+
+            assertTrue(cause instanceof AerospikeException);
+            assertEquals(ResultCode.MRT_EXPIRED, ((AerospikeException)cause).getResultCode());
+            assertFalse(ce.getInDoubt());
+            assertFalse(txn.getInDoubt());
+            assertEquals(Txn.State.VERIFIED, txn.getState());
+        }
+
+        assertEquals(AbortStatus.OK, client.abort(txn));
+        assertEquals(Txn.State.ABORTED, txn.getState());
+
+        Record record = client.get(null, key);
+        assertBinEqual(key, record, binName, "val1");
+    }
+
+    @Test
+    public void txnAbortAllowedAfterVerifyFailure() {
+        Key key = args.set.id("txnAbortAllowedAfterVerifyFailure");
+
+        session.upsert(key)
+            .bin(binName).setTo("val1")
+            .execute();
+
+        Txn txn = new Txn();
+
+        Policy rp = client.copyReadPolicyDefault();
+        rp.txn = txn;
+        client.get(rp, key);
+
+        client.put(null, key, new Bin(binName, "val3"));
+
+        try {
+            client.commit(txn);
+            fail("Expected commit to fail");
+        }
+        catch (AerospikeException.Commit ce) {
+            assertEquals(Txn.State.ABORTED, txn.getState());
+        }
+
+        assertEquals(AbortStatus.ALREADY_ABORTED, client.abort(txn));
     }
 
     @Test
