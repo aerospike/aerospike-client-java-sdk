@@ -43,13 +43,12 @@ public class RecordComparator implements Comparator<RecordResult>{
 
     private int compare(int index, Map<String, Object> map1, Map<String, Object> map2) {
         if (index >= sortPropertiesList.size()) {
-            // Arbitrary sort
-            return -1;
+            return 0;
         }
         SortProperties sortProperties = sortPropertiesList.get(index);
 
-        Object o1 = map1.get(sortProperties.name());
-        Object o2 = map2.get(sortProperties.name());
+        Object o1 = map1 == null ? null : map1.get(sortProperties.name());
+        Object o2 = map2 == null ? null : map2.get(sortProperties.name());
 
         if (o1 == null && o2 == null) {
             return compare(index+1, map1, map2);

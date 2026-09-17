@@ -69,8 +69,8 @@ public class PutGetTest extends ClusterTest {
 
         // Write record.
         session.upsert(args.set.id(key))
-            .bins("bin1", "bin2")
-            .values("value1", "value2")
+            .bin("bin1").setTo("value1")
+            .bin("bin2").setTo("value2")
             .execute();
 
         // Query all bins.
@@ -101,8 +101,7 @@ public class PutGetTest extends ClusterTest {
         String key = "getHeader";
 
         session.upsert(args.set.id(key))
-            .bins("mybin")
-            .values("myvalue")
+            .bin("mybin").setTo("myvalue")
             .execute();
 
         RecordStream rs = session.query(args.set.id(key))
@@ -127,8 +126,10 @@ public class PutGetTest extends ClusterTest {
         session.delete(args.set.id(key)).execute();
 
         session.upsert(args.set.id(key))
-            .bins("bin1", "bin2", "bin3", "bin4")
-            .values(false, true, 0, 1)
+            .bin("bin1").setTo(false)
+            .bin("bin2").setTo(true)
+            .bin("bin3").setTo(0)
+            .bin("bin4").setTo(1)
             .execute();
 
         RecordStream rs = session.query(args.set.id(key))
@@ -167,8 +168,7 @@ public class PutGetTest extends ClusterTest {
         }
 
         session.upsert(args.set.id(key))
-            .bins("bb")
-            .values(bytes)
+            .bin("bb").setTo(bytes)
             .execute();
 
         RecordStream rs = session.query(args.set.id(key))

@@ -425,8 +425,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         if (startIncl < 0 || startIncl >= 4096) {
             throw new IllegalArgumentException("Start partition must in the range of 0 to 4095, not " + startIncl);
         }
-        if (endExcl < 1 || startIncl > 4096) {
-            throw new IllegalArgumentException("End partition (exclusive) must in the range of 1 to 4096, not " + startIncl);
+        if (endExcl < 1 || endExcl > 4096) {
+            throw new IllegalArgumentException("End partition (exclusive) must in the range of 1 to 4096, not " + endExcl);
         }
         if (startIncl >= endExcl) {
             throw new IllegalArgumentException(String.format(
@@ -837,9 +837,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * Execute the query synchronously with errors dispatched to the handler.
      * Error results are excluded from the returned stream.
      *
-     * <p>This method executes the query synchronously and dispatches any errors
-     * to the provided handler callback. Only successful results are included
-     * in the returned stream. The query will block until all results are available.</p>
+     * <p>Only successful results are included in the returned stream; errors are routed to
+     * {@code handler} as records are produced. The handler is therefore invoked while the caller
+     * consumes the stream, not eagerly before this method returns, so a caller that abandons the
+     * stream early will not be notified of errors in the records it never read.</p>
      *
      * @param handler the error handler callback (must not be null)
      * @return RecordStream containing only successful results

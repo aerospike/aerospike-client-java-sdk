@@ -16,7 +16,10 @@
  */
 package com.aerospike.client.sdk.exp;
 
+import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.operation.StringRegexFlags;
+import com.aerospike.client.sdk.operation.StringWriteFlags;
 import com.aerospike.client.sdk.util.Pack;
 import com.aerospike.client.sdk.util.Packer;
 
@@ -51,7 +54,7 @@ import com.aerospike.client.sdk.util.Packer;
  * {@link com.aerospike.client.sdk.exp.MapExp#getByKey} (which do take CTX) to extract
  * the leaf, then pass the resulting {@code Exp} as {@code src}.
  * <p>
- * String expressions require server version 8.1.3 or later.
+ * String expressions require server version 8.2.0 or later.
  *
  * <pre>{@code
  * // Filter records whose "name" bin starts with "hello".
@@ -101,6 +104,8 @@ public final class StringExp {
     private static final int REGEX_REPLACE = 66;
     private static final int APPEND = 67;
     private static final int PREPEND = 68;
+    private static final int VALID_WRITE_FLAGS =
+        StringWriteFlags.CREATE_ONLY | StringWriteFlags.UPDATE_ONLY | StringWriteFlags.NO_FAIL;
 
     //-----------------------------------------------------------------
     // Read expressions
@@ -246,6 +251,8 @@ public final class StringExp {
     /**
      * Create expression that tests whether {@code src} begins with {@code prefix}.
      * Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     * Matching is Unicode canonical, not byte-exact: a prefix in a different
+     * normalization form than the source still matches.
      *
      * <pre>{@code
      * Exp matched = StringExp.startsWith(Exp.val("Hello"), Exp.stringBin("text"));
@@ -263,6 +270,8 @@ public final class StringExp {
     /**
      * Create expression that tests whether {@code src} ends with {@code suffix}.
      * Returns a boolean flag: {@code true} on match, {@code false} otherwise.
+     * Matching is Unicode canonical, not byte-exact: a prefix in a different
+     * normalization form than the source still matches.
      *
      * <pre>{@code
      * Exp matched = StringExp.endsWith(Exp.val("World"), Exp.stringBin("text"));
@@ -278,8 +287,10 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that parses {@code src} as an int64. The expression returns
-     * an error if the source cannot be parsed as an integer.
+     * Create expression that parses {@code src} as an int64. Fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_CONVERSION_FAILED} if the source
+     * cannot be parsed as an integer.
      *
      * <pre>{@code
      * // "12345" -> 12345
@@ -295,8 +306,10 @@ public final class StringExp {
     }
 
     /**
-     * Create expression that parses {@code src} as a 64-bit float. The expression
-     * returns an error if the source cannot be parsed as a double.
+     * Create expression that parses {@code src} as a 64-bit float. Fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_CONVERSION_FAILED} if the source
+     * cannot be parsed as a double.
      *
      * <pre>{@code
      * // "3.14" -> 3.14
@@ -450,7 +463,10 @@ public final class StringExp {
 
     /**
      * Create expression that base64-decodes {@code src} and returns the decoded
-     * bytes as a blob.
+     * bytes as a blob. Fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_B64_INVALID} if the source does
+     * not hold valid base64.
      *
      * <pre>{@code
      * // "aGVsbG8=" -> "hello".getBytes()
@@ -520,6 +536,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the modified string
      */
     public static Exp insert(int flags, Exp index, Exp value, Exp src) {
+        validateWriteFlags("string_insert", flags, true);
         byte[] bytes = Pack.pack(INSERT, index, value, flags);
         return addModify(src, bytes);
     }
@@ -537,6 +554,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the modified string
      */
     public static Exp overwrite(int flags, Exp index, Exp value, Exp src) {
+        validateWriteFlags("string_overwrite", flags, true);
         byte[] bytes = Pack.pack(OVERWRITE, index, value, flags);
         return addModify(src, bytes);
     }
@@ -552,6 +570,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the modified string
      */
     public static Exp concat(int flags, Exp values, Exp src) {
+        validateWriteFlags("string_concat", flags, true);
         byte[] bytes = Pack.pack(CONCAT, values, flags);
         return addModify(src, bytes);
     }
@@ -566,6 +585,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the modified string
      */
     public static Exp append(int flags, Exp value, Exp src) {
+        validateWriteFlags("string_append", flags, true);
         byte[] bytes = Pack.pack(APPEND, value, flags);
         return addModify(src, bytes);
     }
@@ -580,6 +600,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the modified string
      */
     public static Exp prepend(int flags, Exp value, Exp src) {
+        validateWriteFlags("string_prepend", flags, true);
         byte[] bytes = Pack.pack(PREPEND, value, flags);
         return addModify(src, bytes);
     }
@@ -588,6 +609,12 @@ public final class StringExp {
      * Create expression that removes codepoints from {@code src} starting at codepoint
      * {@code start} through the end, returning the resulting string. Does not modify
      * the underlying bin.
+     * <p>
+     * The server's snip argument list is positional — {@code start}, {@code end},
+     * {@code flags} — so this form cannot carry the {@code flags} without also
+     * supplying an explicit {@code end}: they are accepted for signature parity with the
+     * other modify expressions and are <strong>not</strong> transmitted. Use
+     * {@link #snip(int, Exp, Exp, Exp)} when the write flags must be honored.
      *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param start     first codepoint to remove (inclusive)
@@ -595,7 +622,8 @@ public final class StringExp {
      * @return          string-typed expression yielding the modified string
      */
     public static Exp snip(int flags, Exp start, Exp src) {
-        byte[] bytes = Pack.pack(SNIP, start, flags);
+        validateWriteFlags("string_snip", flags, false);
+        byte[] bytes = Pack.pack(SNIP, start);
         return addModify(src, bytes);
     }
 
@@ -611,6 +639,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the modified string
      */
     public static Exp snip(int flags, Exp start, Exp end, Exp src) {
+        validateWriteFlags("string_snip", flags, false);
         byte[] bytes = Pack.pack(SNIP, start, end, flags);
         return addModify(src, bytes);
     }
@@ -620,13 +649,14 @@ public final class StringExp {
      * {@code src} with {@code replacement} and returns the resulting string. Does not
      * modify the underlying bin.
      *
-     * @param policy        write policy controlling NO_FAIL semantics
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param needle        substring to find
      * @param replacement   text to substitute (may be empty to delete the match)
      * @param src           source string expression
      * @return              string-typed expression yielding the modified string
      */
     public static Exp replace(int flags, Exp needle, Exp replacement, Exp src) {
+        validateWriteFlags("string_replace", flags, false);
         byte[] bytes = packReplace(REPLACE, needle, replacement, flags);
         return addModify(src, bytes);
     }
@@ -636,13 +666,14 @@ public final class StringExp {
      * with {@code replacement} and returns the resulting string. Does not modify the
      * underlying bin.
      *
-     * @param policy        write policy controlling NO_FAIL semantics
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param needle        substring to find
      * @param replacement   text to substitute (may be empty to delete each match)
      * @param src           source string expression
      * @return              string-typed expression yielding the modified string
      */
     public static Exp replaceAll(int flags, Exp needle, Exp replacement, Exp src) {
+        validateWriteFlags("string_replace_all", flags, false);
         byte[] bytes = packReplace(REPLACE_ALL, needle, replacement, flags);
         return addModify(src, bytes);
     }
@@ -656,6 +687,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the uppercased string
      */
     public static Exp upper(int flags, Exp src) {
+        validateWriteFlags("string_upper", flags, false);
         byte[] bytes = Pack.pack(UPPER, flags);
         return addModify(src, bytes);
     }
@@ -669,6 +701,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the lowercased string
      */
     public static Exp lower(int flags, Exp src) {
+        validateWriteFlags("string_lower", flags, false);
         byte[] bytes = Pack.pack(LOWER, flags);
         return addModify(src, bytes);
     }
@@ -683,6 +716,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the case-folded string
      */
     public static Exp caseFold(int flags, Exp src) {
+        validateWriteFlags("string_case_fold", flags, false);
         byte[] bytes = Pack.pack(CASE_FOLD, flags);
         return addModify(src, bytes);
     }
@@ -696,6 +730,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the NFC-normalized string
      */
     public static Exp normalizeNFC(int flags, Exp src) {
+        validateWriteFlags("string_normalize_nfc", flags, false);
         byte[] bytes = Pack.pack(NORMALIZE_NFC, flags);
         return addModify(src, bytes);
     }
@@ -709,6 +744,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the left-trimmed string
      */
     public static Exp trimStart(int flags, Exp src) {
+        validateWriteFlags("string_trim_start", flags, false);
         byte[] bytes = Pack.pack(TRIM_START, flags);
         return addModify(src, bytes);
     }
@@ -722,6 +758,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the right-trimmed string
      */
     public static Exp trimEnd(int flags, Exp src) {
+        validateWriteFlags("string_trim_end", flags, false);
         byte[] bytes = Pack.pack(TRIM_END, flags);
         return addModify(src, bytes);
     }
@@ -735,6 +772,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the trimmed string
      */
     public static Exp trim(int flags, Exp src) {
+        validateWriteFlags("string_trim", flags, false);
         byte[] bytes = Pack.pack(TRIM, flags);
         return addModify(src, bytes);
     }
@@ -744,13 +782,14 @@ public final class StringExp {
      * the result reaches {@code targetLength} codepoints. No-op when the source is
      * already at or above the target length. Does not modify the underlying bin.
      *
-     * @param policy        write policy controlling NO_FAIL semantics
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param targetLength  codepoint length to pad up to
      * @param padString     text used to fill (repeated as needed)
      * @param src           source string expression
      * @return              string-typed expression yielding the padded string
      */
     public static Exp padStart(int flags, Exp targetLength, Exp padString, Exp src) {
+        validateWriteFlags("string_pad_start", flags, true);
         byte[] bytes = Pack.pack(PAD_START, targetLength, padString, flags);
         return addModify(src, bytes);
     }
@@ -760,13 +799,14 @@ public final class StringExp {
      * the result reaches {@code targetLength} codepoints. No-op when the source is
      * already at or above the target length. Does not modify the underlying bin.
      *
-     * @param policy        write policy controlling NO_FAIL semantics
+     * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param targetLength  codepoint length to pad up to
      * @param padString     text used to fill (repeated as needed)
      * @param src           source string expression
      * @return              string-typed expression yielding the padded string
      */
     public static Exp padEnd(int flags, Exp targetLength, Exp padString, Exp src) {
+        validateWriteFlags("string_pad_end", flags, true);
         byte[] bytes = Pack.pack(PAD_END, targetLength, padString, flags);
         return addModify(src, bytes);
     }
@@ -781,6 +821,7 @@ public final class StringExp {
      * @return          string-typed expression yielding the repeated string
      */
     public static Exp repeat(int flags, Exp count, Exp src) {
+        validateWriteFlags("string_repeat", flags, true);
         byte[] bytes = Pack.pack(REPEAT, count, flags);
         return addModify(src, bytes);
     }
@@ -812,6 +853,7 @@ public final class StringExp {
         int regexFlags,
         Exp src
     ) {
+        validateWriteFlags("string_regex_replace", flags, false);
         byte[] bytes = packRegexReplace(pattern, replacement, regexFlags, flags);
         return addModify(src, bytes);
     }
@@ -823,14 +865,17 @@ public final class StringExp {
     /**
      * Create expression that returns the string representation of {@code src}, where
      * {@code src} may be any expression yielding an integer, float, string, or blob
-     * value. Returns an error for any other source type.
+     * value. Returns {@code AEROSPIKE_ERR_INCOMPATIBLE_TYPE} for any other source
+     * type. A blob source whose bytes are not valid UTF-8 fails with
+     * {@link com.aerospike.client.sdk.ResultCode#OP_NOT_APPLICABLE} and subcode
+     * {@link com.aerospike.client.sdk.SubCode#OPNOT_STRING_UTF8_INVALID}.
      *
      * <pre>{@code
      * // integer bin "n" = 42 -> "42"
      * Exp s = StringExp.toString(Exp.intBin("n"));
      * }</pre>
      *
-     * @param src   source expression (integer, float, string, or blob)
+     * @param src   source expression (integer, float, boolean, string, or blob)
      * @return      string-typed expression yielding the string representation
      */
     public static Exp toString(Exp src) {
@@ -882,11 +927,9 @@ public final class StringExp {
         return packer.getBuffer();
     }
 
-    // [REGEX_REPLACE, [QUOTED, [pattern, repl]], regexFlags] — same QUOTED wrapping as
+    // [REGEX_REPLACE, [QUOTED, [pattern, repl]], regexFlags, flags] — same QUOTED wrapping as
     // packReplace; without it the expression compiler tries to interpret the
-    // (pattern, replacement) pair as a function call. Note: the server's regex_replace
-    // op table is declared with max_args=2 (particle_string.c:476), so there is no
-    // trailing policy-flags slot — only the regexFlags integer.
+    // (pattern, replacement) pair as a function call.
     private static byte[] packRegexReplace(Exp pattern, Exp replacement, int regexFlags, int flags) {
         Packer packer = new Packer();
         for (int i = 0; i < 2; i++) {
@@ -904,5 +947,24 @@ public final class StringExp {
             }
         }
         return packer.getBuffer();
+    }
+
+    private static void validateWriteFlags(String opName, int flags, boolean createCapable) {
+        if (flags < 0 || (flags & ~VALID_WRITE_FLAGS) != 0) {
+            throw AerospikeException.toException(
+                ResultCode.PARAMETER_ERROR, "invalid string write flag " + flags + " for " + opName);
+        }
+
+        boolean createOnly = (flags & StringWriteFlags.CREATE_ONLY) != 0;
+
+        if (createOnly && (flags & StringWriteFlags.UPDATE_ONLY) != 0) {
+            throw AerospikeException.toException(
+                ResultCode.PARAMETER_ERROR, "CREATE_ONLY and UPDATE_ONLY are mutually exclusive for " + opName);
+        }
+
+        if (createOnly && !createCapable) {
+            throw AerospikeException.toException(
+                ResultCode.PARAMETER_ERROR, "CREATE_ONLY is not valid for " + opName);
+        }
     }
 }

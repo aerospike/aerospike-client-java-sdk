@@ -17,7 +17,6 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,17 +27,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.junit.RequiresServerFeature;
+import com.aerospike.client.sdk.junit.ServerFeature;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
-import com.aerospike.client.sdk.junit.RequiresServerFeature;
-import com.aerospike.client.sdk.junit.ServerFeature;
 
 @RequiresServerFeature(ServerFeature.EXTENDED_ERROR_DETAIL)
 public class ErrorDetailVerbosityTest extends ClusterTest {
@@ -237,7 +238,16 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     }
 
     @Test
+    @Tag(KnownDefect.TAG)
     public void testDeleteGenerationMismatch() {
+        KnownDefect.skipWhere(args.scMode,
+            "on a strong-consistency namespace the delete is durable, so it runs through tombstone_master in"
+                + " delete_ee.c rather than delete.c. Both do the same generation_check and set the same"
+                + " AS_ERR_GENERATION, but the Enterprise path omits the matching"
+                + " as_error_details_set_fmt(AS_SUB_NONE, \"delete generation mismatch\"), so the server sends"
+                + " no detail and the client falls back to the generic ResultCode text. The fix belongs in the"
+                + " server; see docs/strong-consistency-8.2.0-findings.md");
+
         Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
             .on(Selectors.all(), ops -> ops
                 .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
@@ -254,6 +264,56 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
         });
 
         assertSubCodeAbsent(ae, ResultCode.GENERATION_ERROR, "generation");
+    }
+
+    /**
+     * Isolates the missing generation error detail to the Enterprise durable-delete path.
+     *
+     * <p>Companion to {@link #testDeleteGenerationMismatch}, which makes the same assertion without
+     * durable delete and passes. The only difference between the two is the durable flag, which is what
+     * the server dispatches on:</p>
+     *
+     * <pre>
+     * // as/src/transaction/delete_ee.c - delete_master()
+     * return as_transaction_is_durable_delete(tr) || ns-&gt;xdr_ships_drops
+     *         ? tombstone_master(tr, &amp;r_ref, rw)   // no as_error_details_set_fmt on generation_check
+     *         : drop_master(tr, &amp;r_ref, rw);       // as/src/transaction/delete.c, sets the detail
+     * </pre>
+     *
+     * <p>So this is not a strong-consistency defect. SC only surfaces it because SC forces every delete
+     * to be durable; the same omission is reachable on a plain AP namespace by asking for a durable
+     * delete, which is what this test does. It therefore runs on both AP and SC.</p>
+     *
+     * <p>Pinned rather than disabled: it asserts the detail is <em>absent</em>, so it passes today and
+     * starts failing the moment the server adds the missing call. That failure is the signal that the
+     * server fix landed and both tests can go back to asserting the same thing.</p>
+     */
+    @Test
+    public void testDurableDeleteGenerationMismatchOmitsDetail() {
+        Assumptions.assumeTrue(args.enterprise, "durable delete is an Enterprise server feature");
+
+        Behavior behavior1 = Behavior.DEFAULT.deriveWithChanges("errorDetail", builder -> builder
+            .on(Selectors.all(), ops -> ops
+                .errorDetailVerbosity(ErrorDetailVerbosity.MESSAGE)
+            )
+        );
+
+        Session session1 = cluster.createSession(behavior1);
+
+        Key key = args.set.id("edv-durable-gen-key");
+        session1.upsert(key).bin(binName).setTo(1).execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session1.delete(key)
+                .withDurableDelete()
+                .ensureGenerationIs(777)
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.GENERATION_ERROR, ae.getResultCode(), "Unexpected result code");
+        assertTrue(ae.getBaseMessage().contains("generation"),
+            "server now supplies a generation detail on the durable path: " + ae.getBaseMessage());
     }
 
     // ---------------------------------------------------------------------

@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk.command;
 
+import com.aerospike.client.sdk.util.ContainerString;
+
 /**
  * Batch record results.
  */
@@ -36,5 +38,13 @@ public final class BatchResults {
     public BatchResults(BatchRecord[] records, boolean status) {
         this.records = records;
         this.status = status;
+    }
+
+    @Override
+    public String toString() {
+        return "BatchResults{status=" + status +
+            ", recordCount=" + (records == null ? 0 : records.length) +
+            ", records=" + ContainerString.format(records) +
+            '}';
     }
 }

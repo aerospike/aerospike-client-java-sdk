@@ -69,41 +69,36 @@ public class QueryFilterSetTest extends ClusterTest {
             if (args.hasTtl) {
                 sessionWithSendKey.upsert(dataSet1.ids(i))
                     .expireRecordAfterSeconds(i * 60)
-                    .bins(binA)
-                    .values(i)
+                    .bin(binA).setTo(i)
                     .execute();
             }
             else {
                 sessionWithSendKey.upsert(dataSet1.ids(i))
-                    .bins(binA)
-                    .values(i)
+                    .bin(binA).setTo(i)
                     .execute();
             }
         }
 
         for (int i = 20; i <= 22; i++) {
             sessionWithSendKey.upsert(dataSet2.ids(i))
-                .bins(binA, binB)
-                .values(i, (double) i)
+                .bin(binA).setTo(i)
+                .bin(binB).setTo((double) i)
                 .execute();
         }
 
         for (int i = 31; i <= 40; i++) {
             sessionWithSendKey.upsert(dataSet3.ids(i))
-                .bins(binA)
-                .values(i)
+                .bin(binA).setTo(i)
                 .execute();
 
             String strKey = "key-p3-" + i;
             sessionWithSendKey.upsert(dataSet3.ids(strKey))
-                .bins(binA)
-                .values(i)
+                .bin(binA).setTo(i)
                 .execute();
         }
 
         sessionWithSendKey.upsert(dataSet3.ids(25))
-            .bins(binA)
-            .values(25)
+            .bin(binA).setTo(25)
             .execute();
     }
 

@@ -50,8 +50,7 @@ public class ListMapTest extends ClusterTest {
         list.sort();
 
         session.upsert(key)
-            .bins(binName)
-            .values(list)
+            .bin(binName).setTo(list)
             .execute();
 
         RecordStream rs = session.query(key)
@@ -116,8 +115,7 @@ public class ListMapTest extends ClusterTest {
         map.put("charlie", 78);
 
         session.upsert(key)
-            .bins(binName)
-            .values(map)
+            .bin(binName).setTo(map)
             .execute();
 
         RecordStream rs = session.query(key)
@@ -413,9 +411,8 @@ public class ListMapTest extends ClusterTest {
         String geoPoint = "{ \"type\": \"Point\", \"coordinates\": [103.8198, 1.3521] }";
 
         session.upsert(key)
-                .bins(binName)
-                .values(Value.getAsGeoJSON(geoPoint))
-                .execute();
+            .bin(binName).setTo(Value.getAsGeoJSON(geoPoint))
+            .execute();
 
         RecordStream rs = session.query(key).readingOnlyBins(binName).execute();
         assertTrue(rs.hasNext());

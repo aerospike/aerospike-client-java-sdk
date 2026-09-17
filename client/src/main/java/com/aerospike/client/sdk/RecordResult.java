@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.query.KeyRecord;
+import com.aerospike.client.sdk.util.ContainerString;
 
 /**
  * Represents the result of a single operation in a batch or standalone execution.
@@ -581,5 +582,49 @@ public final class RecordResult {
      */
     public boolean isInDoubt() {
         return (exception != null)? exception.getInDoubt() : inDoubt;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(200);
+        sb.append("RecordResult{key=");
+        sb.append(key);
+        sb.append(", resultCode=");
+        sb.append(getResultCode());
+        sb.append(", subCode=");
+        sb.append(getSubCode());
+        sb.append(", index=");
+        sb.append(index);
+        sb.append(", inDoubt=");
+        sb.append(isInDoubt());
+
+        appendField(sb, "message", getMessage());
+
+        if (exception != null) {
+            sb.append(", exception=");
+            sb.append(exception.getClass().getName());
+            appendField(sb, "exceptionMessage", exception.getMessage());
+        }
+
+        appendField(sb, "record", rec);
+        appendField(sb, "udfReturnValue", udfReturnValue);
+        appendField(sb, "expTrace", getExpressionTrace());
+
+        if (readMappingClass != null) {
+            sb.append(", readMappingClass=");
+            sb.append(readMappingClass.getName());
+        }
+
+        sb.append('}');
+        return sb.toString();
+    }
+
+    private static void appendField(StringBuilder sb, String name, Object value) {
+        if (value != null) {
+            sb.append(", ");
+            sb.append(name);
+            sb.append('=');
+            ContainerString.append(sb, value, ContainerString.DEFAULT_MAX_CHARS);
+        }
     }
 }

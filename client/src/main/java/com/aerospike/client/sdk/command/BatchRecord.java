@@ -23,6 +23,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.util.ContainerString;
 
 /**
  * Batch key and record result.
@@ -146,7 +147,39 @@ public class BatchRecord {
      */
     @Override
     public String toString() {
-        return key.toString();
+        StringBuilder sb = new StringBuilder(200);
+        sb.append("BatchRecord{type=");
+        sb.append(getType());
+        sb.append(", key=");
+        sb.append(key);
+        sb.append(", resultCode=");
+        sb.append(resultCode);
+        sb.append(", subCode=");
+        sb.append(subCode);
+        sb.append(", inDoubt=");
+        sb.append(inDoubt);
+        sb.append(", hasWrite=");
+        sb.append(hasWrite);
+        sb.append(", linearize=");
+        sb.append(linearize);
+
+        appendField(sb, "message", message);
+        appendField(sb, "record", record);
+        appendField(sb, "where", where);
+        appendField(sb, "expTrace", expTrace);
+        appendField(sb, "node", node);
+
+        sb.append('}');
+        return sb.toString();
+    }
+
+    private static void appendField(StringBuilder sb, String name, Object value) {
+        if (value != null) {
+            sb.append(", ");
+            sb.append(name);
+            sb.append('=');
+            ContainerString.append(sb, value, ContainerString.DEFAULT_MAX_CHARS);
+        }
     }
 
     /**

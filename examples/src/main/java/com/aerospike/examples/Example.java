@@ -29,6 +29,8 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
@@ -40,6 +42,18 @@ import com.aerospike.client.sdk.util.Version;
  * setup/verify/cleanup fixture flow are owned by {@link ExampleRunner}.
  */
 public abstract class Example {
+    /**
+     * Behavior shared by examples and their fixtures.
+     *
+     * <p>A strong-consistency namespace rejects a non-durable delete with
+     * {@code FAIL_FORBIDDEN}, so examples that delete records need durable deletes to run
+     * against SC. The selector is scoped to {@code cp()}, which leaves AP namespaces on the
+     * default behavior rather than making every example pay for tombstones.</p>
+     */
+    public static final Behavior EXAMPLE_BEHAVIOR = Behavior.DEFAULT.deriveWithChanges(
+        "examples",
+        builder -> builder.on(Selectors.writes().cp(), ops -> ops.useDurableDelete(true)));
+
     protected Console console;
     private ExampleContext context;
 
@@ -177,25 +191,25 @@ public abstract class Example {
     }
 
     /**
-     * Whether this example requires string AEL (server 8.1.3+). When true and the cluster
+     * Whether this example requires string AEL (server 8.2.0+). When true and the cluster
      * is older, {@link ExampleRunner} skips the example before {@link #runExample()}.
      */
     protected boolean requiresStringAel() {
         return false;
     }
 
-    /** @return true when the connected cluster supports string AEL (8.1.3+). */
+    /** @return true when the connected cluster supports string AEL (8.2.0+). */
     protected static boolean supportsStringAel(Cluster cluster) {
-        return cluster.getRandomNode().getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
+        return cluster.getRandomNode().getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_2);
     }
 
     /**
-     * Skip with {@link ExampleSkipException} unless the cluster supports string AEL (8.1.3+).
+     * Skip with {@link ExampleSkipException} unless the cluster supports string AEL (8.2.0+).
      */
     protected void requireStringAel() throws ExampleSkipException {
         if (!supportsStringAel(cluster())) {
             Version v = cluster().getRandomNode().getVersion();
-            throw new ExampleSkipException("server is " + v + "; string AEL requires 8.1.3+");
+            throw new ExampleSkipException("server is " + v + "; string AEL requires 8.2.0+");
         }
     }
 

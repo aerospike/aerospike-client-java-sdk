@@ -27,9 +27,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * Skips the annotated test class, nested class, or method when the connected cluster
  * does not expose the required feature.
  *
- * <p>Evaluated per test method after {@link com.aerospike.client.sdk.ClusterTest}'s
- * {@code @BeforeAll} cluster bootstrap (unlike class-level {@code @EnabledIf}, which
- * runs before {@code @BeforeAll} while {@code cluster} is still null).</p>
+ * <p>Safe at class level, unlike {@code @EnabledIf}: a class-level condition is evaluated
+ * before {@link com.aerospike.client.sdk.ClusterTest}'s {@code @BeforeAll} cluster
+ * bootstrap, so the extension connects the cluster itself when nothing has yet rather than
+ * reading a null {@code cluster} as "feature unsupported".</p>
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

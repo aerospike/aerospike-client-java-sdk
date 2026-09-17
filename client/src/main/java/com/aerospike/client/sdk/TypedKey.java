@@ -85,4 +85,9 @@ public final class TypedKey<T> {
         }
         return entity;
     }
+
+    @Override
+    public String toString() {
+        return "TypedKey{key=" + key + ", entityClass=" + entityClass.getName() + '}';
+    }
 }

@@ -61,7 +61,7 @@ class ConnectionPoolSettingsIntegrationTest {
             Key key = args.set.id("poolIdleTrim");
             String bin = "b";
 
-            session.upsert(key).bins(bin).values(1).execute();
+            session.upsert(key).bin(bin).setTo(1).execute();
 
             for (int i = 0; i < 32; i++) {
                 RecordStream rs = session.query(key).execute();

@@ -33,7 +33,7 @@ public final class AelMaterializer {
             return Expression.fromServerCompiledFilter(ael);
         }
         throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
-                "Aerospike Expression Language (AEL) requires server version 8.1.3+. Server version is " +
+                "Aerospike Expression Language (AEL) requires server version 8.2.0+. Server version is " +
                         cluster.getVersion());
     }
 

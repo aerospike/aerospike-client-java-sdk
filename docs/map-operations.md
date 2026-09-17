@@ -48,6 +48,7 @@ This document covers all map Collection Data Type (CDT) operations available in 
   - [removeAllOthers](#removeallothers)
 - [Inverted Operations](#inverted-operations)
 - [Nested Map Operations](#nested-map-operations)
+- [Path iteration (onEachChild)](#path-iteration-oneachchild)
 - [MapOrder Reference](#maporder-reference)
 - [MapBulkWriteOptions Reference](#mapbulkwriteoptions-reference)
 
@@ -717,6 +718,26 @@ session.update(key)
     .bin("myMap").onMapKey("config", MapOrder.KEY_VALUE_ORDERED).onMapKey("timeout").insert(30L)
     .execute();
 ```
+
+---
+
+## Path iteration (onEachChild)
+
+To iterate **every** child of a map (optionally filtered), then collect, modify, or remove the matches, use `onEachChild` — not a loop of `onMapKey`, and not `.remove()` after a single selection.
+
+```java
+session.update(key)
+    .bin("store")
+        .onMapKey("book")
+        .onEachChild(Exp.eq(
+            MapExp.getByKey(MapReturnType.VALUE, Exp.Type.BOOL,
+                Exp.val("inStock"), Exp.mapLoopVar(LoopVarPart.VALUE)),
+            Exp.val(false)))
+        .removeMatches()
+    .execute();
+```
+
+Requires server ≥ 8.1.1. Full terminal list (`collectValues`, `collectKeys`, `modifyBy`, `removeMatches`) and the `Exp` filter contract: [CDT path operations](cdt-path-operations.md).
 
 ---
 

@@ -20,7 +20,7 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.util.Version;
 
-/** Cluster capabilities gated in integration tests (all require {@link Version#SERVER_VERSION_8_1_3}+). */
+/** Cluster capabilities gated in integration tests (all require {@link Version#SERVER_VERSION_8_2}+). */
 public enum ServerFeature {
     AEL("server does not support AEL"),
     STRING_OPS("server does not support string operations"),
@@ -34,10 +34,7 @@ public enum ServerFeature {
     }
 
     public boolean isSupported() {
-        Cluster cluster = ClusterTest.cluster;
-        if (cluster == null) {
-            return false;
-        }
+        Cluster cluster = clusterForFeatureCheck();
         return switch (this) {
             case AEL, EXTENDED_ERROR_DETAIL -> cluster.supportsAel();
             case STRING_OPS -> cluster.supportsStringOperations();
@@ -45,7 +42,35 @@ public enum ServerFeature {
         };
     }
 
+    /**
+     * The cluster to ask about capabilities, connecting first if nothing has yet.
+     *
+     * <p>{@link RequiresServerFeatureExtension} is an execution condition, so it is evaluated before
+     * {@code @BeforeAll}. A class run on its own therefore arrives here with {@link ClusterTest#cluster}
+     * still null; only a suite run has already connected, in its {@code @BeforeSuite}. Answering
+     * "unsupported" for null disabled the whole class — {@code ErrorDetailVerbosityTest} reported 36 tests
+     * skipped and the build green, so a gated class could stay silently excluded indefinitely.</p>
+     *
+     * <p>{@link ClusterTest#initCluster()} is idempotent, so connecting here simply makes a standalone run
+     * agree with a suite run.</p>
+     */
+    private static Cluster clusterForFeatureCheck() {
+        if (ClusterTest.cluster == null) {
+            ClusterTest.initCluster();
+        }
+
+        Cluster cluster = ClusterTest.cluster;
+
+        if (cluster == null) {
+            throw new IllegalStateException(
+                "No cluster available to evaluate @RequiresServerFeature. Reporting the feature as "
+                    + "unsupported here would skip every test in the class and still pass the build, so "
+                    + "fail loudly instead.");
+        }
+        return cluster;
+    }
+
     public String skipMessage() {
-        return reason + " (requires " + Version.SERVER_VERSION_8_1_3 + "+)";
+        return reason + " (requires " + Version.SERVER_VERSION_8_2 + "+)";
     }
 }

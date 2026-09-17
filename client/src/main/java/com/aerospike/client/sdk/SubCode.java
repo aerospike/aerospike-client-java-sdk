@@ -43,7 +43,7 @@ package com.aerospike.client.sdk;
  * <p>
  * This catalogue mirrors the server's per-status enums in
  * {@code as/include/base/proto.h} and is server-version-specific. It is pinned to
- * server master as of 2026-08-21 (39 subcodes); no released server version carries
+ * server master as of 2026-08-31 (40 subcodes); no released server version carries
  * the feature yet, so the pin advances to a release number once one ships. Re-verify
  * this catalogue against {@code proto.h} at every client release. It is append-only:
  * published values are immutable and are never renumbered or reused. New failure modes
@@ -81,8 +81,8 @@ public final class SubCode {
     /** String op code or modifier/read class mismatch on the wire path. */
     public static final int PARAM_STRING_OP_INVALID = 7;
 
-    /** String context-eval path malformed. */
-    public static final int PARAM_STRING_CTX_NOT_APPLICABLE = 8;
+    /** String context-eval envelope malformed. */
+    public static final int PARAM_STRING_CTX_MALFORMED = 8;
 
     /** String modify/read index or code-point range out of bounds. */
     public static final int PARAM_STRING_INDEX_OUT_OF_BOUNDS = 9;
@@ -93,14 +93,6 @@ public final class SubCode {
     /** String or string op argument is not valid UTF-8. */
     public static final int PARAM_STRING_UTF8_INVALID = 11;
 
-    // 12 is reserved server-side for a regex-limit subcode still in review.
-
-    /**
-     * String is not valid base64 — a length that is not a multiple of 4, a character
-     * outside the alphabet, or misplaced {@code '='} padding.
-     */
-    public static final int OPNOT_STRING_B64_INVALID = 13;
-
     //-------------------------------------------------------
     // Pairs with ResultCode.PARTITION_UNAVAILABLE (11)  [AS_ERR_UNAVAILABLE]
     //-------------------------------------------------------
@@ -110,6 +102,12 @@ public final class SubCode {
 
     /** A needed replica is unavailable (likely a partition split). */
     public static final int UNAVAIL_REPLICA_UNAVAILABLE = 2;
+
+    /**
+     * This node is leaving the cluster (e.g. an index-checkpoint save/park). Fail over
+     * to another node rather than backing off — retrying this node cannot succeed.
+     */
+    public static final int UNAVAIL_NODE_SHUTTING_DOWN = 3;
 
     //-------------------------------------------------------
     // Pairs with ResultCode.UNSUPPORTED_FEATURE (16)  [AS_ERR_UNSUPPORTED_FEATURE]
@@ -128,8 +126,8 @@ public final class SubCode {
     /** HLL op needs an existing bin and can't auto-create one. */
     public static final int BIN_NOT_FOUND_HLL_CANNOT_CREATE_WITH_OP = 1;
 
-    /** String modify on a missing bin (non-NO_FAIL path). */
-    public static final int BIN_NOT_FOUND_STRING_VALUE_NOT_FOUND = 2;
+    // Server subcode 2 in this family was dropped as unreachable: a string modify on a
+    // missing bin returns AS_OK with the bin uncreated, never BIN_NOT_FOUND.
 
     //-------------------------------------------------------
     // Pairs with ResultCode.BIN_NAME_TOO_LONG (21)  [AS_ERR_BIN_NAME]
@@ -203,12 +201,25 @@ public final class SubCode {
     /** Source blob/string is not valid UTF-8 for an OP_NOT_APPLICABLE path. */
     public static final int OPNOT_STRING_UTF8_INVALID = 11;
 
+    /**
+     * Regex match or replace exceeded the engine's resource budget — the pattern is
+     * too complex for this input, not necessarily malformed. Simplify the pattern
+     * (avoid nested unbounded quantifiers) or shorten the subject data.
+     */
+    public static final int OPNOT_STRING_REGEX_LIMIT_EXCEEDED = 12;
+
     //-------------------------------------------------------
     // ResultCode.FILTERED_OUT (27) [AS_ERR_FILTERED_OUT] carries NO subcode:
     // the server emits AS_SUB_NONE plus a contextual "filtered out ..." message.
     // (The as_sub_filtered_t enum was removed server-side and never shipped, so
     // no FILTERED_* constants are defined here. Match on the message, not a subcode.)
     //-------------------------------------------------------
+
+    /**
+     * String is not valid base64 — a length that is not a multiple of 4, a character
+     * outside the alphabet, or misplaced {@code '='} padding.
+     */
+    public static final int OPNOT_STRING_B64_INVALID = 13;
 
     //-------------------------------------------------------
     // Pairs with ResultCode.MRT_BLOCKED (120)  [AS_ERR_MRT_BLOCKED]

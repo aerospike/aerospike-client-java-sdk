@@ -63,7 +63,7 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * integers; string bounds stay on PI. LIST index paths ({@code [0]}) also fall back to PI —
  * value-containment indexes cannot answer positional existence.</p>
  */
-class QueryPlannerCollectionCdtTest extends ClusterTest {
+public class QueryPlannerCollectionCdtTest extends ClusterTest {
     private static final String setName = "qp_cdt";
     private static final String keyPrefix = "qpcdt";
     private static final String mapBin = "map_bin";
@@ -189,8 +189,12 @@ class QueryPlannerCollectionCdtTest extends ClusterTest {
                 List.of(i % 2 == 0 ? nestedListTarget : "nested_other" + i));
 
             session.upsert(dataSet.ids(keyPrefix + i))
-                .bins(mapBin, listBin, listStrBin, intListBin, intMapBin, nestedBin)
-                .values(map, list, strList, intList, intMap, nested)
+                .bin(mapBin).setTo(map)
+                .bin(listBin).setTo(list)
+                .bin(listStrBin).setTo(strList)
+                .bin(intListBin).setTo(intList)
+                .bin(intMapBin).setTo(intMap)
+                .bin(nestedBin).setTo(nested)
                 .execute();
         }
     }

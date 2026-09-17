@@ -412,7 +412,7 @@ public class MapExpTest extends ClusterTest {
     }
 
     /**
-     * String AEL equivalents of the {@link Exp} tests above. Skipped on 8.1.3+ until
+     * String AEL equivalents of the {@link Exp} tests above. Skipped on 8.2.0+ until
      * the server accepts these forms (currently Parameter error).
      */
     @Nested

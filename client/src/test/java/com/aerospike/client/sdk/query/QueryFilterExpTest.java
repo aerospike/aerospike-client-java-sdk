@@ -103,8 +103,10 @@ public class QueryFilterExpTest extends ClusterTest {
                 map = new HashMap<String, String>(0);
             }
             session.upsert(dataSet.ids(key))
-                .bins(binName, "bin2", "listbin", "mapbin")
-                .values(i, i, list, map)
+                .bin(binName).setTo(i)
+                .bin("bin2").setTo(i)
+                .bin("listbin").setTo(list)
+                .bin("mapbin").setTo(map)
                 .execute();
         }
     }

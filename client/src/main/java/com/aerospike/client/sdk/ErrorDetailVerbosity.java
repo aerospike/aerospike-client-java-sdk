@@ -18,7 +18,7 @@ package com.aerospike.client.sdk;
 
 /**
  * Detail level for server returned errors.
- * Requires server versions 8.1.3+.
+ * Requires server versions 8.2.0+.
  */
 public final class ErrorDetailVerbosity {
     /**

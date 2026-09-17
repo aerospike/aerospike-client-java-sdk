@@ -51,8 +51,7 @@ public class QueryHintBuilderTest extends ClusterTest {
 
         for (int i = 1; i <= size; i++) {
             session.upsert(dataSet.ids(keyPrefix + i))
-                .bins(binName)
-                .values(i * 10)
+                .bin(binName).setTo(i * 10)
                 .execute();
         }
 

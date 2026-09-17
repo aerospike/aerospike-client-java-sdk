@@ -50,9 +50,12 @@ import com.aerospike.client.sdk.operation.BitOverflowAction;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.query.IndexType;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.SortDir;
 import com.aerospike.client.sdk.query.SortProperties;
+import com.aerospike.client.sdk.query.TypedQueryBuilder;
 import com.aerospike.client.sdk.task.ExecuteTask;
 import com.aerospike.examples.query.Address;
 import com.aerospike.examples.query.AddressMapper;
@@ -70,6 +73,8 @@ import com.aerospike.examples.query.CustomerMapper;
  */
 @SuppressWarnings("unused")
 public class QueryExamples extends Example {
+
+    private static final String AGE_INDEX = "age_idx";
 
     @Override
     protected boolean requiresStringAel() {
@@ -100,7 +105,9 @@ public class QueryExamples extends Example {
                 )
             ));
 
-        Behavior newBehavior = Behavior.DEFAULT.deriveWithChanges("newBehavior", builder ->
+        // Derived from EXAMPLE_BEHAVIOR rather than Behavior.DEFAULT so the CP-scoped durable
+        // delete is inherited; a plain delete is rejected in a strong-consistency namespace.
+        Behavior newBehavior = EXAMPLE_BEHAVIOR.deriveWithChanges("newBehavior", builder ->
             builder.on(Selectors.all(), ops -> ops
                     .waitForSocketResponseAfterCallFails(Duration.ofSeconds(3))
                     .sendKey(true)
@@ -128,7 +135,7 @@ public class QueryExamples extends Example {
                 .maximumNumberOfCallAttempts(8)
             )
         );
-        Behavior nonExceptionBehvaior = Behavior.DEFAULT.deriveWithChanges("nonException", builder ->
+        Behavior nonExceptionBehvaior = EXAMPLE_BEHAVIOR.deriveWithChanges("nonException", builder ->
             builder.on(Selectors.all(), ops -> ops.stackTraceOnException(false)));
 
         TypedDataSet<Customer> customerDataSet = TypedDataSet.of(namespace(), "person", Customer.class);
@@ -247,7 +254,9 @@ public class QueryExamples extends Example {
                 .execute();
 
         System.out.printf("id(2) exists: %b\n", session.exists(customerDataSet.ids(2)).execute().getFirst());
-        session.delete(customerDataSet.ids(2)).withoutDurableDelete().execute();
+        // No per-call durable-delete override: the behavior supplies a durable delete under CP
+        // (required there) and leaves AP alone, where durable delete is an Enterprise-only feature.
+        session.delete(customerDataSet.ids(2)).execute();
 //            System.out.printf("id(2) exists: %b\n", session.exists(customerDataSet.ids(2)).execute().getFirst());
 
         RecordStream result = session.upsert(customerDataSet.id(80))
@@ -746,8 +755,12 @@ public class QueryExamples extends Example {
             .execute());
         System.out.println("Using a read expression");
 
+        // A bin path carries no type of its own. With a literal operand the server infers one
+        // (see "$.age + 2 * $.value" below), but adding two bins leaves both untyped and the
+        // server rejects the expression rather than guessing. Pin one side with ":INT" — the
+        // other side inherits it through the operator.
         TypedRecordStream<Customer> rs = session.queryTypedKeys(customerDataSet.ids(223))
-            .bin("bob").selectFrom("$.age + $.value", arg -> arg.ignoreEvalFailure())
+            .bin("bob").selectFrom("$.age:INT + $.value", arg -> arg.ignoreEvalFailure())
             .execute();
         print(rs);
 
@@ -775,35 +788,54 @@ public class QueryExamples extends Example {
         // ---------------------------
         System.out.println("\n--- Query hints ---");
 
+        // forIndex(...) names an index the server must already have, so create it up front.
+        session.createIndex(customerDataSet, AGE_INDEX, "age", IndexType.INTEGER,
+                IndexCollectionType.DEFAULT)
+            .waitTillComplete();
+
         // Hint with index name: tell the server to use a specific secondary index
-        session.query(customerDataSet)
+        countHintedQuery("forIndex", session.query(customerDataSet)
             .where("$.age > 30")
-            .withHint(hint -> hint.forIndex("age_idx"))
-            .execute();
+            .withHint(hint -> hint.forIndex(AGE_INDEX)));
 
         // Hint with bin name: prefer the secondary index on a given bin
-        session.query(customerDataSet)
+        countHintedQuery("forBin", session.query(customerDataSet)
             .where("$.age > 30")
-            .withHint(hint -> hint.forBin("age"))
-            .execute();
+            .withHint(hint -> hint.forBin("age")));
 
         // Hint with query duration only: override expected duration
-        session.query(customerDataSet)
+        countHintedQuery("queryDuration", session.query(customerDataSet)
             .where("$.age > 30")
-            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT))
-            .execute();
+            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT)));
 
         // Hint combining index name and query duration
-        session.query(customerDataSet)
+        countHintedQuery("forIndex + queryDuration", session.query(customerDataSet)
             .where("$.age > 30")
-            .withHint(hint -> hint.forIndex("age_idx").queryDuration(QueryDuration.SHORT))
-            .execute();
+            .withHint(hint -> hint.forIndex(AGE_INDEX).queryDuration(QueryDuration.SHORT)));
 
         // Hint combining query duration first, then bin name
-        session.query(customerDataSet)
+        countHintedQuery("queryDuration + forBin", session.query(customerDataSet)
             .where("$.age > 30")
-            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT).forBin("age"))
-            .execute();
+            .withHint(hint -> hint.queryDuration(QueryDuration.SHORT).forBin("age")));
+
+        session.dropIndex(customerDataSet, AGE_INDEX);
+    }
+
+    /**
+     * Runs a hinted query and reports how many records it matched. A hint only changes how the
+     * server reaches the records, never which ones come back, so every variant below should
+     * report the same count.
+     */
+    private void countHintedQuery(String label, TypedQueryBuilder<Customer> query) {
+        int matches = 0;
+
+        try (TypedRecordStream<Customer> rs = query.execute()) {
+            while (rs.hasNext()) {
+                rs.next();
+                matches++;
+            }
+        }
+        System.out.printf("  %-24s matched %d records%n", label, matches);
     }
 
     private void demonstrateBackgroundQuery(Session session, TypedDataSet<Customer> customerDataSet) {
@@ -812,7 +844,9 @@ public class QueryExamples extends Example {
         // ---------------------------
         session.backgroundTask().update(customerDataSet)
             .bin("age").add(1)
-            .bin("bob").upsertFrom("$.age + $.value")
+            // ":INT" pins the bin type. Two bare bin paths give the server nothing to infer
+            // from, and it rejects the expression rather than guessing.
+            .bin("bob").upsertFrom("$.age:INT + $.value")
             .where("$.state == 'nsw'")
             .execute()
             .waitTillComplete();

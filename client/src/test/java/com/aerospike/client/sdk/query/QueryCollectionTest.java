@@ -79,8 +79,7 @@ public class QueryCollectionTest extends ClusterTest {
             }
 
             session.upsert(dataSet.ids(key))
-                .bins(binName)
-                .values(map)
+                .bin(binName).setTo(map)
                 .execute();
         }
     }

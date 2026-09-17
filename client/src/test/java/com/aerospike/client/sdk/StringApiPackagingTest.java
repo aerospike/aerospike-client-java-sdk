@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -24,10 +25,12 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.exp.StringExp;
@@ -42,6 +45,78 @@ import com.aerospike.client.sdk.operation.StringWriteFlags;
  * {@code selectFrom(StringExp...)} lives in {@link OperateStringTest}.
  */
 public class StringApiPackagingTest {
+
+    @Test
+    public void stringWriteFlagsExposeFullSet() {
+        assertEquals(0, StringWriteFlags.DEFAULT);
+        assertEquals(1, StringWriteFlags.CREATE_ONLY);
+        assertEquals(2, StringWriteFlags.UPDATE_ONLY);
+        assertEquals(4, StringWriteFlags.NO_FAIL);
+    }
+
+    @Test
+    public void stringWriteOptionsComposeWriteModes() {
+        assertEquals(
+            StringWriteFlags.CREATE_ONLY | StringWriteFlags.NO_FAIL,
+            new StringWriteOptions().createOnly().noFail().toFlags());
+        assertEquals(
+            StringWriteFlags.UPDATE_ONLY | StringWriteFlags.NO_FAIL,
+            new StringWriteOptions().updateOnly().noFail().toFlags());
+        assertEquals(
+            StringWriteFlags.UPDATE_ONLY | StringWriteFlags.NO_FAIL,
+            new StringWriteOptions().withFlags(StringWriteFlags.UPDATE_ONLY).noFail().toFlags());
+    }
+
+    @Test
+    public void stringWriteOptionsRejectMutuallyExclusiveSetters() {
+        assertThrows(IllegalStateException.class, () -> new StringWriteOptions().createOnly().updateOnly());
+        assertThrows(IllegalStateException.class, () -> new StringWriteOptions().updateOnly().createOnly());
+    }
+
+    @Test
+    public void stringOperationRejectsInvalidWriteFlagsBeforePacking() {
+        assertParameterError(() -> StringOperation.append(
+            StringWriteFlags.CREATE_ONLY | StringWriteFlags.UPDATE_ONLY, "s", "!"));
+        assertParameterError(() -> StringOperation.append(-1, "s", "!"));
+        assertParameterError(() -> StringOperation.append(8, "s", "!"));
+        assertParameterError(() -> StringOperation.upper(StringWriteFlags.CREATE_ONLY, "s"));
+        assertParameterError(() -> StringOperation.append(StringWriteFlags.CREATE_ONLY, "s", "!", CTX.listIndex(0)));
+
+        assertEquals(Operation.Type.STRING_MODIFY,
+            StringOperation.append(StringWriteFlags.UPDATE_ONLY | StringWriteFlags.NO_FAIL, "s", "!").type);
+    }
+
+    @Test
+    public void stringExpRejectsInvalidWriteFlagsBeforePacking() {
+        Exp s = Exp.stringBin("s");
+        assertParameterError(() -> StringExp.append(
+            StringWriteFlags.CREATE_ONLY | StringWriteFlags.UPDATE_ONLY, Exp.val("!"), s));
+        assertParameterError(() -> StringExp.append(-1, Exp.val("!"), s));
+        assertParameterError(() -> StringExp.append(8, Exp.val("!"), s));
+        assertParameterError(() -> StringExp.upper(StringWriteFlags.CREATE_ONLY, s));
+
+        assertCompiles(
+            StringExp.append(StringWriteFlags.UPDATE_ONLY | StringWriteFlags.NO_FAIL, Exp.val("!"), s),
+            "append update-only no-fail");
+    }
+
+    @Test
+    public void regexReplaceWriteFlagsAreUpdateOnlyCapable() {
+        int flags = StringWriteFlags.UPDATE_ONLY | StringWriteFlags.NO_FAIL;
+        Operation op = StringOperation.regexReplace(flags, "s", "[0-9]+", "X", StringRegexFlags.GLOBAL);
+        assertEquals(Operation.Type.STRING_MODIFY, op.type);
+
+        assertCompiles(
+            StringExp.regexReplace(flags, Exp.val("[0-9]+"), Exp.val("X"), StringRegexFlags.GLOBAL,
+                Exp.stringBin("s")),
+            "regexReplace update-only no-fail");
+
+        assertParameterError(() -> StringOperation.regexReplace(
+            StringWriteFlags.CREATE_ONLY, "s", "[0-9]+", "X", StringRegexFlags.GLOBAL));
+        assertParameterError(() -> StringExp.regexReplace(
+            StringWriteFlags.CREATE_ONLY, Exp.val("[0-9]+"), Exp.val("X"), StringRegexFlags.GLOBAL,
+            Exp.stringBin("s")));
+    }
 
     @Test
     public void stringOperationStrlenIsStringRead() {
@@ -138,5 +213,10 @@ public class StringApiPackagingTest {
     private static void assertCompiles(Exp exp, String label) {
         Expression compiled = Exp.build(exp);
         assertTrue(compiled.getBytes().length > 0, label);
+    }
+
+    private static void assertParameterError(Executable executable) {
+        AerospikeException ae = assertThrows(AerospikeException.class, executable);
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
     }
 }

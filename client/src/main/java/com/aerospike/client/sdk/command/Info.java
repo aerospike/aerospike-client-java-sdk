@@ -23,6 +23,7 @@ import java.util.List;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.util.ContainerString;
 import com.aerospike.client.sdk.util.Crypto;
 
 /**
@@ -806,6 +807,11 @@ public class Info {
                 this.code = rc;
                 this.message = msg;
             }
+        }
+
+        @Override
+        public String toString() {
+            return "Info.Error{code=" + code + ", message=" + ContainerString.format(message) + '}';
         }
     }
 }

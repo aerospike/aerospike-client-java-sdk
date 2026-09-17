@@ -86,8 +86,8 @@ public class QueryBlobTest extends ClusterTest {
             list.add(bytes);
 
             session.upsert(dataSet.ids(i))
-                .bins(binName, binNameList)
-                .values(bytes, list)
+                .bin(binName).setTo(bytes)
+                .bin(binNameList).setTo(list)
                 .execute();
         }
     }

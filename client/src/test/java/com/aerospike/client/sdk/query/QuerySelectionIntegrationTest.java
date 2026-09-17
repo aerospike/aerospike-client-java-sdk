@@ -72,10 +72,10 @@ import java.util.List;
 /**
  * Integration tests for two-phase server query selection (explain → execute).
  *
- * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3}
+ * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2}
  * ({@link com.aerospike.client.sdk.Cluster#supportsQuerySelection()}).</p>
  */
-class QuerySelectionIntegrationTest extends ClusterTest {
+public class QuerySelectionIntegrationTest extends ClusterTest {
     private static final Fixture FIXTURE = Fixture.forSuffix("integ");
     private static final String bogusIndexName = "qsel_nonexistent_idx";
     private static final String OVERSIZED_LITERAL = "x".repeat(2048);
@@ -535,9 +535,9 @@ class QuerySelectionIntegrationTest extends ClusterTest {
         try {
             cluster.setVersion(Version.SERVER_VERSION_8_1_2);
             assumeFalse(cluster.supportsQuerySelection(),
-                "server version below 8.1.3 should not use query selection");
+                "server version below 8.2.0 should not use query selection");
             assumeFalse(cluster.supportsAel(),
-                "server version below 8.1.3 should not support string AEL");
+                "server version below 8.2.0 should not support string AEL");
 
             AerospikeException ex = assertThrows(AerospikeException.class, () ->
                 session.query(dataSet)

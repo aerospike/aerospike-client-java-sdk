@@ -128,6 +128,10 @@ List<Key> batch = users.ids("alice", "bob", "charlie");
 List<Key> nums  = users.ids(1, 2, 3, 4, 5);
 ```
 
+Pass that list to one call (`session.query(batch)`, `session.exists(batch)`,
+or a write verb) rather than looping `session.query(users.id(x))` per key.
+The single-key and batch forms are the same verb; the list is the batch.
+
 ---
 
 ## Write Operations
@@ -375,6 +379,11 @@ See [Async Operations](#async-operations) for full details on
 Multiple operations on different keys and of different types can be chained
 into a single server round-trip. Each verb starts a new operation; bin
 operations belong to their preceding verb.
+
+A node sub-batch of size 1 already uses the single-record path: when a chain
+(or an `ids(...)` list) contains one key, the SDK bypasses batch
+infrastructure. Application-level special-casing such as
+`if (keys.size() == 1)` is redundant.
 
 ```java
 session
@@ -665,6 +674,20 @@ session.query(users.id("alice"))
     .bin("orders").onListIndex(0).onMapKey("total").getValues()
     .execute();
 ```
+
+### Path iteration (`onEachChild`)
+
+To operate on **every** matching child of a nested list or map, use `onEachChild` and a path terminal. Multi-match delete is `removeMatches()`, not `.remove()`. Requires server ≥ 8.1.1.
+
+```java
+session.update(users.id("alice"))
+    .bin("nums")
+        .onEachChild(Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(10)))
+        .removeMatches()
+    .execute();
+```
+
+Full terminal list and filter contract: [CDT path operations](cdt-path-operations.md). Classic single-selection CDT remains in [list-operations.md](list-operations.md) and [map-operations.md](map-operations.md).
 
 ### Return type control
 
@@ -1258,7 +1281,7 @@ List<Customer> activeCustomers2 = session.query(customers)
     .toObjectList(customerMapper);
 ```
 
-On **`TypedRecordStream`** / **`TypedNavigatableRecordStream`**, `toObjectList(RecordMapper<T>)`, `getFirst(RecordMapper<T>)`, `forEach(RecordMapper<T>, …)`, and related overloads invoke **`RecordMapper.fromMap(..., RecordReadContext<T>)`** with the same **`Session`** and **`Class<T>`** as mapper-less reads, so overrides of the four-argument `fromMap` can issue dependent reads. Plain **`RecordStream`** / **`NavigatableRecordStream`** paths that take an explicit mapper still use the three-argument `fromMap` unless you map rows yourself (e.g. loop `RecordResult` and call **`toObject()`** on typed legs). For nested bins deserialized with **`MapUtil.asObjectFromMap`**, use **`asObjectFromMap(..., RecordReadContext<U>)`** and build a child context such as `new RecordReadContext<>(parentCtx.getSession(), Child.class)`. A tabular summary of **which operations call which `fromMap` overload** is in [Object mapping](object-mapping.md#which-apis-call-which-frommap-overload).
+On **`TypedRecordStream`** / **`TypedNavigatableRecordStream`**, `toObjectList(RecordMapper<T>)`, `getFirst(RecordMapper<T>)`, `forEach(RecordMapper<T>, …)`, and related overloads invoke **`RecordMapper.fromMap(..., RecordReadContext<T>)`** with the same **`Session`** and **`Class<T>`** as mapper-less reads, so overrides of the four-argument `fromMap` can issue dependent reads. On plain **`RecordStream`**, mapper-only methods (`getFirst(RecordMapper)`, `toObjectList(RecordMapper)`, …) still use the three-argument `fromMap`. Pass a **`RecordReadContext`** (`getFirst(mapper, ctx)`) or use factory-backed **`(Session, Class)`** overloads (`getFirst(session, Player.class)`, which calls **`Session.getMapper`**) when you need the four-argument path. **`NavigatableRecordStream`** explicit-mapper APIs remain three-argument. For nested bins deserialized with **`MapUtil.asObjectFromMap`**, use **`asObjectFromMap(..., RecordReadContext<U>)`** and build a child context such as `new RecordReadContext<>(parentCtx.getSession(), Child.class)`. A tabular summary of **which operations call which `fromMap` overload** is in [Object mapping](object-mapping.md#which-apis-call-which-frommap-overload).
 
 `RecordResult.toObject()` applies to **typed read legs** in a chain (keys
 from `TypedKey` / `queryTypedKeys` / `queryTypedKeysAny`). For plain `Key` reads, the result carries no

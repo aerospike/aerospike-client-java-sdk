@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
  * <p>Invalid transitions (e.g. {@code forIndex().forBin()}) are enforced by the compiler and
  * cannot be tested at runtime.</p>
  */
-class QueryHintTest {
+public class QueryHintTest {
 
     @ParameterizedTest
     @MethodSource("hintCaptureCases")
@@ -95,6 +95,20 @@ class QueryHintTest {
     void hardHintWithoutForIndexThrows() {
         assertThrows(IllegalArgumentException.class, () ->
             QueryHint.create().queryDuration(QueryDuration.SHORT).forIndex("  ").hardHint());
+    }
+
+    @Test
+    void toStringIncludesConfiguredValues() {
+        QueryHint.Result result = QueryHint.create()
+            .allowScansWithWhere()
+            .forIndex("my_idx")
+            .queryDuration(QueryDuration.SHORT);
+
+        assertTrue(result.toString().contains("indexName=my_idx"));
+        assertTrue(result.toString().contains("binName=null"));
+        assertTrue(result.toString().contains("queryDuration=SHORT"));
+        assertTrue(result.toString().contains("allowScansWithWhere=true"));
+        assertTrue(result.toString().contains("hardHint=false"));
     }
 
     private static Stream<Arguments> hintCaptureCases() {

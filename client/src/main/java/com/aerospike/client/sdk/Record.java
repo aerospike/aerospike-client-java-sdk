@@ -25,6 +25,7 @@ import java.util.Objects;
 import com.aerospike.client.sdk.Value.GeoJSONValue;
 import com.aerospike.client.sdk.Value.HLLValue;
 import com.aerospike.client.sdk.vector.Vector;
+import com.aerospike.client.sdk.util.ContainerString;
 
 /**
  * Container object for records.  Records are equivalent to rows.
@@ -334,7 +335,7 @@ public final class Record {
                 sb.append('(');
                 sb.append(entry.getKey());
                 sb.append(':');
-                sb.append(entry.getValue());
+                ContainerString.append(sb, entry.getValue(), 1000);
                 sb.append(')');
             }
         }

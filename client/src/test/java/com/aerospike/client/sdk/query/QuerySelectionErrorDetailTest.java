@@ -72,8 +72,8 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
             IndexCollectionType.DEFAULT);
 
         session.upsert(dataSet.ids(keyPrefix + "1"))
-            .bins(binName, countryBinName)
-            .values(25, "US")
+            .bin(binName).setTo(25)
+            .bin(countryBinName).setTo("US")
             .execute();
     }
 

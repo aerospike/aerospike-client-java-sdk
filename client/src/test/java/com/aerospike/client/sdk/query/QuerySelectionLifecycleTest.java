@@ -16,7 +16,6 @@
  */
 package com.aerospike.client.sdk.query;
 
-import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.assumeQuerySelection;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.createIndexQuietly;
 import static com.aerospike.client.sdk.query.QuerySelectionIntegSupport.dropIndexQuietlyAndWait;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -55,7 +54,7 @@ import com.aerospike.client.sdk.ResultCode;
  * because it drops and recreates indexes mid-run; {@link #resetIndexBaseline()} restores the
  * intended catalog before each test so a failure part-way through one test cannot cascade.</p>
  */
-class QuerySelectionLifecycleTest extends ClusterTest {
+public class QuerySelectionLifecycleTest extends ClusterTest {
     private static final String setName = "qsellife";
     private static final String keyPrefix = "qsellifekey";
     private static final String ageBin = "age";
@@ -78,8 +77,8 @@ class QuerySelectionLifecycleTest extends ClusterTest {
 
         for (int i = 1; i <= recordCount; i++) {
             session.upsert(dataSet.ids(keyPrefix + i))
-                .bins(ageBin, countryBin)
-                .values(i, (i % 2 == 0) ? "US" : "CA")
+                .bin(ageBin).setTo(i)
+                .bin(countryBin).setTo((i % 2 == 0) ? "US" : "CA")
                 .execute();
         }
     }

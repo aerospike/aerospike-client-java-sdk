@@ -198,6 +198,9 @@ public class ClusterTend implements Runnable {
         if (nodes.length == 0) {
             seedNode(peers, failIfNotConnected);
 
+            // Reset nodes because seedNode changes them.
+            nodes = cluster.getNodes();
+
             // Abort cluster init if all peers of the seed are not reachable and failIfNotConnected is true.
             if (isInit && failIfNotConnected && nodes.length == 1 && peers.getInvalidCount() > 0) {
                 peers.clusterInitError();
@@ -235,6 +238,7 @@ public class ClusterTend implements Runnable {
         }
 
         invalidNodeCount += peers.getInvalidCount();
+        nodes = cluster.getNodes();
 
         // Refresh partition map when necessary.
         for (Node node : nodes) {

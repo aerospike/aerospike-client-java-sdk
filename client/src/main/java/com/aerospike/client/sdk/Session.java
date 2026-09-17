@@ -25,6 +25,7 @@ import java.util.Objects;
 
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
+import com.aerospike.client.sdk.command.CommitStatus;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.command.RegisterCommand;
@@ -237,16 +238,42 @@ public class Session {
      * records and Java objects. This enables automatic object serialization and
      * deserialization when working with typed datasets.</p>
      *
-     * <p>If no factory is set, this method will return null, and object mapping
-     * operations will not be available.</p>
+     * <p>If no factory is set, this method returns {@code null}. Prefer {@link #getMapper(Class)}
+     * when you need a mapper: that call treats a missing factory as an error.</p>
      *
-     * @return the record mapping factory, or null if none is set
+     * @return the record mapping factory, or {@code null} if none is set
      * @see RecordMappingFactory
      * @see DefaultRecordMappingFactory
      * @see Cluster#setRecordMappingFactory(RecordMappingFactory)
+     * @see #getMapper(Class)
      */
     public RecordMappingFactory getRecordMappingFactory() {
         return this.cluster.getRecordMappingFactory();
+    }
+
+    /**
+     * Returns the {@link RecordMapper} registered for {@code clazz} on this session's cluster.
+     *
+     * <p>Looks up the mapper from {@link #getRecordMappingFactory()}. A {@code null} factory
+     * (none configured) or a factory that has no mapper for {@code clazz} is an error, not a
+     * {@code null} return.</p>
+     *
+     * <pre>{@code
+     * RecordMapper<Player> mapper = session.getMapper(Player.class);
+     * Optional<Player> player = session.query(playerKey).execute().getFirst(mapper);
+     * }</pre>
+     *
+     * @param <T> the domain type
+     * @param clazz the class to resolve a mapper for
+     * @return the non-null mapper registered for {@code clazz}
+     * @throws IllegalStateException if no factory is configured on the cluster, or the factory
+     *         has no mapper for {@code clazz}
+     * @throws NullPointerException if {@code clazz} is {@code null}
+     * @see MappingSupport#requireMapper(RecordMappingFactory, Class)
+     * @see Cluster#setRecordMappingFactory(RecordMappingFactory)
+     */
+    public <T> RecordMapper<T> getMapper(Class<T> clazz) {
+        return MappingSupport.requireMapper(getRecordMappingFactory(), clazz);
     }
 
     private List<Key> buildKeyList(Key key1, Key key2, Key ...keys) {
@@ -1748,16 +1775,20 @@ public class Session {
      * });
      * }</pre>
      *
+     * <p><b>Check the returned status.</b> {@link CommitStatus#ROLL_FORWARD_ABANDONED} means the
+     * writes are still provisional and not yet visible, even though no exception was thrown. A
+     * caller that ignores it will read pre-transaction values back.</p>
+     *
      * @param operation the transactional operation to execute
+     * @return the outcome of the commit, or null if the transaction was aborted
      * @throws AerospikeException if the operation fails with a non-retryable error
      * @throws RuntimeException if any other exception occurs during execution
      * @see TransactionalSession#doInTransaction(TransactionalVoid)
      * @see #doInTransactionReturning(Transactional)
      */
-    public void doInTransaction(TransactionalVoid operation) {
-        new TransactionalSession(cluster, behavior).doInTransaction(txn -> {
+    public CommitStatus doInTransaction(TransactionalVoid operation) {
+        return new TransactionalSession(cluster, behavior).doInTransaction(txn -> {
             operation.execute(txn);
-//            return null; // Hidden from user
         });
     }
 
@@ -1955,7 +1986,7 @@ public class Session {
     /**
      * Create an expression-based secondary index from an AEL (Aerospike Expression Language)
      * string. The AEL text is compiled by the server, so the cluster must support server-side
-     * AEL parsing (see {@link Cluster#supportsAel()}, which requires server version 8.1.3 or
+     * AEL parsing (see {@link Cluster#supportsAel()}, which requires server version 8.2.0 or
      * newer).
      * This asynchronous server call will return before command is complete.
      * The user can optionally wait for command completion by using the returned
@@ -2094,7 +2125,6 @@ public class Session {
         }
         else {
             String indexTypeString = (indexType == IndexType.INTEGER) ?
-                // && currentServerVersion.isLessThan(Version.SERVER_VERSION_8_1_3))?
                     "NUMERIC" : indexType.toString();
 
             if (exp != null) {

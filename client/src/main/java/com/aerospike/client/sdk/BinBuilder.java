@@ -46,7 +46,7 @@ import com.aerospike.client.sdk.vector.Vector;
 
 /**
  * Operations for one bin: scalar writes ({@link #setTo}), reads ({@link #get}),
- * server string read/modify ops (server 8.1.3+; fluent methods such as {@link #strlen},
+ * server string read/modify ops (server 8.2.0+; fluent methods such as {@link #strlen},
  * {@link #substr}, {@link #find} delegate to {@link com.aerospike.client.sdk.operation.StringOperation};
  * see also {@code docs/string-operations.md} in the SDK repo for AEL cross-reference), numeric {@link #add},
  * expression-backed {@link #selectFrom}, {@link #insertFrom}, {@link #updateFrom}, {@link #upsertFrom}, and nested
@@ -193,6 +193,48 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      */
     public T setTo(final Vector value) {
         return opBuilder.setTo(new Bin(binName, value));
+    }
+
+    /**
+     * Queues a write that sets this bin from a runtime {@link Object}.
+     *
+     * <p>Use this when the value type is not known statically (for example copying bins between
+     * records). The object is converted with {@link Value#get(Object)}, which accepts the same
+     * types as the typed {@code setTo} overloads plus boxed numbers, {@link Value}, enums, and
+     * {@link java.util.UUID}. Prefer a typed {@code setTo} overload when the compile-time type is
+     * known.</p>
+     *
+     * <p>{@code null} stores a null bin (same as {@link #remove()}), not an empty string.
+     * Unsupported types throw {@link AerospikeException}.</p>
+     *
+     * <pre>{@code
+     * Object value = rec.getValue("name");
+     * session.upsert(destKey).bin("name").setTo(value).execute();
+     * }</pre>
+     *
+     * @param value value to store, or {@code null} to write a null bin
+     * @return the parent operation builder for chaining
+     * @throws AerospikeException if {@code value}'s type cannot be stored in a bin
+     */
+    public T setTo(Object value) {
+        return opBuilder.setTo(new Bin(binName, Value.get(value)));
+    }
+
+    /**
+     * Queues a write that sets this bin to an already-constructed {@link Value}.
+     *
+     * <p>Use this when you already have a {@link Value} (for example from {@link Value#get(Object)}
+     * or a GeoJSON/HLL constructor). {@code null} is treated as {@link Value#getAsNull()}.</p>
+     *
+     * <pre>{@code
+     * session.upsert(key).bin("loc").setTo(Value.getAsGeoJSON(geoJson)).execute();
+     * }</pre>
+     *
+     * @param value bin value to store, or {@code null} for a null bin
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(Value value) {
+        return opBuilder.setTo(new Bin(binName, value != null ? value : Value.getAsNull()));
     }
 
     /**
@@ -2774,7 +2816,7 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     // ----------------------------------------
-    // String server operations (server 8.1.3+)
+    // String server operations (server 8.2.0+)
     // ----------------------------------------
 
     /**
@@ -3077,34 +3119,34 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     /**
      * Queues string {@code concat} modify: append {@code fragment}.
      */
-    public T stringConcat(String fragment) {
+    public T concat(String fragment) {
         return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragment));
     }
 
-    public T stringConcat(String fragment, Consumer<StringWriteOptions> options) {
+    public T concat(String fragment, Consumer<StringWriteOptions> options) {
         StringWriteOptions o = new StringWriteOptions();
         options.accept(o);
-        return stringConcat(fragment, o);
+        return concat(fragment, o);
     }
 
-    public T stringConcat(String fragment, StringWriteOptions options) {
+    public T concat(String fragment, StringWriteOptions options) {
         return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragment));
     }
 
     /**
      * Queues string {@code concat} modify: append all strings in order.
      */
-    public T stringConcat(List<String> fragments) {
+    public T concat(List<String> fragments) {
         return addStringModifyOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragments));
     }
 
-    public T stringConcat(List<String> fragments, Consumer<StringWriteOptions> options) {
+    public T concat(List<String> fragments, Consumer<StringWriteOptions> options) {
         StringWriteOptions o = new StringWriteOptions();
         options.accept(o);
-        return stringConcat(fragments, o);
+        return concat(fragments, o);
     }
 
-    public T stringConcat(List<String> fragments, StringWriteOptions options) {
+    public T concat(List<String> fragments, StringWriteOptions options) {
         return addStringModifyOp(StringOperation.concat(options.toFlags(), binName, fragments));
     }
 
@@ -3159,7 +3201,14 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
     }
 
     /**
-     * Queues string {@code snip} modify: remove half-open range {@code [start, end)}.
+     * Queues string {@code snip} modify: remove half-open range from {@code start} to the end of the string.
+     */
+    public T snip(int start) {
+        return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start));
+    }
+
+    /**
+     * Queues string {@code snip} modify: remove range {@code [start, end)}.
      */
     public T snip(int start, int end) {
         return addStringModifyOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start, end));

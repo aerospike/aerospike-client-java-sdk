@@ -89,6 +89,19 @@ class CtxSerdeTest {
         assertArrayEquals(compiled.getBytes(), restored[1].exp.getBytes());
     }
 
+    @Test
+    void toStringFormatsValueAndExpressionContexts() {
+        Expression compiled = Exp.build(Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(10)));
+
+        assertThat(CTX.mapKeysIn("a", "b").toString())
+            .contains("CTX{id=0x2a")
+            .contains("value=[a, b]");
+
+        assertThat(CTX.andFilter(compiled).toString())
+            .contains("CTX{id=0x204")
+            .contains("exp=" + compiled.getBase64());
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("mapKeysInRoundTripCases")
     void mapKeysInPrimitiveKeyListsRoundTrip(CTX original, List<?> expectedKeys) {

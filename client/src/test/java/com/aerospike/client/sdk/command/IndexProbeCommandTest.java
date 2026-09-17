@@ -36,7 +36,7 @@ import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
-class IndexProbeCommandTest {
+public class IndexProbeCommandTest {
 
     private static final String AEL = "$.age > 30";
 

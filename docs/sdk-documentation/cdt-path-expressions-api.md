@@ -1,7 +1,9 @@
-# CDT path-style operations — Java SDK API spec (engineering)
+# CDT path-style operations — legacy `CTX` mapping (engineering)
+
+**Not the application API.** Application code should use [CDT path operations](../cdt-path-operations.md) (`onEachChild`, `collect*`, `modifyBy`, `removeMatches`). This file is the engineering mapping onto `CdtOperation.selectByPath` / `modifyByPath` for legacy-client ports.
 
 **Audience:** SDK / client engineering  
-**Status:** Implemented for **`Exp`** filters and modify bodies; **`String` (AEL)** and **`PreparedAel`** overloads are present on the API but throw **`UnsupportedOperationException`** until AEL compilation supports path-scoped fragments (see `com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel`).  
+**Status:** Shipped for **`Exp`** filters and modify bodies. **`String` (AEL)** and **`PreparedAel`** overloads compile but throw **`UnsupportedOperationException`** until AEL compilation supports path-scoped fragments (`com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel`).  
 **Depends on:** Aerospike server **≥ 8.1.1** path expression support (`CTX.allChildren`, `CTX.allChildrenWithFilter`, `CdtOperation.selectByPath` / `modifyByPath`, loop-variable `Exp` APIs, etc.)
 
 **Entry points:** `BinBuilder` / `QueryBinBuilder` / `QueryBuilderBinBuilder` expose `onEachChild()` at the bin root; nested navigation continues on `CdtGetOrRemoveBuilder` (writes) or `CdtReadOnlyBuilder` (reads). Options types: `com.aerospike.client.sdk.cdt.path.CdtCollectOptions`, `CdtModifyOptions`.
@@ -29,7 +31,7 @@ Navigation methods accumulate an internal **context list** (implementation maps 
 | *(existing)* `onMapKey(...)`, `onListIndex(...)`, … | Fixed single step into map/list | `CTX.mapKey` / `CTX.listIndex` / … |
 | **`onEachChild()`** | Iterate **all** children of the current map or list | **`CTX.allChildren()`** |
 | **`onEachChild(Exp filter)`** | Iterate children matching predicate | **`CTX.allChildrenWithFilter(filter)`** |
-| **`onEachChild(String aelFilter)`** *(optional)* | Same as above; SDK compiles AEL to `Exp` in **path-filter** scope (must define `@` / loop semantics or reject invalid input) | **`CTX.allChildrenWithFilter(compiledExp)`** |
+| **`onEachChild(String aelFilter)`** | Same as `onEachChild(Exp)`; **throws `UnsupportedOperationException` today** | **`CTX.allChildrenWithFilter(compiledExp)`** |
 
 **Design decision:** Use **`onEachChild`** only (not `onEachListElement` / `onEachMapEntry`) because **`allChildren()`** is identical at the wire level for maps and lists; type-specific helpers belong **inside** the predicate (`MapExp` / `ListExp` / small SDK facades), not as separate iteration entry points.
 
@@ -47,11 +49,11 @@ These apply only when the accumulated context includes at least one **`onEachChi
 | **`collectKeys()`** | Return matched **map keys** (where applicable) | `selectByPath` with **MAP_KEY** flag |
 | **`collectKeyValues()`** | Return **(key, value)** pairs | `selectByPath` with **MAP_KEY_VALUE** flag |
 | **`collectTree()`** | Return **matching tree** structure | `selectByPath` with **MATCHING_TREE** flag |
-| **`collect*(Consumer<CollectOptions>)`** | Same as above with **noFail** etc. | OR in `SELECT_NO_FAIL` (and related) into flags |
+| **`collect*(Consumer<CdtCollectOptions>)`** | Same as above with **noFail** etc. | OR in `SELECT_NO_FAIL` (and related) into flags |
 | **`modifyBy(Exp newValueExpression)`** | Replace **each** matched **leaf** with expression result | `CdtOperation.modifyByPath(bin, modifyFlags, newValueExpression, ctx…)` |
-| **`modifyBy(Exp e, Consumer<ModifyOptions>)`** | Same with options | modify flags |
+| **`modifyBy(Exp e, Consumer<CdtModifyOptions>)`** | Same with options | modify flags |
 | **`removeMatches()`** | Remove **each** matched element (container element, not only leaf semantics — follow server rules for current path shape) | `modifyByPath` with **`Exp.removeResult()`** |
-| **`removeMatches(Consumer<RemoveOptions>)`** | Same with options | modify flags |
+| **`removeMatches(Consumer<CdtModifyOptions>)`** | Same with options | modify flags |
 
 **Naming decisions:**
 
@@ -67,8 +69,8 @@ These apply only when the accumulated context includes at least one **`onEachChi
 
 Follow existing SDK patterns (`Consumer<ExpressionReadOptions>`, etc.):
 
-- **`CollectOptions`** — e.g. `noFail(boolean)`, return shape if not fixed by method name.
-- **`ModifyOptions`** / **`RemoveOptions`** — e.g. `noFail`, modify flags mirror.
+- **`CdtCollectOptions`** — e.g. `noFail(boolean)`, return shape if not fixed by method name.
+- **`CdtModifyOptions`** — e.g. `noFail`; used by both `modifyBy` and `removeMatches`.
 
 Exact flag names should match **`Exp.SELECT_*`** / **`Exp.MODIFY_*`** (or the client’s public constants) internally.
 
@@ -87,11 +89,11 @@ Exact flag names should match **`Exp.SELECT_*`** / **`Exp.MODIFY_*`** (or the cl
 
 ## 3. Legacy mapping summary
 
-| SDK (proposed) | Legacy client |
+| SDK | Legacy client |
 |----------------|----------------|
 | `onEachChild()` | `CTX.allChildren()` |
 | `onEachChild(Exp)` | `CTX.allChildrenWithFilter(Exp)` |
-| `onEachChild(String)` *(optional)* | `CTX.allChildrenWithFilter(parseAelToExp(...))` |
+| `onEachChild(String)` | `CTX.allChildrenWithFilter(parseAelToExp(...))` — throws today |
 | `collectValues()` / `collectKeys()` / … | `CdtOperation.selectByPath(bin, flags, ctx…)` |
 | `modifyBy(Exp)` | `CdtOperation.modifyByPath(bin, modifyFlags, Exp, ctx…)` |
 | `removeMatches()` | `CdtOperation.modifyByPath(bin, modifyFlags, Exp.build(Exp.removeResult()), ctx…)` |
@@ -112,7 +114,7 @@ CTX c3 = CTX.mapKey(Value.get("price"));
 Operation op = CdtOperation.selectByPath("store", Exp.SELECT_VALUE, c1, c2, c3);
 ```
 
-**Proposed SDK:**
+**SDK:**
 
 ```java
 session.update(key)
@@ -142,7 +144,7 @@ CTX c3 = CTX.allChildrenWithFilter(
 Operation op = CdtOperation.selectByPath("store", Exp.SELECT_VALUE, c1, c2, c3);
 ```
 
-**Proposed SDK:**
+**SDK:**
 
 ```java
 .bin("store")
@@ -157,7 +159,7 @@ Operation op = CdtOperation.selectByPath("store", Exp.SELECT_VALUE, c1, c2, c3);
 
 ---
 
-### 4.3 Filter with **AEL** (optional; same semantics as 4.2 once compiler supports it)
+### 4.3 Filter with **AEL** (same semantics as 4.2; throws `UnsupportedOperationException` until the compiler supports path-scoped fragments)
 
 ```java
 .bin("store")
@@ -181,7 +183,7 @@ Exp modify = Exp.mul(Exp.floatLoopVar(LoopVarPart.VALUE), Exp.val(0.9));
 Operation op = CdtOperation.modifyByPath("store", Exp.MODIFY_DEFAULT, modify, book, all, price);
 ```
 
-**Proposed SDK:**
+**SDK:**
 
 ```java
 .bin("store")
@@ -208,7 +210,7 @@ Operation op = CdtOperation.modifyByPath(
     "store", Exp.MODIFY_DEFAULT, Exp.build(Exp.removeResult()), c1, c2);
 ```
 
-**Proposed SDK — `Exp` filter:**
+**SDK — `Exp` filter:**
 
 ```java
 .bin("store")
@@ -220,7 +222,7 @@ Operation op = CdtOperation.modifyByPath(
     .removeMatches()
 ```
 
-**Proposed SDK — AEL filter (optional):**
+**SDK — AEL filter (throws `UnsupportedOperationException` today):**
 
 ```java
 .bin("store")
@@ -249,15 +251,12 @@ session.update(customerDataSet.id(500))
 
 ---
 
-## 5. Implementation checklist (engineering)
+## 5. Remaining work
 
-1. **Context accumulation** — Extend internal CDT path state so **`onEachChild`** appends the correct `CTX` entries; preserve order for `selectByPath` / `modifyByPath`.
-2. **Terminal dispatch** — Map **`collect*`** / **`modifyBy`** / **`removeMatches`** to **`CdtOperation`** (and **`CdtExp`** if read API is in scope).
-3. **Validation** — Reject invalid chains (e.g. **`collect*`** without any **`onEachChild`** if that is the chosen rule); clear messages.
-4. **Naming audit** — Ensure new terminals do not overload **`getValues()`** / **`remove()`** semantics on the same builder types.
-5. **Query / read builders** — Mirror the same navigation + **`collect*`** on read-only builders if multi-match reads are supported there.
-6. **AEL (optional)** — Define compilation contract for **`onEachChild(String)`**; otherwise ship **`Exp` only** initially.
-7. **Tests** — Port patterns from existing cluster tests (`CdtOperateTest`, etc.) to the new API as golden behavior.
+The fluent surface in §2 is shipped. Left:
+
+- **AEL path fragments** — `onEachChild(String)` / `modifyBy(String)` / `PreparedAel` still throw `UnsupportedOperationException` (`CdtPathExpressionAel`).
+- **AEL syntax page** — `docs/ael/path-expressions.md` still describes the low-level `CTX` / `CdtOperation` mapping; application Java should follow [CDT path operations](../cdt-path-operations.md).
 
 ---
 

@@ -73,8 +73,8 @@ public class Cluster implements Closeable {
     private Version version;
     private boolean versionGE8;
     private boolean versionGE812;
-    private boolean versionGE813;
     private boolean versionGETopK;
+    private boolean versionGE82;
     private boolean metricsEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
@@ -133,10 +133,14 @@ public class Cluster implements Closeable {
      * convert between Aerospike records and Java objects. This enables automatic
      * object serialization/deserialization when working with typed datasets.</p>
      *
-     * @param factory the record mapping factory to use
+     * <p>Pass {@code null} to clear a previously installed factory. {@link Session#getMapper(Class)}
+     * and typed mapping APIs treat a missing factory as an error.</p>
+     *
+     * @param factory the record mapping factory to use, or {@code null} to clear it
      * @return this Cluster for method chaining
      * @see RecordMappingFactory
      * @see DefaultRecordMappingFactory
+     * @see Session#getMapper(Class)
      */
     public Cluster setRecordMappingFactory(RecordMappingFactory factory) {
         this.recordMappingFactory = factory;
@@ -183,8 +187,13 @@ public class Cluster implements Closeable {
     /**
      * Gets the current record mapping factory.
      *
-     * @return the current record mapping factory, or null if none is set
+     * <p>May be {@code null} if {@link #setRecordMappingFactory(RecordMappingFactory)} has not been
+     * called, or was called with {@code null}. {@link Session#getMapper(Class)} treats a missing
+     * factory as an error.</p>
+     *
+     * @return the current record mapping factory, or {@code null} if none is set
      * @see RecordMappingFactory
+     * @see Session#getMapper(Class)
      */
     public RecordMappingFactory getRecordMappingFactory() {
         return recordMappingFactory;
@@ -598,12 +607,12 @@ public class Cluster implements Closeable {
      * and expression writes (wire form {@code [128, utf8]}).
      *
      * <p>True when the cluster's {@linkplain #getVersion() minimum server version} is
-     * {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     * {@link Version#SERVER_VERSION_8_2} or newer.</p>
      *
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsAel() {
-        return versionGE813;
+        return versionGE82;
     }
 
     /**
@@ -618,19 +627,19 @@ public class Cluster implements Closeable {
     /**
      * Whether this cluster's minimum server version supports the new string operations.
      *
-     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsStringOperations() {
-        return versionGE813;
+        return versionGE82;
     }
 
     /**
      * Whether this cluster's minimum server version supports server side index selection.
      *
-     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_3} or newer.</p>
+     * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsQuerySelection() {
-        return versionGE813;
+        return versionGE82;
     }
 
     /**
@@ -666,8 +675,8 @@ public class Cluster implements Closeable {
         this.version = version;
         this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
         this.versionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
-        this.versionGE813 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
         this.versionGETopK = version.isGreaterOrEqual(Version.SERVER_VERSION_TOP_K_MIN_TBD);
+        this.versionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
     }
 
     /**

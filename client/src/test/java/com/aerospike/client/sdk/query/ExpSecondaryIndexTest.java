@@ -83,8 +83,9 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
     private static void insertPersonRecord(int key, String name, int age, String country) {
         session.upsert(dataSet.ids(key))
-            .bins("name", "age", "country")
-            .values(name, age, country)
+            .bin("name").setTo(name)
+            .bin("age").setTo(age)
+            .bin("country").setTo(country)
             .execute();
     }
 

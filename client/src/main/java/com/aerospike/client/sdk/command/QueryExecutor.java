@@ -162,26 +162,27 @@ public final class QueryExecutor implements IQueryExecutor {
                     thread.stop();
                 }
             }
-            stream.complete();
+
+            // Terminate the stream with the error rather than completing it normally. Completing
+            // normally here would present a query the server rejected as one that matched nothing.
+            stream.error(toQueryException(cause));
         }
     }
 
-    @Override
-    public final void checkForException() {
-        // Throw an exception if an error occurred.
-        if (exception != null) {
-            AerospikeException ae;
+    /**
+     * The exception a consumer of the stream should see for a query that failed part-way.
+     *
+     * <p>Marks the partition filter for retry, so a caller resuming from it re-runs the partitions
+     * this query abandoned rather than treating them as read.</p>
+     */
+    private AerospikeException toQueryException(Throwable cause) {
+        AerospikeException ae = (cause instanceof AerospikeException hit)
+            ? hit
+            : new AerospikeException(cause);
 
-            if (exception instanceof AerospikeException) {
-                ae = (AerospikeException)exception;
-            }
-            else {
-                ae = new AerospikeException(exception);
-            }
-            tracker.partitionError();
-            ae.setIteration(tracker.iteration);
-            throw ae;
-        }
+        tracker.partitionError();
+        ae.setIteration(tracker.iteration);
+        return ae;
     }
 
     private final class QueryThread implements Runnable {

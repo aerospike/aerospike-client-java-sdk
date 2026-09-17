@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.cdt.ListOperation;
 import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.ListPolicy;
@@ -31,6 +32,9 @@ import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.cdt.MapPolicy;
 import com.aerospike.client.sdk.cdt.MapWriteFlags;
 import com.aerospike.client.sdk.vector.Vector;
+import com.aerospike.client.sdk.operation.StringOperation;
+import com.aerospike.client.sdk.operation.StringRegexFlags;
+import com.aerospike.client.sdk.operation.StringWriteFlags;
 
 /**
  * CDT helpers for a single bin: appends {@link ListOperation} and {@link MapOperation} steps to
@@ -1386,5 +1390,253 @@ public class AbstractCdtBuilder<T extends AbstractOperationBuilder<T>> {
         else {
             return this.opBuilder.addOp(MapOperation.putItems(mp, binName, toValueMap(items)));
         }
+    }
+
+    // =================================
+    // String operations at a CDT path
+    // =================================
+
+    private CTX[] stringContext() {
+        params.pushCurrentToContext();
+        return params.context();
+    }
+
+    private StringWriteOptions stringOptions(Consumer<StringWriteOptions> configure) {
+        StringWriteOptions options = new StringWriteOptions();
+        configure.accept(options);
+        return options;
+    }
+
+    public T strlen() { return opBuilder.addOp(StringOperation.strlen(binName, stringContext())); }
+    public T substr(int start) { return opBuilder.addOp(StringOperation.substr(binName, start, stringContext())); }
+    public T substr(int start, int end) {
+        return opBuilder.addOp(StringOperation.substr(binName, start, end, stringContext()));
+    }
+    public T charAt(int index) { return opBuilder.addOp(StringOperation.charAt(binName, index, stringContext())); }
+    public T find(String needle) { return opBuilder.addOp(StringOperation.find(binName, needle, stringContext())); }
+    public T find(String needle, int occurrence) {
+        return opBuilder.addOp(StringOperation.find(binName, needle, occurrence, stringContext()));
+    }
+    public T contains(String needle) {
+        return opBuilder.addOp(StringOperation.contains(binName, needle, stringContext()));
+    }
+    public T startsWith(String prefix) {
+        return opBuilder.addOp(StringOperation.startsWith(binName, prefix, stringContext()));
+    }
+    public T endsWith(String suffix) {
+        return opBuilder.addOp(StringOperation.endsWith(binName, suffix, stringContext()));
+    }
+    public T stringToInteger() { return opBuilder.addOp(StringOperation.toInteger(binName, stringContext())); }
+    public T stringToDouble() { return opBuilder.addOp(StringOperation.toDouble(binName, stringContext())); }
+    public T byteLength() { return opBuilder.addOp(StringOperation.byteLength(binName, stringContext())); }
+    public T isNumeric() { return opBuilder.addOp(StringOperation.isNumeric(binName, stringContext())); }
+    public T isNumeric(int numericType) {
+        return opBuilder.addOp(StringOperation.isNumeric(binName, numericType, stringContext()));
+    }
+    public T isUpper() { return opBuilder.addOp(StringOperation.isUpper(binName, stringContext())); }
+    public T isLower() { return opBuilder.addOp(StringOperation.isLower(binName, stringContext())); }
+    public T stringToBlob() { return opBuilder.addOp(StringOperation.toBlob(binName, stringContext())); }
+    public T split() { return opBuilder.addOp(StringOperation.split(binName, stringContext())); }
+    public T split(String separator) {
+        return opBuilder.addOp(StringOperation.split(binName, separator, stringContext()));
+    }
+    public T b64Decode() { return opBuilder.addOp(StringOperation.b64Decode(binName, stringContext())); }
+    public T regexCompare(String pattern) {
+        return opBuilder.addOp(StringOperation.regexCompare(binName, pattern, stringContext()));
+    }
+    public T regexCompare(String pattern, int regexFlags) {
+        return opBuilder.addOp(StringOperation.regexCompare(binName, pattern, regexFlags, stringContext()));
+    }
+
+    public T insert(int index, String value) {
+        return opBuilder.addOp(StringOperation.insert(StringWriteFlags.DEFAULT, binName, index, value, stringContext()));
+    }
+    public T insert(int index, String value, Consumer<StringWriteOptions> options) {
+        return insert(index, value, stringOptions(options));
+    }
+    public T insert(int index, String value, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.insert(options.toFlags(), binName, index, value, stringContext()));
+    }
+    public T overwrite(int index, String value) {
+        return opBuilder.addOp(StringOperation.overwrite(
+            StringWriteFlags.DEFAULT, binName, index, value, stringContext()));
+    }
+    public T overwrite(int index, String value, Consumer<StringWriteOptions> options) {
+        return overwrite(index, value, stringOptions(options));
+    }
+    public T overwrite(int index, String value, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.overwrite(options.toFlags(), binName, index, value, stringContext()));
+    }
+    public T concat(String fragment) {
+        return opBuilder.addOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragment, stringContext()));
+    }
+    public T concat(String fragment, Consumer<StringWriteOptions> options) {
+        return concat(fragment, stringOptions(options));
+    }
+    public T concat(String fragment, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.concat(options.toFlags(), binName, fragment, stringContext()));
+    }
+    public T concat(List<String> fragments) {
+        return opBuilder.addOp(StringOperation.concat(StringWriteFlags.DEFAULT, binName, fragments, stringContext()));
+    }
+    public T concat(List<String> fragments, Consumer<StringWriteOptions> options) {
+        return concat(fragments, stringOptions(options));
+    }
+    public T concat(List<String> fragments, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.concat(options.toFlags(), binName, fragments, stringContext()));
+    }
+    public T append(String fragment) {
+        return opBuilder.addOp(StringOperation.append(StringWriteFlags.DEFAULT, binName, fragment, stringContext()));
+    }
+    public T append(String fragment, Consumer<StringWriteOptions> options) {
+        return append(fragment, stringOptions(options));
+    }
+    public T append(String fragment, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.append(options.toFlags(), binName, fragment, stringContext()));
+    }
+    public T prepend(String fragment) {
+        return opBuilder.addOp(StringOperation.prepend(StringWriteFlags.DEFAULT, binName, fragment, stringContext()));
+    }
+    public T prepend(String fragment, Consumer<StringWriteOptions> options) {
+        return prepend(fragment, stringOptions(options));
+    }
+    public T prepend(String fragment, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.prepend(options.toFlags(), binName, fragment, stringContext()));
+    }
+    public T snip(int start) {
+        return opBuilder.addOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start, stringContext()));
+    }
+    public T snip(int start, int end) {
+        return opBuilder.addOp(StringOperation.snip(StringWriteFlags.DEFAULT, binName, start, end, stringContext()));
+    }
+    public T snip(int start, int end, Consumer<StringWriteOptions> options) {
+        return snip(start, end, stringOptions(options));
+    }
+    public T snip(int start, int end, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.snip(options.toFlags(), binName, start, end, stringContext()));
+    }
+    public T replace(String needle, String replacement) {
+        return opBuilder.addOp(StringOperation.replace(
+            StringWriteFlags.DEFAULT, binName, needle, replacement, stringContext()));
+    }
+    public T replace(String needle, String replacement, Consumer<StringWriteOptions> options) {
+        return replace(needle, replacement, stringOptions(options));
+    }
+    public T replace(String needle, String replacement, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.replace(
+            options.toFlags(), binName, needle, replacement, stringContext()));
+    }
+    public T replaceAll(String needle, String replacement) {
+        return opBuilder.addOp(StringOperation.replaceAll(
+            StringWriteFlags.DEFAULT, binName, needle, replacement, stringContext()));
+    }
+    public T replaceAll(String needle, String replacement, Consumer<StringWriteOptions> options) {
+        return replaceAll(needle, replacement, stringOptions(options));
+    }
+    public T replaceAll(String needle, String replacement, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.replaceAll(
+            options.toFlags(), binName, needle, replacement, stringContext()));
+    }
+    public T upper() {
+        return opBuilder.addOp(StringOperation.upper(StringWriteFlags.DEFAULT, binName, stringContext()));
+    }
+    public T upper(Consumer<StringWriteOptions> options) { return upper(stringOptions(options)); }
+    public T upper(StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.upper(options.toFlags(), binName, stringContext()));
+    }
+    public T lower() {
+        return opBuilder.addOp(StringOperation.lower(StringWriteFlags.DEFAULT, binName, stringContext()));
+    }
+    public T lower(Consumer<StringWriteOptions> options) { return lower(stringOptions(options)); }
+    public T lower(StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.lower(options.toFlags(), binName, stringContext()));
+    }
+    public T caseFold() {
+        return opBuilder.addOp(StringOperation.caseFold(StringWriteFlags.DEFAULT, binName, stringContext()));
+    }
+    public T caseFold(Consumer<StringWriteOptions> options) { return caseFold(stringOptions(options)); }
+    public T caseFold(StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.caseFold(options.toFlags(), binName, stringContext()));
+    }
+    public T normalizeNfc() {
+        return opBuilder.addOp(StringOperation.normalizeNFC(StringWriteFlags.DEFAULT, binName, stringContext()));
+    }
+    public T normalizeNfc(Consumer<StringWriteOptions> options) { return normalizeNfc(stringOptions(options)); }
+    public T normalizeNfc(StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.normalizeNFC(options.toFlags(), binName, stringContext()));
+    }
+    public T trimStart() {
+        return opBuilder.addOp(StringOperation.trimStart(StringWriteFlags.DEFAULT, binName, stringContext()));
+    }
+    public T trimStart(Consumer<StringWriteOptions> options) { return trimStart(stringOptions(options)); }
+    public T trimStart(StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.trimStart(options.toFlags(), binName, stringContext()));
+    }
+    public T trimEnd() {
+        return opBuilder.addOp(StringOperation.trimEnd(StringWriteFlags.DEFAULT, binName, stringContext()));
+    }
+    public T trimEnd(Consumer<StringWriteOptions> options) { return trimEnd(stringOptions(options)); }
+    public T trimEnd(StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.trimEnd(options.toFlags(), binName, stringContext()));
+    }
+    public T trim() {
+        return opBuilder.addOp(StringOperation.trim(StringWriteFlags.DEFAULT, binName, stringContext()));
+    }
+    public T trim(Consumer<StringWriteOptions> options) { return trim(stringOptions(options)); }
+    public T trim(StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.trim(options.toFlags(), binName, stringContext()));
+    }
+    public T padStart(int targetLength, String padString) {
+        return opBuilder.addOp(StringOperation.padStart(
+            StringWriteFlags.DEFAULT, binName, targetLength, padString, stringContext()));
+    }
+    public T padStart(int targetLength, String padString, Consumer<StringWriteOptions> options) {
+        return padStart(targetLength, padString, stringOptions(options));
+    }
+    public T padStart(int targetLength, String padString, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.padStart(
+            options.toFlags(), binName, targetLength, padString, stringContext()));
+    }
+    public T padEnd(int targetLength, String padString) {
+        return opBuilder.addOp(StringOperation.padEnd(
+            StringWriteFlags.DEFAULT, binName, targetLength, padString, stringContext()));
+    }
+    public T padEnd(int targetLength, String padString, Consumer<StringWriteOptions> options) {
+        return padEnd(targetLength, padString, stringOptions(options));
+    }
+    public T padEnd(int targetLength, String padString, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.padEnd(
+            options.toFlags(), binName, targetLength, padString, stringContext()));
+    }
+    public T repeat(int count) {
+        return opBuilder.addOp(StringOperation.repeat(StringWriteFlags.DEFAULT, binName, count, stringContext()));
+    }
+    public T repeat(int count, Consumer<StringWriteOptions> options) {
+        return repeat(count, stringOptions(options));
+    }
+    public T repeat(int count, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.repeat(options.toFlags(), binName, count, stringContext()));
+    }
+    public T regexReplace(String pattern, String replacement) {
+        return opBuilder.addOp(StringOperation.regexReplace(
+            StringWriteFlags.DEFAULT, binName, pattern, replacement, StringRegexFlags.DEFAULT, stringContext()));
+    }
+    public T regexReplace(String pattern, String replacement, Consumer<StringWriteOptions> options) {
+        return regexReplace(pattern, replacement, StringRegexFlags.DEFAULT, stringOptions(options));
+    }
+    public T regexReplace(String pattern, String replacement, StringWriteOptions options) {
+        return regexReplace(pattern, replacement, StringRegexFlags.DEFAULT, options);
+    }
+    public T regexReplace(String pattern, String replacement, int regexFlags) {
+        return opBuilder.addOp(StringOperation.regexReplace(
+            StringWriteFlags.DEFAULT, binName, pattern, replacement, regexFlags, stringContext()));
+    }
+    public T regexReplace(String pattern, String replacement, int regexFlags,
+        Consumer<StringWriteOptions> options) {
+        return regexReplace(pattern, replacement, regexFlags, stringOptions(options));
+    }
+    public T regexReplace(String pattern, String replacement, int regexFlags, StringWriteOptions options) {
+        return opBuilder.addOp(StringOperation.regexReplace(
+            options.toFlags(), binName, pattern, replacement, regexFlags, stringContext()));
     }
 }

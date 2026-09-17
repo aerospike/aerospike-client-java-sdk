@@ -43,7 +43,7 @@ import com.aerospike.client.sdk.query.plan.QuerySelection;
  * <p>Partition-range and chunked execute invariants live in {@link QuerySelectionLifecycleTest} —
  * they exercise pagination/partition routing, not index selection.</p>
  */
-class QuerySelectionOperationalIntegrationTest extends ClusterTest {
+public class QuerySelectionOperationalIntegrationTest extends ClusterTest {
     private static final Fixture FIXTURE = Fixture.forSuffix("oper");
     private static final String scopeSetName = "qsel_scope";
     private static final String scopeKeyPrefix = "qselscope";
@@ -71,12 +71,12 @@ class QuerySelectionOperationalIntegrationTest extends ClusterTest {
             IndexType.INTEGER, IndexCollectionType.DEFAULT);
 
         session.upsert(scopeDataSet.ids(scopeKeyPrefix + "1"))
-            .bins(setScopedBin, namespaceScopedBin)
-            .values(101, 201)
+            .bin(setScopedBin).setTo(101)
+            .bin(namespaceScopedBin).setTo(201)
             .execute();
         session.upsert(scopeDataSet.ids(scopeKeyPrefix + "2"))
-            .bins(setScopedBin, namespaceScopedBin)
-            .values(102, 202)
+            .bin(setScopedBin).setTo(102)
+            .bin(namespaceScopedBin).setTo(202)
             .execute();
     }
 

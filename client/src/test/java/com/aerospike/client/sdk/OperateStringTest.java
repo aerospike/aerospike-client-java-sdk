@@ -21,15 +21,19 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.StringExp;
 import com.aerospike.client.sdk.junit.RequiresServerFeature;
@@ -48,8 +53,8 @@ import com.aerospike.client.sdk.operation.StringWriteFlags;
 
 /**
  * Integration tests for string expressions: {@link BinBuilder} / {@link StringOperation}
- * (always run on 8.1.3+), client {@link Exp} API via {@link StringExp}, and string AEL
- * equivalents (run when server-side AEL supports them).
+ * (always run on 8.2.0+), client {@link Exp} API via {@link StringExp}, and string AEL
+ * equivalents (disabled until the server validates them in selectFrom/filter).
  */
 @RequiresServerFeature(ServerFeature.STRING_OPS)
 public class OperateStringTest extends ClusterTest {
@@ -62,22 +67,23 @@ public class OperateStringTest extends ClusterTest {
     private static final String DIGITS_BIN = "digits";
     /** Decomposed e-acute for {@link StringExp#normalizeNFC} coverage. */
     private static final String NFC_BIN = "nfc";
+    private static final Key KEY = args.set.id("stringop-key");
+    private static final String BIN = "sbin";
+    // Ceiling the server puts on a modify op's estimated result size.
+    private static final int RESULT_SIZE_CAP = 8 * 1024 * 1024;
 
     @Nested
     @DisplayName("reads")
     class Reads {
         @Nested
-        @DisplayName("BinBuilder / StringOperation")
+        @DisplayName("BinBuilder")
         class Fluent {
             Key key;
 
             @BeforeEach
             void seedHelloString() {
                 key = freshKey("stringFluentReads");
-                try (RecordStream rs = session.upsert(key)
-                    .bin(STRING_BIN).setTo("hello")
-                    .execute()) {
-                }
+                seed(key, b -> b.bin(STRING_BIN).setTo("hello"));
             }
 
             @Test
@@ -96,25 +102,104 @@ public class OperateStringTest extends ClusterTest {
                     assertEquals(2L, rec.operationResult(2).getLong(), "BinBuilder.find(needle=ll)");
                 }
             }
+        }
+
+        @Nested
+        @DisplayName("StringOperation / appendOperations")
+        class OperationReads {
+            Key key;
+
+            @BeforeEach
+            void seedReadRecord() {
+                key = freshKey("stringOpReadSweep");
+                seed(key, b -> b
+                    .bin(STRING_BIN).setTo("Hello,42")
+                    .bin(NUM_BIN).setTo("12345")
+                    .bin(FLT_BIN).setTo("3.14")
+                    .bin(B64_BIN).setTo("aGVsbG8=")
+                    .bin(INT_BIN).setTo(42));
+            }
 
             @Test
-            @DisplayName("StringOperation strlen, substr, find via appendOperations")
-            public void stringReadsViaAppendOperations() {
-                try (RecordStream rs = session.upsert(key)
+            @DisplayName("StringOperation read API sweep")
+            public void stringOperationReadSweep() {
+                try (RecordStream rs = session.query(key)
                     .appendOperations(
                         StringOperation.strlen(STRING_BIN),
                         StringOperation.substr(STRING_BIN, 1, 4),
                         StringOperation.substr(STRING_BIN, 3),
-                        StringOperation.find(STRING_BIN, "ll"))
+                        StringOperation.charAt(STRING_BIN, 0),
+                        StringOperation.find(STRING_BIN, "ll"),
+                        StringOperation.find(STRING_BIN, "l", -1),
+                        StringOperation.byteLength(STRING_BIN),
+                        StringOperation.contains(STRING_BIN, ","),
+                        StringOperation.startsWith(STRING_BIN, "Hel"),
+                        StringOperation.endsWith(STRING_BIN, "42"),
+                        StringOperation.isNumeric(NUM_BIN),
+                        StringOperation.isNumeric(NUM_BIN, StringNumericType.INT),
+                        StringOperation.isUpper(STRING_BIN),
+                        StringOperation.isLower(STRING_BIN),
+                        StringOperation.toInteger(NUM_BIN),
+                        StringOperation.toDouble(FLT_BIN),
+                        StringOperation.split(STRING_BIN),
+                        StringOperation.split(STRING_BIN, ","),
+                        StringOperation.regexCompare(STRING_BIN, "Hel.*"),
+                        StringOperation.regexCompare(STRING_BIN, "hel.*", StringRegexFlags.CASE_INSENSITIVE),
+                        StringOperation.b64Decode(B64_BIN),
+                        StringOperation.toBlob(STRING_BIN),
+                        StringOperation.toString(INT_BIN))
                     .execute()) {
                     assertTrue(rs.hasNext());
                     Record rec = rs.next().recordOrThrow();
-                    assertEquals(5L, rec.operationResult(0).getLong(), "StringOperation.strlen(stringBin s)");
-                    assertEquals("ell", rec.operationResult(1).getString(),
-                        "StringOperation.substr(offset=1, count=4)");
-                    assertEquals("lo", rec.operationResult(2).getString(),
-                        "StringOperation.substr(offset=3)");
-                    assertEquals(2L, rec.operationResult(3).getLong(), "StringOperation.find(needle=ll)");
+                    assertAll("StringOperation read sweep",
+                        () -> assertEquals(8L, rec.operationResult(0).getLong(),
+                            "StringOperation.strlen(stringBin s)"),
+                        () -> assertEquals("ell", rec.operationResult(1).getString(),
+                            "StringOperation.substr(offset=1, count=4)"),
+                        () -> assertEquals("lo,42", rec.operationResult(2).getString(),
+                            "StringOperation.substr(offset=3)"),
+                        () -> assertEquals("H", rec.operationResult(3).getString(),
+                            "StringOperation.charAt(index=0)"),
+                        () -> assertEquals(2L, rec.operationResult(4).getLong(),
+                            "StringOperation.find(needle=ll)"),
+                        () -> assertEquals(3L, rec.operationResult(5).getLong(),
+                            "StringOperation.find(needle=l, occurrence=-1)"),
+                        () -> assertEquals(8L, rec.operationResult(6).getLong(),
+                            "StringOperation.byteLength(stringBin s)"),
+                        () -> assertTrue(rec.operationResult(7).getBoolean(),
+                            "StringOperation.contains(needle=,)"),
+                        () -> assertTrue(rec.operationResult(8).getBoolean(),
+                            "StringOperation.startsWith(prefix=Hel)"),
+                        () -> assertTrue(rec.operationResult(9).getBoolean(),
+                            "StringOperation.endsWith(suffix=42)"),
+                        () -> assertTrue(rec.operationResult(10).getBoolean(),
+                            "StringOperation.isNumeric(stringBin num)"),
+                        () -> assertTrue(rec.operationResult(11).getBoolean(),
+                            "StringOperation.isNumeric(INT, stringBin num)"),
+                        () -> assertFalse(rec.operationResult(12).getBoolean(),
+                            "StringOperation.isUpper(stringBin s)"),
+                        () -> assertFalse(rec.operationResult(13).getBoolean(),
+                            "StringOperation.isLower(stringBin s)"),
+                        () -> assertEquals(12345L, rec.operationResult(14).getLong(),
+                            "StringOperation.toInteger(stringBin num)"),
+                        () -> assertEquals(3.14, rec.operationResult(15).getDouble(), 0.0001,
+                            "StringOperation.toDouble(stringBin flt)"),
+                        () -> assertEquals(8, rec.operationResult(16).getList().size(),
+                            "StringOperation.split(stringBin s)"),
+                        () -> assertEquals(2, rec.operationResult(17).getList().size(),
+                            "StringOperation.split(delimiter=,)"),
+                        () -> assertTrue(rec.operationResult(18).getBoolean(),
+                            "StringOperation.regexCompare(pattern=Hel.*)"),
+                        () -> assertTrue(rec.operationResult(19).getBoolean(),
+                            "StringOperation.regexCompare(pattern=hel.*, CASE_INSENSITIVE)"),
+                        () -> assertEquals("hello",
+                            new String(rec.operationResult(20).getBytes(), StandardCharsets.UTF_8),
+                            "StringOperation.b64Decode(stringBin b64)"),
+                        () -> assertEquals("Hello,42",
+                            new String(rec.operationResult(21).getBytes(), StandardCharsets.UTF_8),
+                            "StringOperation.toBlob(stringBin s)"),
+                        () -> assertEquals("42", rec.operationResult(22).getString(),
+                            "StringOperation.toString(intBin n)"));
                 }
             }
         }
@@ -127,14 +212,12 @@ public class OperateStringTest extends ClusterTest {
             @BeforeEach
             void seedReadProjectionRecord() {
                 key = freshKey("stringExpReadProj");
-                try (RecordStream rs = session.upsert(key)
+                seed(key, b -> b
                     .bin(STRING_BIN).setTo("Hello,42")
                     .bin(NUM_BIN).setTo("12345")
                     .bin(FLT_BIN).setTo("3.14")
                     .bin(B64_BIN).setTo("aGVsbG8=")
-                    .bin(INT_BIN).setTo(42)
-                    .execute()) {
-                }
+                    .bin(INT_BIN).setTo(42));
             }
 
             @Test
@@ -247,10 +330,7 @@ public class OperateStringTest extends ClusterTest {
             @BeforeEach
             void seedModifyString() {
                 key = freshKey("stringBinFluentModify");
-                try (RecordStream rs = session.upsert(key)
-                    .bin(STRING_BIN).setTo("ab")
-                    .execute()) {
-                }
+                seed(key, b -> b.bin(STRING_BIN).setTo("ab"));
             }
 
             @Test
@@ -268,6 +348,263 @@ public class OperateStringTest extends ClusterTest {
         }
 
         @Nested
+        @DisplayName("StringOperation / appendOperations")
+        class OperationApi {
+            private static final String UP_BIN = "mUp";
+            private static final String LOW_BIN = "mLow";
+            private static final String REPL_BIN = "mRepl";
+            private static final String REPL_ALL_BIN = "mReplAll";
+            private static final String INSERT_BIN = "mInsert";
+            private static final String OVERWRITE_BIN = "mOverwrite";
+            private static final String SNIP_BIN = "mSnip";
+            private static final String APPEND_BIN = "mAppend";
+            private static final String PREPEND_BIN = "mPrepend";
+            private static final String PAD_START_BIN = "mPadStart";
+            private static final String PAD_END_BIN = "mPadEnd";
+            private static final String REPEAT_BIN = "mRepeat";
+            private static final String FOLD_BIN = "mFold";
+            private static final String CONCAT_BIN = "mConcat";
+            private static final String CONCAT_LIST_BIN = "mConcatList";
+
+            Key key;
+
+            @BeforeEach
+            void seedModifyBins() {
+                key = freshKey("stringOpModifySweep");
+                seed(key, b -> b
+                    .bin(UP_BIN).setTo("Hello")
+                    .bin(LOW_BIN).setTo("Hello")
+                    .bin(REPL_BIN).setTo("Hello")
+                    .bin(REPL_ALL_BIN).setTo("Hello")
+                    .bin(INSERT_BIN).setTo("Hello")
+                    .bin(OVERWRITE_BIN).setTo("Hello")
+                    .bin(SNIP_BIN).setTo("Hello")
+                    .bin(APPEND_BIN).setTo("Hello")
+                    .bin(PREPEND_BIN).setTo("Hello")
+                    .bin(PAD_START_BIN).setTo("Hello")
+                    .bin(PAD_END_BIN).setTo("Hello")
+                    .bin(REPEAT_BIN).setTo("Hello")
+                    .bin(FOLD_BIN).setTo("Hello")
+                    .bin(CONCAT_BIN).setTo("Hello")
+                    .bin(CONCAT_LIST_BIN).setTo("Hello")
+                    .bin(NFC_BIN).setTo("e\u0301"));
+            }
+
+            @Test
+            @DisplayName("StringOperation modify API sweep")
+            public void stringOperationModifySweep() {
+                int flags = StringWriteFlags.DEFAULT;
+                seed(key, b -> b.appendOperations(
+                        StringOperation.upper(flags, UP_BIN),
+                        StringOperation.lower(flags, LOW_BIN),
+                        StringOperation.replace(flags, REPL_BIN, "lo", "LL"),
+                        StringOperation.replaceAll(flags, REPL_ALL_BIN, "l", "L"),
+                        StringOperation.insert(flags, INSERT_BIN, 1, "X"),
+                        StringOperation.overwrite(flags, OVERWRITE_BIN, 1, "i"),
+                        StringOperation.snip(flags, SNIP_BIN, 1, 4),
+                        StringOperation.append(flags, APPEND_BIN, "!"),
+                        StringOperation.prepend(flags, PREPEND_BIN, ">"),
+                        StringOperation.padStart(flags, PAD_START_BIN, 7, "0"),
+                        StringOperation.padEnd(flags, PAD_END_BIN, 10, "."),
+                        StringOperation.repeat(flags, REPEAT_BIN, 2),
+                        StringOperation.caseFold(flags, FOLD_BIN),
+                        StringOperation.normalizeNFC(flags, NFC_BIN),
+                        StringOperation.concat(flags, CONCAT_BIN, "!"),
+                        StringOperation.concat(flags, CONCAT_LIST_BIN, List.of("!", "?"))));
+
+                try (RecordStream rs = session.query(key)
+                    .bin(UP_BIN).get()
+                    .bin(LOW_BIN).get()
+                    .bin(REPL_BIN).get()
+                    .bin(REPL_ALL_BIN).get()
+                    .bin(INSERT_BIN).get()
+                    .bin(OVERWRITE_BIN).get()
+                    .bin(SNIP_BIN).get()
+                    .bin(APPEND_BIN).get()
+                    .bin(PREPEND_BIN).get()
+                    .bin(PAD_START_BIN).get()
+                    .bin(PAD_END_BIN).get()
+                    .bin(REPEAT_BIN).get()
+                    .bin(FOLD_BIN).get()
+                    .bin(NFC_BIN).get()
+                    .bin(CONCAT_BIN).get()
+                    .bin(CONCAT_LIST_BIN).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("StringOperation modify sweep",
+                        () -> assertEquals("HELLO", rec.getString(UP_BIN),
+                            "StringOperation.upper(flags, stringBin)"),
+                        () -> assertEquals("hello", rec.getString(LOW_BIN),
+                            "StringOperation.lower(flags, stringBin)"),
+                        () -> assertEquals("HelLL", rec.getString(REPL_BIN),
+                            "StringOperation.replace(flags, lo, LL, stringBin)"),
+                        () -> assertEquals("HeLLo", rec.getString(REPL_ALL_BIN),
+                            "StringOperation.replaceAll(flags, l, L, stringBin)"),
+                        () -> assertEquals("HXello", rec.getString(INSERT_BIN),
+                            "StringOperation.insert(flags, index=1, X, stringBin)"),
+                        () -> assertEquals("Hillo", rec.getString(OVERWRITE_BIN),
+                            "StringOperation.overwrite(flags, index=1, i, stringBin)"),
+                        () -> assertEquals("Ho", rec.getString(SNIP_BIN),
+                            "StringOperation.snip(flags, index=1, count=4, stringBin)"),
+                        () -> assertEquals("Hello!", rec.getString(APPEND_BIN),
+                            "StringOperation.append(flags, !, stringBin)"),
+                        () -> assertEquals(">Hello", rec.getString(PREPEND_BIN),
+                            "StringOperation.prepend(flags, >, stringBin)"),
+                        () -> assertEquals("00Hello", rec.getString(PAD_START_BIN),
+                            "StringOperation.padStart(flags, width=7, pad=0, stringBin)"),
+                        () -> assertEquals("Hello.....", rec.getString(PAD_END_BIN),
+                            "StringOperation.padEnd(flags, width=10, pad=., stringBin)"),
+                        () -> assertEquals("HelloHello", rec.getString(REPEAT_BIN),
+                            "StringOperation.repeat(flags, count=2, stringBin)"),
+                        () -> assertEquals("hello", rec.getString(FOLD_BIN),
+                            "StringOperation.caseFold(flags, stringBin)"),
+                        () -> assertEquals("\u00e9", rec.getString(NFC_BIN),
+                            "StringOperation.normalizeNFC(flags, nfcBin)"),
+                        () -> assertEquals("Hello!", rec.getString(CONCAT_BIN),
+                            "StringOperation.concat(flags, !, stringBin)"),
+                        () -> assertEquals("Hello!?", rec.getString(CONCAT_LIST_BIN),
+                            "StringOperation.concat(flags, [!,?], stringBin)"));
+                }
+            }
+
+            @Test
+            public void createOnlyStringAppendCreatesMissingBin() {
+                String binName = "createOnlyFresh";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY, binName, "created")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("created", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void createOnlyStringAppendOnLiveBinReturnsBinExists() {
+                String binName = "createOnlyLive";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.CREATE_ONLY, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
+            }
+
+            @Test
+            public void createOnlyNoFailStringAppendOnLiveBinIsNoOp() {
+                String binName = "coNoFail";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.CREATE_ONLY | StringWriteFlags.NO_FAIL, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("original", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void updateOnlyStringAppendOnMissingBinDoesNotCreate() {
+                String binName = "updMissing";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    StringWriteFlags.UPDATE_ONLY, binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertNull(rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void noFailDoesNotSuppressWrongTypeStringModify() {
+                String binName = "wrongType";
+                seed(key, b -> b.bin(binName).setTo(123));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(StringWriteFlags.NO_FAIL, binName, "!"))));
+
+                assertEquals(ResultCode.BIN_TYPE_ERROR, ae.getResultCode());
+            }
+        }
+
+        @Nested
+        @DisplayName("StringOperation trim")
+        class OperationTrim {
+            Key key;
+
+            @BeforeEach
+            void seedTrimBins() {
+                key = freshKey("stringOpTrim");
+                seed(key, b -> b
+                    .bin("trimAll").setTo("  hello  ")
+                    .bin("trimStart").setTo("  hello  ")
+                    .bin("trimEnd").setTo("  hello  "));
+            }
+
+            @Test
+            @DisplayName("StringOperation trim API sweep")
+            public void stringOperationTrimSweep() {
+                int flags = StringWriteFlags.DEFAULT;
+                seed(key, b -> b.appendOperations(
+                        StringOperation.trim(flags, "trimAll"),
+                        StringOperation.trimStart(flags, "trimStart"),
+                        StringOperation.trimEnd(flags, "trimEnd")));
+
+                try (RecordStream rs = session.query(key)
+                    .bin("trimAll").get()
+                    .bin("trimStart").get()
+                    .bin("trimEnd").get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("StringOperation trim sweep",
+                        () -> assertEquals("hello", rec.getString("trimAll"),
+                            "StringOperation.trim(flags, stringBin)"),
+                        () -> assertEquals("hello  ", rec.getString("trimStart"),
+                            "StringOperation.trimStart(flags, stringBin)"),
+                        () -> assertEquals("  hello", rec.getString("trimEnd"),
+                            "StringOperation.trimEnd(flags, stringBin)"));
+                }
+            }
+        }
+
+        @Nested
+        @DisplayName("StringOperation regexReplace")
+        class OperationRegexReplace {
+            Key key;
+
+            @BeforeEach
+            void seedRegexReplaceBin() {
+                key = freshKey("stringOpRegexReplace");
+                seed(key, b -> b.bin(DIGITS_BIN).setTo("abc123def456"));
+            }
+
+            @Test
+            @DisplayName("StringOperation.regexReplace(pattern=[0-9]+, replacement=NUM, GLOBAL)")
+            public void stringOperationRegexReplace() {
+                seed(key, b -> b.appendOperations(StringOperation.regexReplace(
+                        StringWriteFlags.DEFAULT,
+                        DIGITS_BIN,
+                        "[0-9]+",
+                        "NUM",
+                        StringRegexFlags.GLOBAL)));
+
+                try (RecordStream rs = session.query(key)
+                    .bin(DIGITS_BIN).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertEquals("abcNUMdefNUM", rec.getString(DIGITS_BIN),
+                        "StringOperation.regexReplace(flags, [0-9]+, NUM, GLOBAL, digitsBin)");
+                }
+            }
+        }
+
+        @Nested
         @DisplayName("StringExp modify projections")
         class Projections {
             Key key;
@@ -275,11 +612,9 @@ public class OperateStringTest extends ClusterTest {
             @BeforeEach
             void seedModifyProjectionRecord() {
                 key = freshKey("stringExpModifyProj");
-                try (RecordStream rs = session.upsert(key)
+                seed(key, b -> b
                     .bin(STRING_BIN).setTo("Hello")
-                    .bin(NFC_BIN).setTo("e\u0301")
-                    .execute()) {
-                }
+                    .bin(NFC_BIN).setTo("e\u0301"));
             }
 
             @Test
@@ -343,6 +678,98 @@ public class OperateStringTest extends ClusterTest {
                             "StringExp.concat(flags, [!,?], stringBin s)"));
                 }
             }
+
+            @Test
+            public void noFailSuppressedStringExpModifyReturnsOriginalString() {
+                Exp s = Exp.stringBin(STRING_BIN);
+
+                try (RecordStream rs = session.query(key)
+                    .bin("repeatFail").selectFrom(StringExp.repeat(StringWriteFlags.NO_FAIL, Exp.val(-1), s))
+                    .execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("Hello", rec.getString("repeatFail"));
+                }
+            }
+        }
+
+        /**
+         * Scopes a server defect: {@code isUpper} / {@code isLower} do not observe the
+         * result of a preceding {@code upper} / {@code lower}, though other reads on the
+         * same operand do.
+         *
+         * <p>Not front-end specific — {@code AelStringTest.isUpperAndIsLowerObserveChainedCaseOp}
+         * reproduces it through AEL source text, so it sits in the shared string-op
+         * evaluation below both the AEL compiler and these Exp builders. The two controls
+         * here are what narrow it: the classifiers are correct on an uncomputed operand,
+         * and other reads are correct on a computed one.
+         */
+        @Nested
+        @DisplayName("StringExp case classification after a case op")
+        class ChainedCaseOps {
+            Key key;
+
+            @BeforeEach
+            void seedChainedCaseRecord() {
+                key = freshKey("stringExpChainedCase");
+                seed(key, b -> b.bin(STRING_BIN).setTo("Hello World"));
+            }
+
+            /** Control: the classifiers themselves are sound on an uncomputed operand. */
+            @Test
+            @DisplayName("isUpper / isLower are correct on an uncomputed operand")
+            public void classifiersCorrectOnUncomputedOperand() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                assertAll("classifiers on uncomputed operands",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(val HELLO)",
+                        StringExp.isUpper(Exp.val("HELLO")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(val hello)",
+                        StringExp.isLower(Exp.val("hello")),
+                        rec -> assertTrue(rec.getBoolean("r"), "literal is all lower")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(stringBin s)",
+                        StringExp.isUpper(s),
+                        rec -> assertFalse(rec.getBoolean("r"), "mixed-case bin is not all upper")));
+            }
+
+            /** Control: other reads do observe the case op's result. */
+            @Test
+            @DisplayName("upper / contains observe the case op result")
+            public void otherReadsObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("other reads on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.upper(flags, stringBin s)",
+                        StringExp.upper(flags, s),
+                        rec -> assertEquals("HELLO WORLD", rec.getString("r"),
+                            "upper produces the uppercased value")),
+                    // "Hello World" does not contain "HELLO", so a true here can only come
+                    // from contains seeing the uppercased value.
+                    () -> assertProjection(session, key,
+                        "StringExp.contains(HELLO, upper(flags, stringBin s))",
+                        StringExp.contains(Exp.val("HELLO"), StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "contains sees the case op result")));
+            }
+
+            @Disabled("server: isUpper/isLower ignore a chained case op; reproduces via AEL too")
+            @Test
+            @DisplayName("isUpper / isLower observe the case op result")
+            public void classifiersObserveCaseOp() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                int flags = StringWriteFlags.DEFAULT;
+                assertAll("classifiers on a computed operand",
+                    () -> assertProjection(session, key,
+                        "StringExp.isUpper(upper(flags, stringBin s))",
+                        StringExp.isUpper(StringExp.upper(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "uppercased value is all upper")),
+                    () -> assertProjection(session, key,
+                        "StringExp.isLower(lower(flags, stringBin s))",
+                        StringExp.isLower(StringExp.lower(flags, s)),
+                        rec -> assertTrue(rec.getBoolean("r"), "lowercased value is all lower")));
+            }
         }
 
         @Nested
@@ -353,10 +780,7 @@ public class OperateStringTest extends ClusterTest {
             @BeforeEach
             void seedTrimRecord() {
                 key = freshKey("stringExpTrimProj");
-                try (RecordStream rs = session.upsert(key)
-                    .bin(STRING_BIN).setTo("  hello  ")
-                    .execute()) {
-                }
+                seed(key, b -> b.bin(STRING_BIN).setTo("  hello  "));
             }
 
             @Test
@@ -390,10 +814,7 @@ public class OperateStringTest extends ClusterTest {
             @BeforeEach
             void seedRegexReplaceRecord() {
                 key = freshKey("stringExpModifyRegex");
-                try (RecordStream rs = session.upsert(key)
-                    .bin(DIGITS_BIN).setTo("abc123def456")
-                    .execute()) {
-                }
+                seed(key, b -> b.bin(DIGITS_BIN).setTo("abc123def456"));
             }
 
             @Test
@@ -426,14 +847,8 @@ public class OperateStringTest extends ClusterTest {
         void seedFilterRecords() {
             match = freshKey("stringExpFilterYes");
             miss = freshKey("stringExpFilterNo");
-            try (RecordStream rs = session.upsert(match)
-                .bin(STRING_BIN).setTo("hello")
-                .execute()) {
-            }
-            try (RecordStream rs = session.upsert(miss)
-                .bin(STRING_BIN).setTo("goodbye")
-                .execute()) {
-            }
+            seed(match, b -> b.bin(STRING_BIN).setTo("hello"));
+            seed(miss, b -> b.bin(STRING_BIN).setTo("goodbye"));
         }
 
         @ParameterizedTest(name = "{0}")
@@ -461,26 +876,20 @@ public class OperateStringTest extends ClusterTest {
     }
 
     /**
-     * String AEL equivalents of the {@link Exp} tests above. Skipped on 8.1.3+ until
+     * String AEL equivalents of the {@link Exp} tests above. Disabled until
      * the server accepts these forms in selectFrom/filter (currently Parameter error).
      */
     @Nested
-    @RequiresServerFeature(ServerFeature.AEL)
     @DisplayName("string AEL")
+    @Disabled("server-side string AEL fails (Parameter error): "
+        + "string read projections in selectFrom are not validated")
     class StringAel {
 
         @Test
         @DisplayName("strlen, substr, find via AEL selectFrom (single query)")
         public void stringProjectionViaStringExpOnQuery() {
-            assumeFalse(supportsAel(),
-                "server-side string AEL fails (Parameter error): "
-                    + "string read projections in selectFrom are not validated");
-
             Key key = freshKey("stringExpQueryAel");
-            try (RecordStream rs = session.upsert(key)
-                .bin(STRING_BIN).setTo("hello")
-                .execute()) {
-            }
+            seed(key, b -> b.bin(STRING_BIN).setTo("hello"));
 
             String slen = "$." + STRING_BIN + ".strlen()";
             String stail = "$." + STRING_BIN + ".substr(3)";
@@ -501,6 +910,508 @@ public class OperateStringTest extends ClusterTest {
                     () -> assertEquals(2L, rec.getLong("sfind"),
                         "$." + STRING_BIN + ".find('ll')"));
             }
+        }
+    }
+
+    //=================================================================
+    // CTX navigation — string nested in list/map bins
+    //
+    // Exercises the §2.3.1 CTX-wrapper wire envelope: when CTX is non-empty
+    // the op-data becomes [0xFF, ctx_list, [sub_op, args...]] — three outer
+    // elements, with the sub-op and its args in their own nested array so
+    // the inner arity is self-describing (SERVER-1483). The server dispatches
+    // these through as_bin_string_modify_ctx_tr / its read-side twin, which
+    // is a separate code path from the top-level-bin variant exercised above.
+    //=================================================================
+
+    @Test
+    public void readOpOnStringNestedInList() {
+        runDelete(KEY);
+
+        List<String> list = new ArrayList<>();
+        list.add("alpha");
+        list.add("beta");
+        list.add("gamma");
+
+        seed(KEY, b -> b.bin(BIN).setTo(list));
+
+        try (RecordStream rs = session.query(KEY)
+            .appendOperations(
+                StringOperation.strlen(BIN, CTX.listIndex(1)),
+                StringOperation.find(BIN, "et", CTX.listIndex(1)))
+            .execute()) {
+            assertTrue(rs.hasNext());
+            Record rec = rs.next().recordOrThrow();
+            assertEquals(4L, rec.operationResult(0).getLong(),
+                "StringOperation.strlen on nested list string");
+            assertEquals(1L, rec.operationResult(1).getLong(),
+                "StringOperation.find on nested list string");
+        }
+    }
+
+    @Test
+    public void modifyOpWithFlagsOnStringNestedInList() {
+        runDelete(KEY);
+
+        List<String> list = new ArrayList<>();
+        list.add("alpha");
+        list.add("beta");
+        list.add("gamma");
+
+        seed(KEY, b -> b.bin(BIN).setTo(list));
+
+        seed(KEY, b -> b.appendOperations(StringOperation.append(
+            StringWriteFlags.NO_FAIL, BIN, "!", CTX.listIndex(1))));
+
+        try (RecordStream rs = session.query(KEY).execute()) {
+            AerospikeList<?> after = rs.getFirstRecord().getList(BIN);
+            assertEquals(Arrays.asList("alpha", "beta!", "gamma"), after);
+        }
+    }
+
+    @Test
+    public void fluentStringOpsOnStringNestedInList() {
+        runDelete(KEY);
+        seed(KEY, b -> b.bin(BIN).setTo(Arrays.asList("alpha", "beta", "gamma")));
+
+        session.upsert(KEY)
+            .bin(BIN).onListIndex(1).append("!")
+            .execute();
+
+        try (RecordStream rs = session.query(KEY)
+            .bin(BIN).onListIndex(1).strlen()
+            .execute()) {
+            Record rec = rs.getFirstRecord();
+            assertEquals(5L, rec.operationResult(0).getLong());
+        }
+
+        try (RecordStream rs = session.query(KEY).execute()) {
+            assertEquals(Arrays.asList("alpha", "beta!", "gamma"), rs.getFirstRecord().getList(BIN));
+        }
+    }
+
+    @Test
+    public void noFailFlagDecidesOutcomeOnUnreachableCtxPath() {
+        runDelete(KEY);
+
+        List<Value> list = new ArrayList<Value>();
+        list.add(Value.get("alpha"));
+        list.add(Value.get("beta"));
+
+        seed(KEY, b -> b.bin(BIN).setTo(list));
+
+        seed(KEY, b -> b.appendOperations(StringOperation.append(
+            StringWriteFlags.NO_FAIL, BIN, "!", CTX.listIndex(99))));
+
+        try (RecordStream rs = session.query(KEY).execute()) {
+            AerospikeList<?> after = rs.getFirstRecord().getList(BIN);
+            assertEquals(Arrays.asList("alpha", "beta"), after);
+        }
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(KEY, b -> b.appendOperations(
+            StringOperation.append(StringWriteFlags.DEFAULT, BIN, "!", CTX.listIndex(99)))));
+
+        assertEquals(ResultCode.OP_NOT_APPLICABLE, ae.getResultCode());
+    }
+
+    @Test
+    public void replaceMatchesAcrossNormalizationForms() {
+        // replace carries the same canonical-equivalence guarantee as find /
+        // contains above: string_modify_op_replace_K_icu routes through
+        // get_canon_search (particle_string.c) whenever the forms differ.
+        final String NFC = "caf\u00E9";       // "café" composed
+        final String NFD = "cafe\u0301";      // "café" decomposed
+
+        // Composed haystack, decomposed needle.
+        put(NFC + " au lait");
+        Record rec = session.upsert(KEY)
+            .bin(BIN).replace(NFD, "tea")
+            .execute()
+            .getFirstRecord();
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+        assertEquals("tea au lait", rec.getString(BIN));
+
+        // Decomposed haystack, composed needle.
+        put(NFD + " au lait");
+        rec = session.upsert(KEY)
+            .bin(BIN).replace(NFC, "tea")
+            .execute()
+            .getFirstRecord();
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+        assertEquals("tea au lait", rec.getString(BIN));
+    }
+
+    @Test
+    public void startsWithAndEndsWithMatchAcrossNormalizationForms() {
+        // get_canon_search has four call sites, not two: prefix and suffix
+        // matching are canonical as well, so an affix in either form matches a
+        // bin stored in the other.
+        final String NFC = "caf\u00E9";
+        final String NFD = "cafe\u0301";
+
+        put(NFC + " au lait");
+        Record rec = session.upsert(KEY)
+            .bin(BIN).startsWith(NFD)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put(NFD + " au lait");
+        rec = session.upsert(KEY)
+            .bin(BIN).startsWith(NFC)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put("au lait " + NFC);
+        rec = session.upsert(KEY)
+            .bin(BIN).endsWith(NFD)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+
+        put("au lait " + NFD);
+        rec = session.upsert(KEY)
+            .bin(BIN).endsWith(NFC)
+            .execute()
+            .getFirstRecord();
+        assertTrue(rec.getBoolean(BIN));
+    }
+
+    //=================================================================
+    // Result-size cap
+    //
+    // Modify ops bound their estimated result at prepare time
+    // (particle_string.c string_modify_set_estimated_size). Exceeding the
+    // bound is PARAMETER_ERROR and nothing is written, so it is reported
+    // independently of RECORD_TOO_BIG — which the same ops raise for a
+    // result that clears the cap but outgrows the namespace record limit.
+    //=================================================================
+
+    @Test
+    public void repeatPastResultCapRaisesParameter() {
+        put("hello");
+
+        // Estimated as old_size * count.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).repeat(RESULT_SIZE_CAP)
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void padStartPastResultCapRaisesParameter() {
+        put("hello");
+
+        // Estimated as targetLength * 4 — worst-case UTF-8 expansion.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).padStart(RESULT_SIZE_CAP / 4 + 1, "*")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void padEndPastResultCapRaisesParameter() {
+        put("hello");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).padEnd(RESULT_SIZE_CAP / 4 + 1, "*")
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    @Test
+    public void concatPastResultCapRaisesParameter() {
+        put("hello");
+
+        char[] filler = new char[RESULT_SIZE_CAP];
+        Arrays.fill(filler, 'x');
+
+        // Estimated as old_size + argument size, so only the argument can carry
+        // the result past the cap.
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).concat(new String(filler))
+                .execute()
+                .getFirstRecord();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+    }
+
+    //-----------------------------------------------------------------
+    // More string tests.
+    //-----------------------------------------------------------------
+
+    @Test
+    public void snipFromStartTruncatesToEnd() {
+        put("hello world");
+
+        Record rec = session.upsert(KEY)
+            .bin(BIN).snip(5)
+            .execute()
+            .getFirstRecord();
+
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void snipFromNegativeStartCountsFromEnd() {
+        put("hello world");
+
+        Record rec = session.upsert(KEY)
+            .bin(BIN).snip(-5)
+            .execute()
+            .getFirstRecord();
+
+        rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello ", rec.getString(BIN));
+    }
+
+    //=================================================================
+    // CREATE_ONLY / UPDATE_ONLY write flags
+    //
+    // Bin-existence predicates carried in the trailing policy-flags slot
+    // (particle_string.c string_modify). CREATE_ONLY is accepted only by
+    // the eight additive create-ops; every other modify op rejects it via
+    // its per-op flag mask. Combining CREATE_ONLY with UPDATE_ONLY, and
+    // CREATE_ONLY under a CTX path, are both rejected during argument
+    // parsing (string_parse_flags) — upstream of every NO_FAIL test, so
+    // NO_FAIL cannot suppress them.
+    //=================================================================
+
+    @Test
+    public void createOnlyOnMissingBinCreatesIt() {
+        session.delete(KEY).execute();
+
+        session.upsert(KEY)
+            .bin("other").setTo("untouched")
+            .execute();
+
+        session.upsert(KEY)
+            .bin(BIN).append("hello", ops -> ops.createOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyOnLiveBinRaisesBinExists() {
+        put("hello");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).append("!", ops -> ops.createOnly())
+                .execute();
+        });
+
+        assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyWithNoFailOnLiveBinIsSilentNoOp() {
+        // The one CREATE_ONLY rejection NO_FAIL does suppress: it is tested
+        // inside string_modify, not during argument parsing. The bin keeps its
+        // prior value rather than being nulled.
+        put("hello");
+
+        session.upsert(KEY)
+            .bin(BIN).append("!", ops -> ops.createOnly().noFail())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void updateOnlyOnMissingBinDoesNotCreateIt() {
+        // append creates a missing bin from empty by default; UPDATE_ONLY
+        // disables that path, leaving the op a silent no-op.
+        session.delete(KEY).execute();
+
+        session.upsert(KEY)
+            .bin("other").setTo("untouched")
+            .execute();
+
+        session.upsert(KEY)
+            .bin(BIN).append("hello", ops -> ops.updateOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals(null, rec.getValue(BIN));
+        assertEquals("untouched", rec.getString("other"));
+    }
+
+    @Test
+    public void updateOnlyOnLiveBinApplies() {
+        put("hello");
+
+        session.upsert(KEY)
+            .bin(BIN).append(" world", ops -> ops.updateOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello world", rec.getString(BIN));
+    }
+
+    @Test
+    public void updateOnlyAppliesToNonCreateModifyOp() {
+        // UPDATE_ONLY is valid on every string modify op, not just the
+        // create-capable ones.
+        put("hello");
+
+        session.upsert(KEY)
+            .bin(BIN).upper(ops -> ops.updateOnly())
+            .execute();
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("HELLO", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyOnNonCreateModifyOpRaisesParameterError() {
+        // upper carries the update-only flag mask, so CREATE_ONLY is not a
+        // legal flag for it at all — distinguishing it from the eight
+        // additive create-ops exercised above.
+        put("hello");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).upper(ops -> ops.createOnly())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyWithUpdateOnlyRaisesParameterError() {
+        put("hello");
+
+        assertThrows(java.lang.IllegalStateException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).append("!", ops -> ops.createOnly().updateOnly())
+                .execute();
+        });
+
+        assertThrows(java.lang.IllegalStateException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).append("!", ops -> ops.createOnly().updateOnly().noFail())
+                .execute();
+        });
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals("hello", rec.getString(BIN));
+    }
+
+    @Test
+    public void createOnlyWithCtxRaisesParameterError() {
+        List<String> list = new ArrayList<>();
+        list.add("alpha");
+        list.add("beta");
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(list)
+            .execute();
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).onListIndex(1).append("!", ops -> ops.createOnly())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+
+        AerospikeException noFailError = assertThrows(AerospikeException.class, () -> {
+            session.upsert(KEY)
+                .bin(BIN).onListIndex(1).append("!", ops -> ops.createOnly().noFail())
+                .execute();
+        });
+
+        assertEquals(ResultCode.PARAMETER_ERROR, noFailError.getResultCode());
+
+        Record rec = session.query(KEY)
+            .execute()
+            .getFirstRecord();
+
+        assertEquals(Arrays.asList("alpha", "beta"), rec.getList(BIN));
+    }
+
+    //-----------------------------------------------------------------
+    // Helpers
+    //-----------------------------------------------------------------
+
+    private static void put(String value) {
+        session.delete(KEY).execute();
+
+        session.upsert(KEY)
+            .bin(BIN).setTo(value)
+            .execute();
+    }
+
+    private void seed(Key key, Consumer<ChainableOperationBuilder> configure) {
+        ChainableOperationBuilder builder = session.upsert(key);
+        configure.accept(builder);
+        try (RecordStream ignored = builder.execute()) {
+        }
+    }
+
+    private void runDelete(Key key) {
+        try (RecordStream ignored = session.delete(key).execute()) {
         }
     }
 }

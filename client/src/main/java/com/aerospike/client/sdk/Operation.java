@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk;
 
+import com.aerospike.client.sdk.util.ContainerString;
+
 /**
  * Database operation definition.  The class is used in client's operate() method.
  */
@@ -147,5 +149,13 @@ public final class Operation {
         this.type = type;
         this.binName = null;
         this.value = Value.getAsNull();
+    }
+
+    @Override
+    public String toString() {
+        return "Operation{type=" + type +
+            ", binName=" + binName +
+            ", value=" + ContainerString.format(value) +
+            '}';
     }
 }

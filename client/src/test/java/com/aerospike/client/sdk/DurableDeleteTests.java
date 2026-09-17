@@ -68,8 +68,8 @@ public class DurableDeleteTests extends ClusterTest {
         for (int i = 1; i <= ddUdfSize; i++) {
             Key key = args.set.id(ddUdfKeyPrefix + i);
             session.upsert(key)
-                .bins(ddUdfBin1, ddUdfBin2)
-                .values(i, i)
+                .bin(ddUdfBin1).setTo(i)
+                .bin(ddUdfBin2).setTo(i)
                 .execute();
         }
     }

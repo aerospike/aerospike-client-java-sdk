@@ -55,8 +55,7 @@ public class QueryStringTest extends ClusterTest {
             String key = keyPrefix + i;
             String value = valuePrefix + i;
             session.upsert(args.set.ids(key))
-                .bins(binName)
-                .values(value)
+                .bin(binName).setTo(value)
                 .execute();
         }
     }

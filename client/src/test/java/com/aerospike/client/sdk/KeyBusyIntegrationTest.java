@@ -48,7 +48,7 @@ public class KeyBusyIntegrationTest extends ClusterTest {
     @Test
     public void concurrentWritesOnOneKey_mayObserveKeyBusy() throws Exception {
         Key key = args.set.id("keyBusyIntegration");
-        session.upsert(key).bins(BIN).values(0).execute();
+        session.upsert(key).bin(BIN).setTo(0).execute();
 
         // One call attempt per write so KEY_BUSY is not masked by client retries (see SyncExecutor).
         Behavior noRetryOnBusy = Behavior.DEFAULT.deriveWithChanges("keyBusyIntegration", b -> b
@@ -77,8 +77,7 @@ public class KeyBusyIntegrationTest extends ClusterTest {
                     while (!sawKeyBusy.get() && System.nanoTime() < runDeadlineNanos) {
                         try {
                             stressSession.upsert(key)
-                                .bins(BIN)
-                                .values(i++)
+                                .bin(BIN).setTo(i++)
                                 .execute();
                         } catch (AerospikeException e) {
                             if (e.getResultCode() == ResultCode.KEY_BUSY) {

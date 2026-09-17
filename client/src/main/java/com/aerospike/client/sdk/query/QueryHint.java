@@ -172,6 +172,16 @@ public final class QueryHint {
         @Override public QueryDuration getQueryDuration() { return queryDuration; }
         @Override public boolean isHardHint()             { return hardHint; }
         @Override public Boolean getAllowScansWithWhere() { return allowScansWithWhere; }
+
+        @Override
+        public String toString() {
+            return "QueryHint{indexName=" + indexName +
+                ", binName=" + binName +
+                ", queryDuration=" + queryDuration +
+                ", allowScansWithWhere=" + allowScansWithWhere +
+                ", hardHint=" + hardHint +
+                '}';
+        }
     }
 
     /**

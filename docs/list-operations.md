@@ -54,6 +54,7 @@ This document covers all list Collection Data Type (CDT) operations available in
   - [add (increment at index)](#add-increment-at-index)
 - [Inverted Operations](#inverted-operations)
 - [Nested List Operations](#nested-list-operations)
+- [Path iteration (onEachChild)](#path-iteration-oneachchild)
 
 ---
 
@@ -740,3 +741,19 @@ session.update(key)
     .bin("data").onMapKey("history").onListValueRange(0, 50).remove()
     .execute();
 ```
+
+---
+
+## Path iteration (onEachChild)
+
+To iterate **every** child of a list (optionally filtered), then collect, modify, or remove the matches, use `onEachChild` — not a loop of `onListIndex`, and not `.remove()` after a single selection.
+
+```java
+session.update(key)
+    .bin("nums")
+        .onEachChild(Exp.gt(Exp.intLoopVar(LoopVarPart.VALUE), Exp.val(10)))
+        .removeMatches()
+    .execute();
+```
+
+Requires server ≥ 8.1.1. Full terminal list (`collectValues`, `modifyBy`, `removeMatches`) and the `Exp` filter contract: [CDT path operations](cdt-path-operations.md).

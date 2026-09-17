@@ -221,12 +221,18 @@ try {
 When you have a result code (e.g., from a `RecordResult` in a batch stream), use the factory method to get the correct exception subclass:
 
 ```java
-AerospikeException ex = AerospikeException.resultCodeToException(
-    resultCode, message, inDoubt
-);
+AerospikeException ex = AerospikeException.toException(resultCode, message);
 ```
 
-This returns the most specific subclass for the given code. For example, `resultCodeToException(2, null, false)` returns a `RecordNotFoundException`. Unrecognized codes return a plain `AerospikeException`.
+This returns the most specific subclass for the given code. For example, `toException(2, null)` returns a `RecordNotFoundException`. Unrecognized codes return a plain `AerospikeException`.
+
+An overload takes the subcode, expression trace, and `inDoubt` flag when you have them:
+
+```java
+AerospikeException ex = AerospikeException.toException(
+    resultCode, subCode, message, expTrace, inDoubt
+);
+```
 
 ## Result Code Reference
 

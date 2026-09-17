@@ -22,6 +22,7 @@ import java.util.Map.Entry;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.vector.Vector;
+import com.aerospike.client.sdk.util.ContainerString;
 
 import java.util.SortedMap;
 
@@ -304,7 +305,7 @@ public final class Bin {
      */
     @Override
     public String toString() {
-        return name + ':' + value;
+        return name + ':' + ContainerString.format(value);
     }
 
     /**

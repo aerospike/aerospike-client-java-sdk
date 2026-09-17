@@ -42,6 +42,7 @@ public final class TxnRoll {
     private final Partitions partitions;
     private final Txn txn;
     private List<BatchRecord> verifyRecords;
+    private AerospikeException.Commit rollForwardException;
     private List<BatchRecord> rollRecords;
 
     public TxnRoll(Cluster cluster, Txn txn) {
@@ -200,6 +201,7 @@ public final class TxnRoll {
             if (log.isWarnEnabled()) {
                 log.warn("Transaction roll-forward failed: " + Util.getErrorMessage(t));
             }
+            rollForwardException = createCommitException(cmd, CommitError.ROLL_FORWARD_ABANDONED, t);
             return CommitStatus.ROLL_FORWARD_ABANDONED;
         }
 
@@ -213,6 +215,14 @@ public final class TxnRoll {
             }
         }
         return CommitStatus.OK;
+    }
+
+    /**
+     * The roll-forward failure behind the most recent {@link CommitStatus#ROLL_FORWARD_ABANDONED}
+     * returned by {@link #commit(ResolvedSettings)}, or null if roll-forward was not abandoned.
+     */
+    public AerospikeException.Commit getRollForwardException() {
+        return rollForwardException;
     }
 
     private AerospikeException.Commit createCommitException(

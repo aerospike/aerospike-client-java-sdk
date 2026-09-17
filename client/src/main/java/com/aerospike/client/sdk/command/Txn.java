@@ -368,4 +368,18 @@ public final class Txn {
         reads.clear();
         writes.clear();
     }
+
+    @Override
+    public String toString() {
+        return "Txn{id=" + id +
+            ", state=" + state +
+            ", namespace=" + namespace +
+            ", timeout=" + timeout +
+            ", deadline=" + deadline +
+            ", writeInDoubt=" + writeInDoubt +
+            ", inDoubt=" + inDoubt +
+            ", reads=" + reads.size() +
+            ", writes=" + writes.size() +
+            '}';
+    }
 }

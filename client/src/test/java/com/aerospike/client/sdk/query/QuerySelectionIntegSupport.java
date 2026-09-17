@@ -17,9 +17,11 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -139,6 +141,28 @@ final class QuerySelectionIntegSupport {
         }
     }
 
+    /**
+     * Replays explain {@code INDEX_RANGE} bytes through {@link Filter#fromWireRange} and asserts
+     * {@link Filter#write} round-trips the opaque payload verbatim.
+     */
+    static Filter assertIndexRangeRoundTrips(QueryPlan plan) {
+        byte[] rangeBytes = plan.getIndexRangeBytes();
+        assertNotNull(rangeBytes);
+        IndexCollectionType indexType = plan.getIndexType() != null
+            ? plan.getIndexType()
+            : IndexCollectionType.DEFAULT;
+        Filter filter = Filter.fromWireRange(plan.getIndexName(), rangeBytes, indexType);
+        assertTrue(filter.hasWireRange());
+        assertEquals(plan.getIndexName(), filter.getIndexName());
+        assertEquals(indexType, filter.getCollectionType());
+        assertEquals(indexType, filter.getColType());
+        assertEquals(rangeBytes.length, filter.estimateSize());
+        byte[] out = new byte[rangeBytes.length];
+        filter.write(out, 0);
+        assertArrayEquals(rangeBytes, out);
+        return filter;
+    }
+
     static void deleteKeys(DataSet dataSet, IntFunction<String> keyFn, int fromInclusive, int toInclusive) {
         for (int i = fromInclusive; i <= toInclusive; i++) {
             ClusterTest.session.delete(dataSet.ids(keyFn.apply(i)));
@@ -203,8 +227,9 @@ final class QuerySelectionIntegSupport {
         String country
     ) {
         session.upsert(dataSet.ids(fixture.keyPrefix + keyNum))
-            .bins(AGE_BIN, SCORE_BIN, COUNTRY_BIN)
-            .values(age, score, country)
+            .bin(AGE_BIN).setTo(age)
+            .bin(SCORE_BIN).setTo(score)
+            .bin(COUNTRY_BIN).setTo(country)
             .execute();
     }
 

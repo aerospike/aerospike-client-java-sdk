@@ -25,7 +25,7 @@ public final class Version implements Comparable<Version> {
     public static final Version SERVER_VERSION_8_0 = new Version(8, 0, 0, 0);
     public static final Version SERVER_VERSION_8_1 = new Version(8, 1, 0, 0);
     public static final Version SERVER_VERSION_8_1_2 = new Version(8, 1, 2, 0);
-    public static final Version SERVER_VERSION_8_1_3 = new Version(8, 1, 3, 0);
+    public static final Version SERVER_VERSION_8_2 = new Version(8, 2, 0, 0);
 
     /**
      * Placeholder minimum server version for Top-K queries. Not yet assigned by Core

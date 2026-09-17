@@ -161,7 +161,7 @@ public class ClusterTest {
     }
 
     /**
-     * For {@code @EnabledIf} on test classes that require AEL (8.1.3+).
+     * For {@code @EnabledIf} on test classes that require AEL (8.2.0+).
      *
      * <p>Prefer {@link com.aerospike.client.sdk.junit.RequiresServerFeature} on the test
      * class or nested class instead: {@code @EnabledIf} is evaluated before {@code @BeforeAll},
@@ -171,22 +171,22 @@ public class ClusterTest {
         return cluster != null && cluster.supportsAel();
     }
 
-    /** For {@code @EnabledIf} on test classes that require string operations (8.1.3+). */
+    /** For {@code @EnabledIf} on test classes that require string operations (8.2.0+). */
     public static boolean supportsStringOperations() {
         return cluster != null && cluster.supportsStringOperations();
     }
 
-    /** Skip when the cluster minimum version is below {@link Version#SERVER_VERSION_8_1_3}. */
+    /** Skip when the cluster minimum version is below {@link Version#SERVER_VERSION_8_2}. */
     protected static void assumeSupportsAel() {
         ServerFeatureSupport.assume(ServerFeature.AEL);
     }
 
-    /** Skip when the cluster does not support string read/write operations (8.1.3+). */
+    /** Skip when the cluster does not support string read/write operations (8.2.0+). */
     protected static void assumeSupportsStringOps() {
         ServerFeatureSupport.assume(ServerFeature.STRING_OPS);
     }
 
-    /** Skip when extended error-detail verbosity is unavailable (8.1.3+). */
+    /** Skip when extended error-detail verbosity is unavailable (8.2.0+). */
     protected static void assumeExtendedErrorDetail() {
         ServerFeatureSupport.assume(ServerFeature.EXTENDED_ERROR_DETAIL);
     }

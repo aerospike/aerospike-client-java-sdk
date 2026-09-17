@@ -91,16 +91,12 @@ public class AelMetadataTest extends ClusterTest {
 
         sessionWithSendKey.delete(stringKey, intKey).execute();
 
-        long futureLastUpdate = System.currentTimeMillis() * 1_000_000L + 1_000_000L;
-
         sessionWithSendKey.upsert(stringKey)
             .bin(BIN_MARKER).setTo(1)
-            .bin(BIN_UPDATE).setTo(futureLastUpdate)
             .execute();
 
         sessionWithSendKey.upsert(intKey)
             .bin(BIN_MARKER).setTo(2)
-            .bin(BIN_UPDATE).setTo(futureLastUpdate)
             .execute();
     }
 
@@ -175,13 +171,76 @@ public class AelMetadataTest extends ClusterTest {
 
     @Test
     public void lastUpdateLessThanBinValue() {
-        assertTrue(matchesWhere(stringKey, "$.lastUpdate() < $." + BIN_UPDATE));
+        long lastUpdateNs;
+        try (RecordStream rs = query(stringKey)
+            .bin(BIN_UPDATE)
+            .selectFrom("$.lastUpdateTime()")
+            .execute()) {
+            assertTrue(rs.hasNext());
+            lastUpdateNs = ((Number) rs.next().recordOrThrow().getValue(BIN_UPDATE)).longValue();
+        }
+
+        // lastUpdateTime() is citrusleaf-epoch nanoseconds; seed a bin threshold in the same units.
+        sessionWithSendKey.upsert(stringKey)
+            .bin(BIN_MARKER).setTo(1)
+            .bin(BIN_UPDATE).setTo(lastUpdateNs + 10_000_000L)
+            .execute();
+
+        assertTrue(matchesWhere(stringKey, "$.lastUpdateTime() < $." + BIN_UPDATE));
     }
 
     @Test
     public void setNameMatchesCurrentSet() {
         assertTrue(matchesWhere(stringKey,
             "$.setName() == \"" + args.set.getSet() + "\""));
+    }
+
+    @Test
+    public void isTombstoneIsFalseForLiveRecord() {
+        assertFalse(((Boolean) selectValue(stringKey, "tomb", "$.isTombstone()")));
+        assertTrue(matchesWhere(stringKey, "not($.isTombstone())"));
+    }
+
+    /** A record with no expiry has no void time; the server reports -1 rather than 0. */
+    @Test
+    public void voidTimeIsNegativeWithoutTtl() {
+        Key noTtlKey = args.set.id("ael_meta_void_none");
+        sessionWithSendKey.delete(noTtlKey).execute();
+        sessionWithSendKey.upsert(noTtlKey)
+            .neverExpire()
+            .bin(BIN_MARKER).setTo(1)
+            .execute();
+
+        assertEquals(-1L, ((Number) selectValue(noTtlKey, "vt", "$.voidTime()")).longValue());
+    }
+
+    @Test
+    public void voidTimeIsPositiveWithTtl() {
+        Assumptions.assumeTrue(args.hasTtl, "cluster TTL not enabled");
+
+        Key ttlKey = args.set.id("ael_meta_void_ttl");
+        sessionWithSendKey.delete(ttlKey).execute();
+        sessionWithSendKey.upsert(ttlKey)
+            .expireRecordAfterSeconds(3600)
+            .bin(BIN_MARKER).setTo(1)
+            .execute();
+
+        long voidTime = ((Number) selectValue(ttlKey, "vt", "$.voidTime()")).longValue();
+        assertTrue(voidTime > 0, () -> "expected a positive void time, got " + voidTime);
+        assertTrue(matchesWhere(ttlKey, "$.voidTime() > 0"));
+    }
+
+    @Test
+    public void timeSinceLastUpdateIsNonNegative() {
+        long since = ((Number) selectValue(stringKey, "since", "$.timeSinceLastUpdate()")).longValue();
+        assertTrue(since >= 0, () -> "expected a non-negative age, got " + since);
+    }
+
+    @Test
+    public void timeSinceLastUpdateUsableAsWhereFilter() {
+        // The record was written in @BeforeEach, so its age is well under an hour.
+        assertTrue(matchesWhere(stringKey, "$.timeSinceLastUpdate() < 3600000"));
+        assertFalse(matchesWhere(stringKey, "$.timeSinceLastUpdate() < 0"));
     }
 
     @Test

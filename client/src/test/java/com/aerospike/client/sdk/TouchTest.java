@@ -35,8 +35,7 @@ public class TouchTest extends ClusterTest {
         Key key = args.set.id("touchOperate");
 
         session.upsert(key)
-                .bins("touchbin")
-                .values("touchvalue")
+                .bin("touchbin").setTo("touchvalue")
                 .expireRecordAfter(Duration.ofSeconds(1))
                 .execute();
 
@@ -69,8 +68,7 @@ public class TouchTest extends ClusterTest {
         Key key = args.set.id("touch");
 
         session.upsert(key)
-                .bins("touchbin")
-                .values("touchvalue")
+                .bin("touchbin").setTo("touchvalue")
                 .expireRecordAfter(Duration.ofSeconds(1))
                 .execute();
 
@@ -107,8 +105,7 @@ public class TouchTest extends ClusterTest {
         assertFalse(rr.asBoolean());
 
         session.upsert(key)
-                .bins("touchbin")
-                .values("touchvalue")
+                .bin("touchbin").setTo("touchvalue")
                 .expireRecordAfter(Duration.ofSeconds(10))
                 .execute();
 

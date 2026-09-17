@@ -25,8 +25,21 @@ import org.junit.platform.suite.api.Suite;
 
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
+import com.aerospike.client.sdk.query.AelBitHllTest;
+import com.aerospike.client.sdk.query.AelLiteralTest;
+import com.aerospike.client.sdk.query.AelMetadataTest;
+import com.aerospike.client.sdk.query.AelPathReadTest;
+import com.aerospike.client.sdk.query.AelPathSelectorTest;
+import com.aerospike.client.sdk.query.AelPathSubExprTest;
+import com.aerospike.client.sdk.query.AelPathWriteTest;
+import com.aerospike.client.sdk.query.AelStringTest;
+import com.aerospike.client.sdk.query.AelWildcardTest;
 import com.aerospike.client.sdk.query.ExpSecondaryIndexTest;
+import com.aerospike.client.sdk.query.FilterIndexRangeIntegrationTest;
 import com.aerospike.client.sdk.query.QueryBlobTest;
+import com.aerospike.client.sdk.query.QueryBuilderBinBuilderTest;
+import com.aerospike.client.sdk.query.QueryBuilderExecutePathTest;
+import com.aerospike.client.sdk.query.QueryBuilderValidationTest;
 import com.aerospike.client.sdk.query.QueryCollectionTest;
 import com.aerospike.client.sdk.query.QueryContextTest;
 import com.aerospike.client.sdk.query.QueryExecuteTest;
@@ -34,13 +47,22 @@ import com.aerospike.client.sdk.query.QueryFilterExpTest;
 import com.aerospike.client.sdk.query.QueryFilterSetTest;
 import com.aerospike.client.sdk.query.QueryGeoTest;
 import com.aerospike.client.sdk.query.QueryHintBuilderTest;
+import com.aerospike.client.sdk.query.QueryInTransactionVisibilityTest;
 import com.aerospike.client.sdk.query.QueryIndexTest;
 import com.aerospike.client.sdk.query.QueryIntegerTest;
 import com.aerospike.client.sdk.query.QueryKeyTest;
 import com.aerospike.client.sdk.query.QueryOperationsTest;
+import com.aerospike.client.sdk.query.QueryPlannerCollectionCdtTest;
 import com.aerospike.client.sdk.query.QueryRPSTest;
 import com.aerospike.client.sdk.query.QuerySelectionErrorDetailTest;
+import com.aerospike.client.sdk.query.QuerySelectionExplainScopeTest;
+import com.aerospike.client.sdk.query.QuerySelectionHintExecuteTest;
+import com.aerospike.client.sdk.query.QuerySelectionHintFlagsTest;
+import com.aerospike.client.sdk.query.QuerySelectionIntegrationTest;
+import com.aerospike.client.sdk.query.QuerySelectionLifecycleTest;
+import com.aerospike.client.sdk.query.QuerySelectionOperationalIntegrationTest;
 import com.aerospike.client.sdk.query.QueryStringTest;
+import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
 
 @Suite
 @SelectClasses({
@@ -59,7 +81,17 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     DeleteBinTest.class,
     DurableDeleteTests.class,
     ErrorDetailVerbosityTest.class,
+    AelBitHllTest.class,
     AelErrorDetailVerbosityTest.class,
+    AelLiteralTest.class,
+    AelMaterializerWhereTest.class,
+    AelMetadataTest.class,
+    AelPathReadTest.class,
+    AelPathSelectorTest.class,
+    AelPathSubExprTest.class,
+    AelPathWriteTest.class,
+    AelStringTest.class,
+    AelWildcardTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
     FilterExpTest.class,
@@ -69,6 +101,7 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ListExpTest.class,
     ListMapTest.class,
     MapExpTest.class,
+    NavigatableRecordStreamSortTest.class,
     OperateBitTest.class,
     OperateHllTest.class,
     OperateListTest.class,
@@ -83,10 +116,12 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     ServerInfoTest.class,
     SessionExtensionTest.class,
     TouchTest.class,
+    TypedQueryMappingTest.class,
     TxnTest.class,
     UdfTest.class,
     // Query
     ExpSecondaryIndexTest.class,
+    FilterIndexRangeIntegrationTest.class,
     QueryBlobTest.class,
     QueryCollectionTest.class,
     QueryContextTest.class,
@@ -95,13 +130,25 @@ import com.aerospike.client.sdk.query.QueryStringTest;
     QueryFilterSetTest.class,
     QueryGeoTest.class,
     QueryHintBuilderTest.class,
+    QueryInTransactionVisibilityTest.class,
     QueryIndexTest.class,
     QueryIntegerTest.class,
     QueryKeyTest.class,
     QueryOperationsTest.class,
+    QueryBuilderBinBuilderTest.class,
+    QueryBuilderExecutePathTest.class,
+    QueryBuilderValidationTest.class,
+    QueryPlannerCollectionCdtTest.class,
     QueryRPSTest.class,
     QuerySelectionErrorDetailTest.class,
+    QuerySelectionExplainScopeTest.class,
+    QuerySelectionHintExecuteTest.class,
+    QuerySelectionHintFlagsTest.class,
+    QuerySelectionIntegrationTest.class,
+    QuerySelectionLifecycleTest.class,
+    QuerySelectionOperationalIntegrationTest.class,
     QueryStringTest.class,
+    QueryUpsertFromChainedTest.class,
     QueryWithPartitionPaginationTest.class
 })
 public class SuiteCluster {

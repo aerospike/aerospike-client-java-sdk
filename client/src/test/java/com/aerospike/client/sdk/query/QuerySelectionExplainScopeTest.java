@@ -80,7 +80,7 @@ import com.aerospike.client.sdk.util.Version;
  *       capped at the 1 MiB GeoJSON wire limit instead)</li>
  *   <li>Ctx-path scalar ({@code $.bin.[N]}) and ctx-path geo ({@code $.map.key}) → DEFAULT SI</li>
  *   <li>Expression sindexes over arithmetic ({@code $.age + 1}) → SI with {@code bin_name_len == 0};
- *       AEL string path functions ({@code $.name.uppercase()}) → PI</li>
+ *       AEL string path functions ({@code $.name.upper()}) → PI</li>
  *   <li>LIST index path {@code [N].exists()} → PI (positional existence; see
  *       {@link QueryPlannerCollectionCdtTest})</li>
  * </ul>
@@ -89,7 +89,7 @@ import com.aerospike.client.sdk.util.Version;
  * {@code .get(return: EXISTS)} fails explain with {@code PARAMETER} — see
  * {@link QueryPlannerCollectionCdtTest} for the supported shapes.</p>
  */
-class QuerySelectionExplainScopeTest extends ClusterTest {
+public class QuerySelectionExplainScopeTest extends ClusterTest {
     private static final String setName = "qscexp";
     private static final String intIndexName = "qscexp_age_idx";
     private static final String ageBin = "age";
@@ -184,8 +184,14 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
         k2Venue.put(venueLocationKey, Value.getAsGeoJSON(k2Loc));
 
         session.upsert(dataSet.ids("k1"))
-            .bins(ageBin, countryBin, tagBin, blobBin, mapBin, scoreListBin, nameBin, venueBin)
-            .values(25, "US", tagMatch, blobBytes, map, k1Scores, "alice", k1Venue)
+            .bin(ageBin).setTo(25)
+            .bin(countryBin).setTo("US")
+            .bin(tagBin).setTo(tagMatch)
+            .bin(blobBin).setTo(blobBytes)
+            .bin(mapBin).setTo(map)
+            .bin(scoreListBin).setTo(k1Scores)
+            .bin(nameBin).setTo("alice")
+            .bin(venueBin).setTo(k1Venue)
             .execute();
 
         session.upsert(dataSet.ids("k1"))
@@ -193,8 +199,12 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
             .execute();
 
         session.upsert(dataSet.ids("k2"))
-            .bins(ageBin, countryBin, tagBin, scoreListBin, nameBin, venueBin)
-            .values(30, "CA", "ordinary", k2Scores, "bob", k2Venue)
+            .bin(ageBin).setTo(30)
+            .bin(countryBin).setTo("CA")
+            .bin(tagBin).setTo("ordinary")
+            .bin(scoreListBin).setTo(k2Scores)
+            .bin(nameBin).setTo("bob")
+            .bin(venueBin).setTo(k2Venue)
             .execute();
 
         session.upsert(dataSet.ids("k2"))
@@ -528,7 +538,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
 
     /**
      * String path functions are PI-only even with a matching {@code exp=} index in place. AEL
-     * compiles {@code .uppercase()} as a path/CDT string op, while {@code StringExp.upper(...)}
+     * compiles {@code .upper()} as a path/CDT string op, while {@code StringExp.upper(...)}
      * compiles through the client expression pipeline, so the two instruction trees never compare
      * equal in expression-candidate matching. The predicate itself still evaluates correctly as a
      * residual filter.
@@ -537,7 +547,7 @@ class QuerySelectionExplainScopeTest extends ClusterTest {
     void planExpCallUpperPrimaryIndex() {
         assumeExpressionSecondaryIndexSupported();
 
-        String where = "$." + nameBin + ".uppercase() == '" + upperMatch + "'";
+        String where = "$." + nameBin + ".upper() == '" + upperMatch + "'";
         assertAll(
             () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan(dataSet,where).getSelection()),
             () -> assertNull(plan(dataSet,where).getIndexName()),

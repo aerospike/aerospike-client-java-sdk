@@ -41,8 +41,7 @@ public class QueryUpsertFromChainedTest extends ClusterTest {
         session.delete(key).execute();
 
         session.upsert(key)
-            .bins("value")
-            .values(6)
+            .bin("value").setTo(6)
             .execute();
 
         int batchResults = 0;

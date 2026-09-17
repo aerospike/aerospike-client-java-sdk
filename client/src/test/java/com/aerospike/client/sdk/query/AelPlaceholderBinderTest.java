@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeComparator;
 
-class AelPlaceholderBinderTest {
+public class AelPlaceholderBinderTest {
 
     @Test
     void bindSubstitutesInOrder() {
@@ -143,6 +143,12 @@ class AelPlaceholderBinderTest {
     void prepareFactoryReturnsSameStatement() {
         PreparedAel p = PreparedAel.prepare("$.x > ?0");
         assertThat(p.getStatement()).isEqualTo("$.x > ?0");
+    }
+
+    @Test
+    void preparedAelToStringReturnsStatement() {
+        PreparedAel p = PreparedAel.prepare("$.x > ?0");
+        assertThat(p.toString()).isEqualTo("$.x > ?0");
     }
 
     @Test

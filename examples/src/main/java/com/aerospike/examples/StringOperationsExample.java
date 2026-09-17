@@ -28,11 +28,11 @@ import com.aerospike.client.sdk.operation.StringOperation;
 import com.aerospike.client.sdk.policy.Behavior;
 
 /**
- * Server string read/modify operations (Aerospike 8.1.3+): fluent {@code BinBuilder},
+ * Server string read/modify operations (Aerospike 8.2.0+): fluent {@code BinBuilder},
  * {@link com.aerospike.client.sdk.ChainableOperationBuilder#appendOperations} with
  * {@link StringOperation}, and {@code selectFrom} with {@link StringExp}.
  *
- * <p>If the cluster is older than 8.1.3, this example logs a skip message and exits.</p>
+ * <p>If the cluster is older than 8.2.0, this example logs a skip message and exits.</p>
  *
  * @see com.aerospike.examples.StringOperationsExample runnable sample ({@code ./run_examples StringOperationsExample})
  */

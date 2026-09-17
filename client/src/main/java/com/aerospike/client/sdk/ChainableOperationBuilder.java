@@ -120,29 +120,6 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     /**
-     * Specify a set of bin names for the bins+values pattern.
-     * Use this followed by {@code .values(...)} to efficiently set multiple bins at once.
-     *
-     * <p>Note: This is only for setting simple values, not for CDT operations.
-     *
-     * @param binName the first bin name (required)
-     * @param binNames additional bin names
-     * @return BinsValuesBuilder for specifying values
-     */
-    public BinsValuesBuilder bins(String binName, String... binNames) {
-        verifyState("specifying bins");
-        BinsValuesBuilder builder = new BinsValuesBuilder(new ChainableBinsValuesOperations(), currentSpec.getKeys(),
-                currentSpec.getExpirationInSeconds(), binName, binNames);
-        // Propagate additional properties from the current operation spec
-        builder.initFromParent(
-                currentSpec.getGeneration(),
-                currentSpec.getWhereClause(),
-                currentSpec.isFailOnFilteredOut(),
-                currentSpec.isIncludeMissingKeys());
-        return builder;
-    }
-
-    /**
      * Override setTo to store in currentSpec.operations instead of inherited ops.
      */
     @Override
@@ -1262,6 +1239,7 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     /**
      * Inner class implementing BinsValuesOperations for the chainable context.
      */
+    /* TODO Not currently used. Should this be deleted?
     private class ChainableBinsValuesOperations implements BinsValuesOperations {
         @Override
         public Session getSession() {
@@ -1372,5 +1350,5 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
 //                }
 //            }
 //        }
-    }
+    }*/
 }

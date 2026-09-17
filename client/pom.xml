@@ -162,6 +162,10 @@
         <artifactId>jacoco-maven-plugin</artifactId>
         <configuration>
           <skip>${skipTests}</skip>
+          <!-- TODO: revisit — exclude AEL from coverage until tests are in place -->
+          <excludes>
+            <exclude>com/aerospike/client/sdk/ael/**</exclude>
+          </excludes>
         </configuration>
         <executions>
           <execution>

@@ -65,8 +65,8 @@ public class QueryExecuteTest extends ClusterTest {
         for (int i = 1; i <= size; i++) {
             Key key = args.set.id(keyPrefix + i);
             session.upsert(key)
-                .bins(binName1, binName2)
-                .values(i, i)
+                .bin(binName1).setTo(i)
+                .bin(binName2).setTo(i)
                 .execute();
         }
     }

@@ -29,7 +29,6 @@ import org.apache.commons.cli.Options;
 
 import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.policy.AuthMode;
-import com.aerospike.client.sdk.tend.Partitions;
 import com.aerospike.client.sdk.util.Version;
 
 public class Args {
@@ -175,12 +174,6 @@ public class Args {
      * Some database calls need to know how the server is configured.
      */
     public void setServerSpecific(Cluster cluster) {
-        Partitions partitions = cluster.partitionMap.get(namespace);
-
-        if (partitions != null) {
-            scMode = partitions.scMode;
-        }
-
         Node node = cluster.getNodes()[0];
         serverVersion = node.getVersion();
         String editionFilter =
@@ -218,6 +211,14 @@ public class Args {
 
         String allowExpunge = parseStringOptional(namespaceTokens, "strong-consistency-allow-expunge");
         strongConsistencyAllowExpunge = Boolean.valueOf(allowExpunge);
+
+        // Read strong-consistency from the namespace info rather than cluster.partitionMap. The
+        // partition map is filled in asynchronously by tend, so a suite that connects and immediately
+        // asks for it can see no entry at all. That left scMode false for the whole run, which silently
+        // disables every "if (args.scMode) withDurableDelete()" guard in the tests. Non-durable deletes
+        // are then rejected by an SC namespace, cleanup leaves records behind, and later tests fail on
+        // stale data far away from the real cause.
+        scMode = Boolean.parseBoolean(parseStringOptional(namespaceTokens, "strong-consistency"));
     }
 
     private static int parseInt(String namespaceTokens, String name) {

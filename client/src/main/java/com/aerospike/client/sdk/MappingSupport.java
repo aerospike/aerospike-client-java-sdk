@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk;
 
+import java.util.Objects;
+
 /**
  * Helpers for resolving {@link RecordMapper} instances from a {@link RecordMappingFactory}.
  */
@@ -28,19 +30,22 @@ public final class MappingSupport {
      * Returns the mapper registered for {@code clazz}, or throws {@link IllegalStateException}
      * with a clear message if the factory is null or no mapper is registered.
      *
-     * @param factory mapping factory from the cluster (may be null)
+     * @param factory mapping factory from the cluster (may be {@code null})
      * @param clazz domain type
      * @param <T> domain type
      * @return non-null mapper
+     * @throws NullPointerException if {@code clazz} is {@code null}
+     * @throws IllegalStateException if {@code factory} is {@code null} or has no mapper for {@code clazz}
      */
     public static <T> RecordMapper<T> requireMapper(RecordMappingFactory factory, Class<T> clazz) {
+        Objects.requireNonNull(clazz, "clazz");
         if (factory == null) {
             throw new IllegalStateException(
                 "No RecordMappingFactory is configured on the cluster. "
                     + "Use Cluster.setRecordMappingFactory(...) before mapping type "
                     + clazz.getName() + ".");
         }
-        RecordMapper<T> mapper = (RecordMapper<T>) factory.getMapper(clazz);
+        RecordMapper<T> mapper = factory.getMapper(clazz);
         if (mapper == null) {
             throw new IllegalStateException(
                 "No RecordMapper registered for type " + clazz.getName()

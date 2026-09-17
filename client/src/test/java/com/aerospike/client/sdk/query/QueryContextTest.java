@@ -67,8 +67,7 @@ public class QueryContextTest extends ClusterTest {
             list.add(i + 4);
 
             session.upsert(dataSet.ids(i))
-                .bins(binName)
-                .values(list)
+                .bin(binName).setTo(list)
                 .execute();
         }
     }

@@ -70,15 +70,17 @@ public class BatchTest extends ClusterTest {
             if (i != 6) {
                 session.upsert(args.set.id(key))
                     .expireRecordAfterSeconds(ttl)
-                    .bins(BinName, ListBin, ListBin2)
-                    .values(ValuePrefix + i, list, list2)
+                    .bin(BinName).setTo(ValuePrefix + i)
+                    .bin(ListBin).setTo(list)
+                    .bin(ListBin2).setTo(list2)
                     .execute();
             }
             else {
                 session.upsert(args.set.id(key))
                     .expireRecordAfterSeconds(ttl)
-                    .bins(BinName, ListBin, ListBin2)
-                    .values(i, list, list2)
+                    .bin(BinName).setTo(i)
+                    .bin(ListBin).setTo(list)
+                    .bin(ListBin2).setTo(list2)
                     .execute();
             }
         }

@@ -159,7 +159,7 @@ public class AelWildcardTest extends ClusterTest {
 
     @Test
     public void andFilterAfterKeyList() {
-        assertEquals(2L, selectLong("n", "$." + BIN_MAP + ":MAP.{alpha,beta,gamma}&[?(@ > 15)].count()"));
+        assertEquals(2L, selectLong("n", "$." + BIN_MAP + ":MAP.{@alpha,beta,gamma}&[?(@ > 15)].count()"));
     }
 
     @Test
@@ -175,7 +175,7 @@ public class AelWildcardTest extends ClusterTest {
 
     @Test
     public void andFilterNarrowsKeyListSelection() {
-        List<?> keys = selectList("keys", "$." + BIN_MAP + ":MAP.{alpha,beta,gamma}&[?(@ > 15)].getKeys()");
+        List<?> keys = selectList("keys", "$." + BIN_MAP + ":MAP.{@alpha,beta,gamma}&[?(@ > 15)].getKeys()");
         List<String> keyNames = keys.stream().map(String.class::cast).toList();
         assertThat(keyNames).containsExactlyInAnyOrder("beta", "gamma");
     }

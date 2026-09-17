@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import com.aerospike.client.sdk.cdt.ListOrder;
+import com.aerospike.client.sdk.util.ContainerString;
 
 /**
  * {@link ArrayList} that records whether elements are stored in Aerospike ordered-list form.
@@ -108,5 +109,13 @@ public class AerospikeList<T> extends ArrayList<T> {
     public void sort() {
         Collections.sort(this, new AerospikeComparator());
         this.order = ListOrder.ORDERED;
+    }
+
+    @Override
+    public String toString() {
+        return "AerospikeList{order=" + order +
+            ", persistIndex=" + persistIndex +
+            ", values=" + ContainerString.formatIterable(this) +
+            '}';
     }
 }
