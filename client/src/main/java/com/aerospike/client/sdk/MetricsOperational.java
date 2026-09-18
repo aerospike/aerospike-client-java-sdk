@@ -26,12 +26,16 @@ public class MetricsOperational {
     private final TimeUnit latencyUnit;
     private final Integer latencyColumns;
     private final Integer latencyShift;
+    private final Integer samplerRange;
+    private final Integer samplerThreshold;
     private final Boolean enabled;
 
     MetricsOperational(Builder builder) {
         this.latencyUnit = builder.latencyUnit;
         this.latencyColumns = builder.latencyColumns;
         this.latencyShift = builder.latencyShift;
+        this.samplerRange = builder.samplerRange;
+        this.samplerThreshold = builder.samplerThreshold;
         this.enabled = builder.enabled;
     }
 
@@ -55,6 +59,10 @@ public class MetricsOperational {
             ? this.latencyColumns : base.latencyColumns;
         merged.latencyShift = this.latencyShift != null
             ? this.latencyShift : base.latencyShift;
+        merged.samplerRange = this.samplerRange != null
+            ? this.samplerRange : base.samplerRange;
+        merged.samplerThreshold = this.samplerThreshold != null
+            ? this.samplerThreshold : base.samplerThreshold;
         merged.enabled = this.enabled != null
             ? this.enabled : base.enabled;
 
@@ -65,6 +73,8 @@ public class MetricsOperational {
     public TimeUnit getLatencyUnit() { return latencyUnit; }
     public Integer getLatencyColumns() { return latencyColumns; }
     public Integer getLatencyShift() { return latencyShift; }
+    public Integer getSamplerRange() { return samplerRange; }
+    public Integer getSamplerThreshold() { return samplerThreshold; }
     public Boolean getEnabled() { return enabled; }
 
     @Override
@@ -80,12 +90,14 @@ public class MetricsOperational {
             Objects.equals(latencyUnit, that.latencyUnit) &&
             Objects.equals(latencyColumns, that.latencyColumns) &&
             Objects.equals(latencyShift, that.latencyShift) &&
+            Objects.equals(samplerRange, that.samplerRange) &&
+            Objects.equals(samplerThreshold, that.samplerThreshold) &&
             Objects.equals(enabled, that.enabled);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(latencyUnit, latencyColumns, latencyShift, enabled);
+        return Objects.hash(latencyUnit, latencyColumns, latencyShift, samplerRange, samplerThreshold, enabled);
     }
 
     @Override
@@ -94,6 +106,8 @@ public class MetricsOperational {
             "latencyUnit=" + latencyUnit+
             ", latencyColumns=" + latencyColumns +
             ", latencyShift=" + latencyShift +
+            ", samplerRange=" + samplerRange +
+            ", samplerThreshold=" + samplerThreshold +
             ", enabled=" + enabled +
             '}';
     }
@@ -105,6 +119,8 @@ public class MetricsOperational {
         private TimeUnit latencyUnit;
         private Integer latencyColumns;
         private Integer latencyShift;
+        private Integer samplerRange;
+        private Integer samplerThreshold;
         private Boolean enabled;
 
         public MetricsOperational build() {
@@ -123,6 +139,8 @@ public class MetricsOperational {
         MetricsOperationalTweaks latencyUnit(TimeUnit unit);
         MetricsOperationalTweaks latencyColumns(Integer limit);
         MetricsOperationalTweaks latencyShift(Integer limit);
+        MetricsOperationalTweaks samplerRange(Integer range);
+        MetricsOperationalTweaks samplerThreshold(Integer threshold);
         MetricsOperationalTweaks enabled(Boolean b);
     }
 
@@ -152,6 +170,18 @@ public class MetricsOperational {
         @Override
         public MetricsOperationalTweaks latencyShift(Integer n) {
             builder.latencyShift = n;
+            return this;
+        }
+
+        @Override
+        public MetricsOperationalTweaks samplerRange(Integer n) {
+            builder.samplerRange = n;
+            return this;
+        }
+
+        @Override
+        public MetricsOperationalTweaks samplerThreshold(Integer n) {
+            builder.samplerThreshold = n;
             return this;
         }
 

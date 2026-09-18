@@ -405,6 +405,8 @@ public class BehaviorYamlConfig {
         private TimeUnit latencyUnit;
         private Integer latencyColumns;
         private Integer latencyShift;
+        private Integer samplerRange;
+        private Integer samplerThreshold;
         private Boolean enabled;
 
         public TimeUnit getLatencyUnit() {
@@ -426,6 +428,20 @@ public class BehaviorYamlConfig {
         }
         public void setLatencyShift(Integer latencyShift) {
             this.latencyShift = latencyShift;
+        }
+
+        public Integer getSamplerRange() {
+            return samplerRange;
+        }
+        public void setSamplerRange(Integer samplerRange) {
+            this.samplerRange = samplerRange;
+        }
+
+        public Integer getSamplerThreshold() {
+            return samplerThreshold;
+        }
+        public void setSamplerThreshold(Integer samplerThreshold) {
+            this.samplerThreshold = samplerThreshold;
         }
 
         public Boolean getEnabled() {
