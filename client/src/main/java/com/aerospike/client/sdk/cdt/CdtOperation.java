@@ -87,7 +87,8 @@ public class CdtOperation {
             packedBytes = packCdtSelect(CDT.Type.SELECT, flags, ctx);
         }
 
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(packedBytes, ParticleType.BLOB));
+        return new Operation(Operation.Type.CDT_READ, binName,
+            Value.get(packedBytes, CTX.hasVector(ctx)));
     }
 
 	/**
@@ -147,19 +148,11 @@ public class CdtOperation {
             packedBytes = packCdtModify(CDT.Type.SELECT, flags, modifyExp, ctx);
         }
 
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(packedBytes, ParticleType.BLOB));
+        return new Operation(Operation.Type.CDT_MODIFY, binName,
+            Value.get(packedBytes, modifyExp.hasVector() || CTX.hasVector(ctx)));
     }
 
-    /**
-     * Reject invalid path flags instead of masking them into a valid operation.
-     * <p>
-     * Legal select flags are the exposed {@link SelectFlags} constants (0..3 and 0x10)
-     * and legal modify flags are the {@link ModifyFlags} constants (0 and 0x10); a
-     * negative value, or one with bit 2 (the internal apply bit) set, is never valid.
-     * Without this check the flag is rewritten before packing (select cleared bit 2,
-     * modify sets it) and a negative value silently aliases onto a valid server return
-     * type instead of erroring (CLIENT-5184).
-     */
+    /** Validates public CDT path flags. */
     private static void validateFlags(int flags, String name) {
         if (flags < 0 || (flags & 4) != 0) {
             throw new AerospikeException(ResultCode.PARAMETER_ERROR, "invalid " + name + " flag " + flags);
@@ -184,8 +177,7 @@ public class CdtOperation {
                 }
             }
 
-            // Pack the validated select flag. selectByPath rejects any value with bit 2
-            // (the internal apply bit) set, so no mask is needed here (CLIENT-5184).
+            // Public select flags exclude the internal apply bit.
             packer.packInt(flags);
 
             if (i == 0) {

@@ -128,15 +128,23 @@ public final class Vector {
     public final int dimensions;
 
     private final Object data;
+    // Preserved reserved header bytes.
+    private final byte[] reserved;
 
     private Integer wireSize;
     private Integer hash;
 
     private Vector(final byte version, final ElementType elementType, final int dimensions, final Object data) {
+        this(version, elementType, dimensions, data, new byte[2]);
+    }
+
+    private Vector(final byte version, final ElementType elementType, final int dimensions, final Object data,
+        final byte[] reserved) {
         this.version = version;
         this.elementType = elementType;
         this.dimensions = dimensions;
         this.data = data;
+        this.reserved = reserved.clone();
     }
 
     /**
@@ -180,23 +188,17 @@ public final class Vector {
         return wireSize;
     }
 
-    /**
-     * Serialize this vector into the wire format at the given buffer offset.
-     * Operates directly on the internal data array (no defensive copy) since
-     * this is used on the record write hot path.
-     *
-     * @return number of bytes written, equal to {@link #getWireSize()}
-     */
+    /** Serialize this vector at the specified buffer offset. */
     public int writeTo(final byte[] buffer, final int offset) {
         int pos = offset;
 
-        // Vector wire format is little-endian to match the server.
+        // Vector wire format is little-endian.
         buffer[pos++] = version;
         buffer[pos++] = elementType.getCode();
         Buffer.intToLittleBytes(dimensions, buffer, pos);
         pos += 4;
-        buffer[pos++] = 0; // reserved
-        buffer[pos++] = 0; // reserved
+        buffer[pos++] = reserved[0];
+        buffer[pos++] = reserved[1];
 
         final int dataSize = dimensions * elementType.getByteSize();
         final ByteBuffer view = ByteBuffer.wrap(buffer, pos, dataSize).order(ByteOrder.LITTLE_ENDIAN);
@@ -226,13 +228,14 @@ public final class Vector {
         return pos - offset;
     }
 
-    /**
-     * Return the raw element array in little-endian wire byte order, without the
-     * 8-byte header. This is the element layout used as the query-vector argument
-     * of a vector distance expression (see
-     * {@link com.aerospike.client.sdk.exp.VectorExp#distance}), where the server
-     * reinterprets the bytes using the stored bin's element type.
-     */
+    /** Return complete wire bytes, including the header. */
+    public byte[] getWireBytes() {
+        final byte[] bytes = new byte[getWireSize()];
+        writeTo(bytes, 0);
+        return bytes;
+    }
+
+    /** Return element bytes without the header. */
     public byte[] getElementBytes() {
         final int dataSize = dimensions * elementType.getByteSize();
         final byte[] bytes = new byte[dataSize];
@@ -271,34 +274,31 @@ public final class Vector {
      *                  {@link #HEADER_SIZE})
      */
     public static Vector from(final byte[] buffer, final int offset, final int length) {
-        if (length < HEADER_SIZE) {
-            throw new IllegalArgumentException("Invalid vector length: " + length);
+        if (offset < 0 || length < HEADER_SIZE || offset > buffer.length - length) {
+            throw new IllegalArgumentException("Invalid vector offset or length");
         }
 
-        int pos = offset;
-
-        final byte version = buffer[pos++];
-        final ElementType elementType = ElementType.fromCode(buffer[pos++]);
-        final int dimensions = Buffer.littleBytesToInt(buffer, pos);
-        pos += 4; // advance past the 4-byte dimensions field read above
-        pos += 2; // reserved
+        final byte version = buffer[offset];
+        final ElementType elementType = ElementType.fromCode(buffer[offset + 1]);
+        final int dimensions = Buffer.littleBytesToInt(buffer, offset + 2);
+        final byte[] reserved = Arrays.copyOfRange(buffer, offset + 6, offset + HEADER_SIZE);
 
         if (dimensions < 0) {
             throw new IllegalArgumentException("Invalid vector dimensions: " + dimensions);
         }
 
-        // Use long math so a large dimensions count cannot overflow the int size computation
-        // (which could otherwise bypass the bounds check and trigger a huge allocation).
+        // Validate encoded length before allocation.
         final long dataSizeLong = (long)dimensions * elementType.getByteSize();
 
-        if (length < HEADER_SIZE + dataSizeLong) {
+        if (dataSizeLong > Integer.MAX_VALUE - HEADER_SIZE ||
+            length != HEADER_SIZE + dataSizeLong) {
             throw new IllegalArgumentException("Invalid vector length: " + length +
-                ", expected at least " + (HEADER_SIZE + dataSizeLong));
+                ", expected exactly " + (HEADER_SIZE + dataSizeLong));
         }
 
-        // Safe to narrow: dataSizeLong <= length - HEADER_SIZE, and length is an int.
         final int dataSize = (int)dataSizeLong;
-        final ByteBuffer view = ByteBuffer.wrap(buffer, pos, dataSize).order(ByteOrder.LITTLE_ENDIAN);
+        final ByteBuffer view = ByteBuffer.wrap(buffer, offset + HEADER_SIZE, dataSize)
+            .order(ByteOrder.LITTLE_ENDIAN);
         final Object data;
 
         switch (elementType) {
@@ -334,7 +334,7 @@ public final class Vector {
                 throw new IllegalStateException("Unsupported vector element type: " + elementType);
         }
 
-        return new Vector(version, elementType, dimensions, data);
+        return new Vector(version, elementType, dimensions, data, reserved);
     }
 
     /**
@@ -408,7 +408,7 @@ public final class Vector {
 
         final Vector other = (Vector)obj;
 
-        if (version != other.version || elementType != other.elementType || dimensions != other.dimensions) {
+        if (elementType != other.elementType || dimensions != other.dimensions) {
             return false;
         }
 
@@ -429,8 +429,7 @@ public final class Vector {
     @Override
     public int hashCode() {
         if (hash == null) {
-            int h = version;
-            h = 31 * h + elementType.hashCode();
+            int h = elementType.hashCode();
             h = 31 * h + dimensions;
 
             switch (elementType) {

@@ -17,9 +17,9 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -27,17 +27,15 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Bin;
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.VectorExp;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
-/**
- * Unit tests for {@link QueryBuilder}'s Top-K ({@code orderBy}/{@code topK}) API: per-call
- * argument validation and the cross-field {@link QueryBuilder#validateTopKQueryState()} checks.
- */
-class QueryTopKValidationTest extends ClusterTest {
+/** Tests Top-K builder validation. */
+public class QueryTopKValidationTest extends ClusterTest {
     private static DataSet dataSet;
 
     private static DataSet dataSet() {
@@ -90,11 +88,44 @@ class QueryTopKValidationTest extends ClusterTest {
     }
 
     @Test
+    void orderByRejectsUnknownFlags() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        assertThrows(AerospikeException.class,
+            () -> qb.orderBy("s", OrderByType.STRING, Order.ASC, 0x80));
+    }
+
+    @Test
     void orderByAcceptsCaseInsensitiveFlagOnStringType() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.orderBy("s", OrderByType.STRING, Order.ASC, OrderByFlags.CASE_INSENSITIVE);
         assertEquals("s", qb.getOrderBySpec().getBinName());
         assertEquals(OrderByFlags.CASE_INSENSITIVE, qb.getOrderBySpec().getFlags());
+    }
+
+    @Test
+    void thenOrderByAddsASecondIndependentSpec() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.orderBy("first", OrderByType.INTEGER, Order.ASC)
+            .thenOrderBy("second", OrderByType.STRING, Order.DESC, OrderByFlags.CASE_INSENSITIVE)
+            .topK(5);
+
+        assertEquals(2, qb.getOrderBySpecs().size());
+        assertEquals("second", qb.getOrderBySpecs().get(1).getBinName());
+    }
+
+    @Test
+    void thenOrderByRejectsMissingFirstKeyDuplicateAndThirdKey() {
+        QueryBuilder empty = new QueryBuilder(session, dataSet());
+        assertThrows(AerospikeException.class,
+            () -> empty.thenOrderBy("second", OrderByType.INTEGER, Order.ASC));
+
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.orderBy("first", OrderByType.INTEGER, Order.ASC);
+        assertThrows(AerospikeException.class,
+            () -> qb.thenOrderBy("first", OrderByType.INTEGER, Order.DESC));
+        qb.thenOrderBy("second", OrderByType.INTEGER, Order.DESC);
+        assertThrows(AerospikeException.class,
+            () -> qb.thenOrderBy("third", OrderByType.INTEGER, Order.ASC));
     }
 
     // -- topK(...) per-call argument validation --------------------------------
@@ -135,7 +166,7 @@ class QueryTopKValidationTest extends ClusterTest {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         assertNull(qb.getOrderBySpec());
         assertNull(qb.getTopK());
-        // Neither set -- pairing check passes trivially (both null is a valid, non-Top-K query).
+        // Neither field is set.
         qb.validateTopKQueryState();
     }
 
@@ -163,12 +194,12 @@ class QueryTopKValidationTest extends ClusterTest {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5);
 
-        qb.validateTopKQueryState(); // does not throw
+        qb.validateTopKQueryState();
     }
 
     @Test
     void pairingCheckIsOrderIndependent() {
-        // topK() called before orderBy() -- must behave identically.
+        // Configure topK before orderBy.
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.topK(5).orderBy("n", OrderByType.INTEGER, Order.ASC);
 
@@ -221,8 +252,6 @@ class QueryTopKValidationTest extends ClusterTest {
 
     @Test
     void orderByBinNotRequiredToBeInProjectionWhenNoProjectionIsSet() {
-        // No readingOnlyBins()/operations -- entire record is read, so the order-by bin is
-        // implicitly available regardless of name.
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5);
 
@@ -231,13 +260,21 @@ class QueryTopKValidationTest extends ClusterTest {
 
     @Test
     void orderByBinInProjectionPassesWhenSatisfiedOnlyBySelectFromOperation() {
-        // "similarity" is never a physical bin -- it only exists via .bin(...).selectFrom(...).
-        // No readingOnlyBins() at all; validateTopKQueryState() must still find it via getOperations().
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.bin("similarity").selectFrom(Exp.intBin("n"));
         qb.orderBy("similarity", OrderByType.DOUBLE, Order.DESC).topK(5);
 
         qb.validateTopKQueryState();
+    }
+
+    @Test
+    void orderByBinCannotBeProducedByMultipleOperations() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.bin("n").get();
+        qb.bin("n").get();
+        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(1);
+
+        assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
 
     @Test
@@ -249,8 +286,25 @@ class QueryTopKValidationTest extends ClusterTest {
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
 
-    // -- full hybrid-search combination: selectFrom + readingOnlyBins + orderBy + topK --------
-    // together, the way a real hybrid vector Top-K query builds it (see VectorTopKQueryExample).
+    @Test
+    void orderByBinInBinListButNotInOpsProjectionFailsBecauseOpsWinsOnWire() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        // Operation projections replace bin-list projections, so they must produce the order key.
+        qb.bin("similarity").selectFrom(Exp.intBin("n"));
+        qb.orderBy("stock", OrderByType.INTEGER, Order.ASC).topK(5).readingOnlyBins("stock");
+
+        assertThrows(AerospikeException.class, qb::validateTopKQueryState);
+    }
+
+    @Test
+    void indexQueryInterfaceExposesOrderByThenOrderByAndTopK() {
+        QueryBuilder qb = session.query(dataSet())
+            .orderBy("n", OrderByType.INTEGER, Order.ASC)
+            .thenOrderBy("m", OrderByType.STRING, Order.DESC)
+            .topK(5);
+
+        qb.validateTopKQueryState();
+    }
 
     @Test
     void hybridVectorTopKQueryShapePassesClientSideValidation() {
@@ -266,14 +320,11 @@ class QueryTopKValidationTest extends ClusterTest {
             .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
             .topK(10);
 
-        // Does not throw -- every piece (where/selectFrom/readingOnlyBins/orderBy/topK) is
-        // mutually consistent; the query is only blocked by the capability gate below, not by
-        // any client-side request-time validation rule.
         qb.validateTopKQueryState();
     }
 
     @Test
-    void hybridVectorTopKQueryShapeFailsOnlyAtACapabilityGateNotAtRequestValidation() {
+    void hybridVectorTopKQueryShapeExecutesOnCapableServer() {
         Vector queryVector = Vector.ofFloat32(new float[] {0.10f, 0.95f, 0.40f, 0.08f});
 
         QueryBuilder qb = new QueryBuilder(session, dataSet())
@@ -286,39 +337,39 @@ class QueryTopKValidationTest extends ClusterTest {
             .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
             .topK(10);
 
-        // IndexQueryBuilderImpl.executeInternal() checks two independent, version-gated
-        // capabilities in order, before ever building/sending a command:
-        //   1. supportsQueryOperations() (8.1.2+) -- this query has operations (selectFrom),
-        //      so on a pre-8.1.2 test cluster this fires first with OP_NOT_APPLICABLE.
-        //   2. supportsTopK() (min version still TBD) -- fires with UNSUPPORTED_FEATURE once
-        //      (1) passes, i.e. on any 8.1.2+ cluster, which every real Top-K-capable server
-        //      will be by construction.
-        // Either way, this proves every OTHER client-side piece of this hybrid-search combination
-        // (where/selectFrom/readingOnlyBins/orderBy/topK together) is valid -- validateTopKQueryState()
-        // itself never throws for this shape (see previous test) -- and the query is only ever
-        // blocked by a capability gate, never by request-time misuse.
-        AerospikeException ae = assertThrows(AerospikeException.class, qb::execute);
-        assertEquals(
-            cluster.supportsQueryOperations() ? ResultCode.UNSUPPORTED_FEATURE : ResultCode.OP_NOT_APPLICABLE,
-            ae.getResultCode());
-    }
-
-    // -- capability gate: placeholder version means it's always unsupported today ----
-
-    @Test
-    void clusterDoesNotAdvertiseTopKSupportYet() {
-        // No minimum server version has been assigned by Core engineering yet (the server-side
-        // PR aerospike-server#1547 is still open/unmerged) -- see Cluster.supportsTopK().
-        assertFalse(cluster.supportsTopK());
+        try (var results = qb.execute()) {
+            while (results.hasNext()) {
+                results.next().recordOrThrow();
+            }
+        }
     }
 
     @Test
-    void executingATopKQueryAgainstThisClusterThrowsUnsupportedFeature() {
+    void clusterAdvertisesTopKSupport() {
+        assertTrue(cluster.supportsTopK());
+    }
+
+    @Test
+    void executingATopKQueryAgainstThisClusterIsAccepted() {
         QueryBuilder qb = new QueryBuilder(session, dataSet())
             .orderBy("n", OrderByType.INTEGER, Order.ASC)
             .topK(5);
 
-        AerospikeException ae = assertThrows(AerospikeException.class, qb::execute);
-        assertEquals(ResultCode.UNSUPPORTED_FEATURE, ae.getResultCode());
+        try (var results = qb.execute()) {
+            while (results.hasNext()) {
+                results.next().recordOrThrow();
+            }
+        }
+    }
+
+    @Test
+    void asyncTopKIsRejectedBeforeQueryExecution() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet())
+            .orderBy("n", OrderByType.INTEGER, Order.ASC)
+            .topK(5);
+
+        AerospikeException ae = assertThrows(AerospikeException.class,
+            () -> qb.executeAsync(ErrorStrategy.IN_STREAM));
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
     }
 }

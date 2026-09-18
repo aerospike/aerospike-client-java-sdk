@@ -74,6 +74,7 @@ public class Cluster implements Closeable {
     private boolean versionGE8;
     private boolean versionGE812;
     private boolean versionGETopK;
+    private volatile boolean allNodesSupportVector = true;
     private boolean versionGE82;
     private boolean metricsEnabled;
 
@@ -551,6 +552,15 @@ public class Cluster implements Closeable {
      * @param nodes the new array of nodes for the cluster
      */
     public final void setNodes(Node[] nodes) {
+        // Update the capability before publishing nodes.
+        boolean supportsVector = true;
+        for (Node node : nodes) {
+            if (!node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3)) {
+                supportsVector = false;
+                break;
+            }
+        }
+        this.allNodesSupportVector = supportsVector;
         this.nodes = nodes;
     }
 
@@ -646,12 +656,15 @@ public class Cluster implements Closeable {
      * Whether this cluster's minimum server version supports Top-K queries
      * ({@code orderBy(...)}/{@code topK(...)} on {@link com.aerospike.client.sdk.query.QueryBuilder}).
      *
-     * <p>Placeholder gate: always {@code false} until {@link Version#SERVER_VERSION_TOP_K_MIN_TBD}
-     * is updated with a real assigned version. Fails closed since an old server would silently
-     * ignore the new wire fields rather than reject them.</p>
+     * <p>Requires server version 8.1.3 or newer on every connected node.</p>
      */
     public boolean supportsTopK() {
         return versionGETopK;
+    }
+
+    /** Whether all connected nodes support VECTOR. */
+    public boolean supportsVector() {
+        return allNodesSupportVector;
     }
 
     /**
@@ -675,7 +688,7 @@ public class Cluster implements Closeable {
         this.version = version;
         this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
         this.versionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
-        this.versionGETopK = version.isGreaterOrEqual(Version.SERVER_VERSION_TOP_K_MIN_TBD);
+        this.versionGETopK = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);
         this.versionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
     }
 

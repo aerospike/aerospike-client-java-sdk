@@ -40,7 +40,8 @@ public abstract class Exp {
         BLOB(6),
         FLOAT(7),
         GEO(8),
-        HLL(9);
+        HLL(9),
+        VECTOR(10);
 
         public final int code;
 
@@ -97,7 +98,7 @@ public abstract class Exp {
                 packer.packObject(obj);
                 packer.createBuffer();
                 packer.packObject(obj);
-                return new ExpBytes(new Expression(packer.getBuffer()));
+                return new ExpBytes(new Expression(packer.getBuffer(), packer.hasVector()));
             }
             return new ListVal(list);
         } else if (obj instanceof Map) {
@@ -109,7 +110,7 @@ public abstract class Exp {
             packer.packObject(obj);
             packer.createBuffer();
             packer.packObject(obj);
-            return new ExpBytes(new Expression(packer.getBuffer()));
+            return new ExpBytes(new Expression(packer.getBuffer(), packer.hasVector()));
         }
     }
 
@@ -282,7 +283,7 @@ public abstract class Exp {
      * }</pre>
      */
     public static Exp vectorBin(final String name) {
-        return new Bin(name, Type.BLOB);
+        return new Bin(name, Type.VECTOR);
     }
 
     /**
@@ -1430,7 +1431,9 @@ public abstract class Exp {
     private static final int INT_RSCAN = 41;
     private static final int MIN = 50;
     private static final int MAX = 51;
-    private static final int VECTOR_DIST = 52;
+    private static final int VECTOR_EUCLIDEAN_DIST = 52;
+    private static final int VECTOR_DOT_PRODUCT = 53;
+    private static final int VECTOR_COSINE_SIM = 54;
     private static final int DIGEST_MODULO = 64;
     private static final int DEVICE_SIZE = 65;
     private static final int LAST_UPDATE = 66;
@@ -1539,12 +1542,7 @@ public abstract class Exp {
 
     public abstract void pack(Packer packer);
 
-    /**
-     * For internal use only. Build the dedicated TO_STRING opcode node, encoded
-     * as {@code [99, bin]}. Replaces the obsolete CALL_REPR (module 4) shape that
-     * current servers reject with PARAMETER. Mirrors aerospike-client-c
-     * CLIENT-5164 (PR #228).
-     */
+    /** Builds the TO_STRING expression node. */
     static Exp toStringExp(Exp bin) {
         return new CmdExp(TO_STRING, bin);
     }
@@ -1584,24 +1582,33 @@ public abstract class Exp {
      * For internal use only. Built by {@link com.aerospike.client.sdk.exp.VectorExp#distance}.
      */
     static final class VectorDist extends Exp {
-        private final int metric;
+        private final int opcode;
         private final byte[] query;
         private final Exp bin;
 
-        VectorDist(final int metric, final byte[] query, final Exp bin) {
-            this.metric = metric;
+        VectorDist(final int opcode, final byte[] query, final Exp bin) {
+            this.opcode = opcode;
             this.query = query;
             this.bin = bin;
         }
 
         @Override
         public void pack(final Packer packer) {
-            packer.packArrayBegin(4);
-            packer.packInt(VECTOR_DIST);
-            packer.packInt(metric);
-            packer.packParticleBytes(query);
+            // Encode the query vector as particle bytes.
+            packer.markVector();
+            packer.packArrayBegin(3);
+            packer.packInt(opcode);
             bin.pack(packer);
+            packer.packParticleBytes(query);
         }
+    }
+
+    static int vectorDistOpcode(final com.aerospike.client.sdk.vector.VectorDistanceMetric metric) {
+        return switch (metric) {
+            case EUCLIDEAN -> VECTOR_EUCLIDEAN_DIST;
+            case DOT_PRODUCT -> VECTOR_DOT_PRODUCT;
+            case COSINE -> VECTOR_COSINE_SIM;
+        };
     }
 
     private static final class Bin extends Exp {
@@ -1619,6 +1626,9 @@ public abstract class Exp {
 
         @Override
         public void pack(Packer packer) {
+            if (type == Type.VECTOR) {
+                packer.markVector();
+            }
             packer.packArrayBegin(3);
             packer.packInt(BIN);
             packer.packInt(type.code);
@@ -2066,9 +2076,11 @@ public abstract class Exp {
 
     private static final class ExpBytes extends Exp {
         private final byte[] bytes;
+        private final boolean hasVector;
 
         private ExpBytes(Expression e) {
             this.bytes = e.getBytes();
+            this.hasVector = e.hasVector();
         }
 
         @Override
@@ -2078,6 +2090,9 @@ public abstract class Exp {
 
         @Override
         public void pack(Packer packer) {
+            if (hasVector) {
+                packer.markVector();
+            }
             packer.packByteArray(bytes, 0, bytes.length);
         }
     }

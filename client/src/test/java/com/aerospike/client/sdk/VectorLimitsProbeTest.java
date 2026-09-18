@@ -20,24 +20,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Assumptions;
 
 import com.aerospike.client.sdk.vector.Vector;
 
-/**
- * Server-behavior tests for vector dimension limits.
- * <p>
- * Confirmed against the dev server (8.1.3 vector build): the server enforces
- * {@code 1 <= dimensions <= VECTOR_MAX_ELEMENTS_BYTES / elementSize} (for fp64,
- * {@code VECTOR_MAX_ELEMENTS_BYTES = 1 << 18} gives 32768 dims). Empty and over-maximum vectors are
- * rejected cleanly with {@link ResultCode#PARAMETER_ERROR}.
- * <p>
- * TODO: consider validating empty and per-type maximum dimensions in {@code Vector.of*()}.
- */
+/** VECTOR dimension-limit integration tests. */
 public class VectorLimitsProbeTest extends ClusterTest {
     private static final String binName = "vecbin";
 
-    // Server cap: VECTOR_MAX_ELEMENTS_BYTES = 1 << 18 (262144). fp64 => 32768 dims max.
     private static final int FLOAT64_MAX_DIMS = (1 << 18) / 8;
+
+    @BeforeAll
+    static void requireVectorServer() {
+        Assumptions.assumeTrue(
+            cluster.getVersion().isGreaterOrEqual(com.aerospike.client.sdk.util.Version.SERVER_VERSION_8_1_3),
+            "VECTOR requires server version 8.1.3+");
+    }
 
     @Test
     public void emptyVectorRejectedCleanly() {
@@ -75,7 +74,6 @@ public class VectorLimitsProbeTest extends ClusterTest {
         assertEquals(v, got);
     }
 
-    /** Confirm the node remains available after a rejected write. */
     private void assertNodeAlive() {
         final Key key = key("vecprobe_alive");
         session.upsert(key).bin("ok").setTo(1).execute();

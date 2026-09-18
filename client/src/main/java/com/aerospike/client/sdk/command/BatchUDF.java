@@ -26,6 +26,7 @@ public final class BatchUDF extends BatchRecord {
     public final String functionName;
     public final Value[] functionArgs;
     public byte[] argBytes;
+    public boolean hasVector;
     public final int ttl;
 
     public BatchUDF(
@@ -79,7 +80,12 @@ public final class BatchUDF extends BatchRecord {
 
         size += Buffer.estimateSizeUtf8(packageName) + Command.FIELD_HEADER_SIZE;
         size += Buffer.estimateSizeUtf8(functionName) + Command.FIELD_HEADER_SIZE;
-        argBytes = Packer.pack(functionArgs);
+        Packer packer = new Packer();
+        packer.packValueArray(functionArgs);
+        packer.createBuffer();
+        packer.packValueArray(functionArgs);
+        argBytes = packer.getBuffer();
+        hasVector = packer.hasVector();
         size += argBytes.length + Command.FIELD_HEADER_SIZE;
         return size;
     }

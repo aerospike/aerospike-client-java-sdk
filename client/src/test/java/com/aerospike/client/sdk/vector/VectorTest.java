@@ -41,7 +41,7 @@ import com.aerospike.client.sdk.util.Packer;
 import com.aerospike.client.sdk.util.Unpacker;
 import com.aerospike.client.sdk.vector.Vector.ElementType;
 
-class VectorTest {
+public class VectorTest {
     //-------------------------------------------------------
     // ElementType
     //-------------------------------------------------------
@@ -321,14 +321,27 @@ class VectorTest {
     }
 
     @Test
-    void fromIgnoresTrailingBytes() {
+    void fromRejectsTrailingBytes() {
         final Vector v = Vector.ofInt32(new int[] {1, 2, 3});
 
         final byte[] buffer = new byte[v.getWireSize() + 10];
         v.writeTo(buffer, 0);
 
-        final Vector parsed = Vector.from(buffer, 0, buffer.length);
-        assertEquals(v, parsed);
+        assertThrows(IllegalArgumentException.class, () -> Vector.from(buffer, 0, buffer.length));
+    }
+
+    @Test
+    void fromPreservesUnknownVersionAndReservedBytesOnReencode() {
+        final Vector original = Vector.ofFloat32(new float[] {1.5f, -2.25f});
+        final byte[] received = original.getWireBytes();
+        received[0] = 42;
+        received[6] = (byte)0xa5;
+        received[7] = 0x5a;
+
+        final Vector decoded = Vector.from(received, 0, received.length);
+
+        assertEquals(42, decoded.version);
+        assertArrayEquals(received, decoded.getWireBytes());
     }
 
     @Test
@@ -400,9 +413,7 @@ class VectorTest {
 
     @Test
     void unpackerRoundTripsRawVectorInList() {
-        // A list built from raw (unwrapped) Vector elements, as opposed to
-        // Value.get(Vector) elements, must still pack and unpack correctly.
-        // This exercises Packer.packObject()/packList() -> Packer.packVector().
+        // Verify raw Vector elements in a list pack and unpack.
         final Vector v = Vector.ofFloat32(new float[] {1.5f, -2.25f, 3.0f});
         final List<Object> list = List.of(v);
 
@@ -417,8 +428,7 @@ class VectorTest {
 
     @Test
     void binWithRawVectorInListPacksSuccessfully() {
-        // Regression: Bin(String, List<?>) packs raw list elements via
-        // Packer.packObject(), which must have a branch for Vector.
+        // Verify Bin accepts raw Vector elements in a list.
         final Vector v = Vector.ofInt32(new int[] {1, 2, 3});
         final Bin bin = new Bin("veclist", List.of(v));
 
@@ -449,8 +459,7 @@ class VectorTest {
 
     @Test
     void getObjectWrapsNativeVector() {
-        // Deserialization yields a native Vector; Value.get(Object) must re-wrap
-        // it as a VectorValue so a read-then-write round trip preserves the type.
+        // Verify a deserialized Vector retains its type after a read/write round trip.
         final Vector v = Vector.ofInt32(new int[] {1, 2, 3});
         final Value value = Value.get((Object)v);
 
@@ -465,6 +474,100 @@ class VectorTest {
         final Value value = Value.get(v);
 
         assertEquals(v.getWireSize(), value.estimateSize());
+    }
+
+    @Test
+    void scalarValueReportsNoVector() {
+        final Value value = Value.get(42L);
+        value.estimateSize();
+        assertTrue(!value.hasVector());
+    }
+
+    @Test
+    void vectorValueReportsVectorWithoutEstimatePass() {
+        assertTrue(Value.get(Vector.ofInt32(new int[] {1, 2, 3})).hasVector());
+    }
+
+    @Test
+    void nestedListVectorIsDetectedFromSinglePackPass() {
+        final Value value = Value.get(List.of(1L, "x", Vector.ofFloat32(new float[] {1.0f, 2.0f})));
+        value.estimateSize();
+        assertTrue(value.hasVector());
+    }
+
+    @Test
+    void nestedMapVectorIsDetectedFromSinglePackPass() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put("k", Vector.ofInt32(new int[] {7, 8, 9}));
+        final Value value = Value.get(map);
+        value.estimateSize();
+        assertTrue(value.hasVector());
+    }
+
+    @Test
+    void collectionWithoutVectorReportsNoVector() {
+        final Value value = Value.get(List.of(1L, "x", List.of(2L, 3L)));
+        value.estimateSize();
+        assertTrue(!value.hasVector());
+    }
+
+    @Test
+    void collectionHasVectorLazilyWithoutPriorPack() {
+        final Value value = Value.get(List.of(1L, Vector.ofInt32(new int[] {1, 2})));
+        assertTrue(value.hasVector());
+    }
+
+    @Test
+    void cdtListAppendVectorPropagatesFlagToOperation() {
+        final Vector v = Vector.ofFloat32(new float[] {1.0f, 2.0f});
+        assertTrue(com.aerospike.client.sdk.cdt.ListOperation.append("l", Value.get(v))
+            .value.hasVector());
+        assertTrue(!com.aerospike.client.sdk.cdt.ListOperation.append("l", Value.get(1L))
+            .value.hasVector());
+    }
+
+    @Test
+    void cdtMapPutVectorPropagatesFlagToOperation() {
+        final Vector v = Vector.ofInt32(new int[] {3, 4, 5});
+        assertTrue(com.aerospike.client.sdk.cdt.MapOperation.put(
+            com.aerospike.client.sdk.cdt.MapPolicy.Default, "m", Value.get("k"), Value.get(v))
+            .value.hasVector());
+        assertTrue(!com.aerospike.client.sdk.cdt.MapOperation.put(
+            com.aerospike.client.sdk.cdt.MapPolicy.Default, "m", Value.get("k"), Value.get(1L))
+            .value.hasVector());
+    }
+
+    @Test
+    void cdtListReadOperationIsNotFlagged() {
+        assertTrue(!com.aerospike.client.sdk.cdt.ListOperation.size("l").value.hasVector());
+    }
+
+    @Test
+    void vectorTypedBytesValueReportsVector() {
+        final byte[] wire = Vector.ofFloat32(new float[] {1.0f, 2.0f}).getWireBytes();
+        assertTrue(Value.get(wire, ParticleType.VECTOR).hasVector());
+        assertTrue(!Value.get(wire, ParticleType.BLOB).hasVector());
+    }
+
+    @Test
+    void nestedTypedVectorBytesReportsVectorAfterPacking() {
+        final byte[] wire = Vector.ofFloat32(new float[] {1.0f, 2.0f}).getWireBytes();
+        final Value nested = Value.get(new Value[] {Value.get(wire, ParticleType.VECTOR)});
+
+        nested.estimateSize();
+
+        assertTrue(nested.hasVector());
+    }
+
+    @Test
+    void cdtRemoveByVectorValuePropagatesFlagToOperation() {
+        final Vector v = Vector.ofFloat32(new float[] {1.0f, 2.0f});
+        assertTrue(com.aerospike.client.sdk.cdt.ListOperation.removeByValue(
+            "l", Value.get(v), com.aerospike.client.sdk.cdt.ListReturnType.NONE).value.hasVector());
+        assertTrue(com.aerospike.client.sdk.cdt.MapOperation.removeByValue(
+            "m", Value.get(v), com.aerospike.client.sdk.cdt.MapReturnType.NONE).value.hasVector());
+        assertTrue(com.aerospike.client.sdk.cdt.MapOperation.removeByKey(
+            "m", Value.get(v), com.aerospike.client.sdk.cdt.MapReturnType.NONE).value.hasVector());
     }
 
     @Test
@@ -489,6 +592,19 @@ class VectorTest {
 
         assertEquals(a, b);
         assertEquals(a.hashCode(), b.hashCode());
+    }
+
+    @Test
+    void equalityIgnoresDecodedHeaderMetadata() {
+        final Vector vector = Vector.ofInt32(new int[] {1, 2, 3});
+        final byte[] bytes = vector.getWireBytes();
+        bytes[0] = 7;
+        bytes[6] = 1;
+        bytes[7] = 2;
+        final Vector decoded = Vector.from(bytes, 0, bytes.length);
+
+        assertEquals(vector, decoded);
+        assertEquals(vector.hashCode(), decoded.hashCode());
     }
 
     @Test
@@ -596,7 +712,7 @@ class VectorTest {
         assertEquals(0, buffer[7]);
     }
 
-    // Vector wire format is little-endian to match the server.
+    // Vector wire format is little-endian.
     private static int decodeIntLE(final byte[] b, final int offset) {
         return (b[offset] & 0xff) |
             ((b[offset + 1] & 0xff) << 8) |

@@ -18,54 +18,48 @@ package com.aerospike.client.sdk.exp;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
 /**
- * Client-side wire-encoding tests for {@link VectorExp}. These validate that the
- * expression packs to the expected MessagePack layout regardless of server
- * support (the server-side vector distance expression is still in progress).
+ * Client-side wire-encoding tests for {@link VectorExp}.
  */
-class VectorExpTest {
-
-    private static final int VECTOR_DIST_OP = 52;
+public class VectorExpTest {
 
     @Test
     void distancePacksExpectedWireFormat() {
         final Vector query = Vector.ofFloat32(new float[] {1.5f, -2.25f, 3.0f});
-        final byte[] queryBytes = query.getElementBytes();
+        final byte[] queryBytes = query.getWireBytes();
 
         final byte[] packed = Exp.build(
             VectorExp.distance(VectorDistanceMetric.COSINE, query, Exp.vectorBin("embedding")))
             .getBytes();
 
-        // Array header for the 4-element VectorDist node: 0x90 | 4.
-        assertEquals((byte)(0x90 | 4), packed[0]);
-        // VECTOR_DIST op code.
-        assertEquals(VECTOR_DIST_OP, packed[1] & 0xff);
-        // Metric code (COSINE == 2).
-        assertEquals(VectorDistanceMetric.COSINE.getCode(), packed[2] & 0xff);
+        // [cosine-opcode, vector-bin-expression, full-vector BLOB literal].
+        assertEquals((byte)(0x90 | 3), packed[0]);
+        assertEquals(54, packed[1] & 0xff);
+        assertEquals((byte)(0x90 | 3), packed[2]);
+        assertEquals(81, packed[3] & 0xff);
+        assertEquals(10, packed[4] & 0xff);
 
-        // packParticleBytes(query): string header for (len + 1), then the BLOB
-        // particle type byte, then the little-endian query element bytes.
+        // The query literal is a BLOB containing the complete VECTOR wire value.
         final int expectedHeader = 0xa0 | (queryBytes.length + 1);
-        assertEquals((byte)expectedHeader, packed[3]);
-        assertEquals(ParticleType.BLOB, packed[4] & 0xff);
+        final int literalStart = 2 + 4 + "embedding".length();
+        assertEquals((byte)expectedHeader, packed[literalStart]);
+        assertEquals(ParticleType.BLOB, packed[literalStart + 1] & 0xff);
 
-        final byte[] embedded = Arrays.copyOfRange(packed, 5, 5 + queryBytes.length);
+        final byte[] embedded = Arrays.copyOfRange(
+            packed, literalStart + 2, literalStart + 2 + queryBytes.length);
         assertArrayEquals(queryBytes, embedded);
-
-        // Immediately after the query payload, the bin sub-expression begins with
-        // its own 3-element array header (0x90 | 3) and the BIN op code (81).
-        final int binStart = 5 + queryBytes.length;
-        assertEquals((byte)(0x90 | 3), packed[binStart]);
-        assertEquals(81, packed[binStart + 1] & 0xff);
     }
 
     @Test
@@ -76,31 +70,68 @@ class VectorExpTest {
             final byte[] packed = Exp.build(
                 VectorExp.distance(metric, query, Exp.vectorBin("v"))).getBytes();
 
-            assertEquals(VECTOR_DIST_OP, packed[1] & 0xff);
-            assertEquals(metric.getCode(), packed[2] & 0xff);
+            assertEquals(expectedOpcode(metric), packed[1] & 0xff);
         }
     }
 
     @Test
-    void distanceUsesHeaderlessElementBytesForQuery() {
-        // The query is sent as headerless little-endian element bytes (not the
-        // full vector wire value with its 8-byte header).
+    void distanceUsesFullVectorWireValueForQuery() {
         final Vector query = Vector.ofInt32(new int[] {-5, 0, 7, 12345});
-        final byte[] queryBytes = query.getElementBytes();
+        final byte[] queryBytes = query.getWireBytes();
 
-        assertEquals(query.dimensions * Vector.ElementType.INT32.getByteSize(), queryBytes.length);
+        assertEquals(Vector.HEADER_SIZE + query.dimensions * Vector.ElementType.INT32.getByteSize(),
+            queryBytes.length);
 
         final byte[] packed = Exp.build(
             VectorExp.distance(VectorDistanceMetric.EUCLIDEAN, query, Exp.vectorBin("v"))).getBytes();
 
-        final byte[] embedded = Arrays.copyOfRange(packed, 5, 5 + queryBytes.length);
+        final int literalStart = 2 + 4 + 1;
+        final byte[] embedded = Arrays.copyOfRange(
+            packed, literalStart + 2, literalStart + 2 + queryBytes.length);
         assertArrayEquals(queryBytes, embedded);
     }
 
+    private static int expectedOpcode(VectorDistanceMetric metric) {
+        return switch (metric) {
+            case EUCLIDEAN -> 52;
+            case DOT_PRODUCT -> 53;
+            case COSINE -> 54;
+        };
+    }
+
     @Test
-    void metricCodes() {
-        assertEquals(0, VectorDistanceMetric.EUCLIDEAN.getCode());
-        assertEquals(1, VectorDistanceMetric.DOT_PRODUCT.getCode());
-        assertEquals(2, VectorDistanceMetric.COSINE.getCode());
+    void distanceExpressionReportsHasVector() {
+        assertTrue(Exp.build(VectorExp.distance(
+            VectorDistanceMetric.COSINE, Vector.ofFloat32(new float[] {1.0f, 2.0f}),
+            Exp.vectorBin("v"))).hasVector());
+    }
+
+    @Test
+    void plainExpressionReportsNoVector() {
+        assertFalse(Exp.build(Exp.eq(Exp.intBin("n"), Exp.val(1))).hasVector());
+    }
+
+    @Test
+    void expressionOperationPropagatesVectorFlagForGuard() {
+        // Vector distance expressions must propagate hasVector.
+        Operation vectorOp = ExpOperation.read("dist", Exp.build(VectorExp.distance(
+            VectorDistanceMetric.EUCLIDEAN, Vector.ofFloat32(new float[] {0.0f, 0.0f}),
+            Exp.vectorBin("v"))), 0);
+        assertTrue(vectorOp.value.hasVector());
+
+        Operation plainOp = ExpOperation.read("out",
+            Exp.build(Exp.add(Exp.intBin("a"), Exp.val(1))), 0);
+        assertFalse(plainOp.value.hasVector());
+    }
+
+    @Test
+    void wrappedVectorExpressionPropagatesHasVector() {
+        Expression inner = Exp.build(VectorExp.distance(
+            VectorDistanceMetric.COSINE, Vector.ofFloat32(new float[] {1.0f, 2.0f}),
+            Exp.vectorBin("v")));
+
+        assertTrue(Exp.build(Exp.gt(Exp.expr(inner), Exp.val(0.5))).hasVector());
+        assertFalse(Exp.build(Exp.gt(
+            Exp.expr(Exp.build(Exp.intBin("n"))), Exp.val(0L))).hasVector());
     }
 }

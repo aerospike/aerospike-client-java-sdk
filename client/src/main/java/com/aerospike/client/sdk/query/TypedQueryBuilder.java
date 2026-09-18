@@ -106,6 +106,31 @@ public final class TypedQueryBuilder<T> {
         return this;
     }
 
+    public TypedQueryBuilder<T> orderBy(String binName, OrderByType type, Order direction) {
+        delegate.orderBy(binName, type, direction);
+        return this;
+    }
+
+    public TypedQueryBuilder<T> orderBy(String binName, OrderByType type, Order direction, int flags) {
+        delegate.orderBy(binName, type, direction, flags);
+        return this;
+    }
+
+    public TypedQueryBuilder<T> thenOrderBy(String binName, OrderByType type, Order direction) {
+        delegate.thenOrderBy(binName, type, direction);
+        return this;
+    }
+
+    public TypedQueryBuilder<T> thenOrderBy(String binName, OrderByType type, Order direction, int flags) {
+        delegate.thenOrderBy(binName, type, direction, flags);
+        return this;
+    }
+
+    public TypedQueryBuilder<T> topK(int k) {
+        delegate.topK(k);
+        return this;
+    }
+
     public TypedQueryBuilder<T> where(String ael, Object... params) {
         delegate.where(ael, params);
         return this;

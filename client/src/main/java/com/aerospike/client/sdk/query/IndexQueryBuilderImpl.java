@@ -81,7 +81,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
-        // Cross-field Top-K validation (pairing, limit/chunkSize/withNoBins, projection membership).
+        // Validate Top-K configuration.
         qb.validateTopKQueryState();
         warnQueryDoesNotParticipateInTransaction(qb);
 
@@ -91,13 +91,6 @@ public class IndexQueryBuilderImpl extends QueryImpl {
             throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "Index query with read operations requires server version 8.1.2+. Server version is " +
                 cluster.getVersion());
-        }
-
-        // Check for Top-K (orderBy/topK) - not yet supported; see Cluster.supportsTopK().
-        if (qb.getOrderBySpec() != null && !cluster.supportsTopK()) {
-            throw AerospikeException.toException(ResultCode.UNSUPPORTED_FEATURE,
-                "Top-K query (orderBy/topK) requires a minimum server version not yet assigned " +
-                "by Core engineering. Server version is " + cluster.getVersion());
         }
 
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
@@ -114,8 +107,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         cmd.execute(stream);
 
         if (qb.getOrderBySpec() != null) {
-            // qb.getTopK() is non-null here: enforced by validateTopKQueryState() above.
-            return TopKMergingRecordStream.merge(stream, qb.getOrderBySpec(), qb.getTopK());
+            return TopKMergingRecordStream.merge(stream, qb.getOrderBySpecs(), qb.getTopK());
         }
 
         if (qb.getChunkSize() == 0) {
@@ -129,22 +121,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         }
     }
 
-    /**
-     * Reports that this query will not take part in the transaction it is running inside.
-     *
-     * <p>The server has no multi-record transaction support on the query path, so a query is always evaluated
-     * outside any transaction, whether the transaction was passed explicitly or inherited from the session.
-     * The consequence is a disagreement rather than an error: within one transaction the same record reads as
-     * two different values depending on how it is asked for, because a point read participates and sees the
-     * transaction's own writes while a query does not and still sees the pre-transaction state. Rows a query
-     * returns are also absent from the transaction's read set, so commit cannot detect that another writer
-     * changed them.</p>
-     *
-     * <p>None of that is new behaviour; it was simply silent. Warning rather than failing is deliberate,
-     * because querying for keys inside a transactional block and then writing those keys transactionally is
-     * legitimate and has to keep working. Whether the explicit case should instead be refused outright is
-     * still open (CLIENT-5404).</p>
-     */
+    /** Warns when a query is executed inside a transaction. */
     private static void warnQueryDoesNotParticipateInTransaction(QueryBuilder qb) {
         if (qb.getTxnToUse() == null || !log.isWarnEnabled()) {
             return;

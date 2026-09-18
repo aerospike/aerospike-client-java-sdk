@@ -29,7 +29,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -37,22 +39,18 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.Vector.ElementType;
 
-/**
- * Server round-trip tests for the vector particle type (wire type 16), covering the element-type
- * matrix, value edge cases (special floats, boundary integers), dimension boundaries, vectors nested
- * in list/map bins and written through the typed CDT operation overloads, CDT read-back, read-path
- * parity, bin-type reflection, and type transitions.
- * <p>
- * Requires a server build that supports the vector particle type.
- */
+/** VECTOR integration tests. */
 public class VectorIntegrationTest extends ClusterTest {
     private static final String binName = "vecbin";
 
-    // ------------------------------------------------------------------
-    // Sample builders
-    // ------------------------------------------------------------------
+    @BeforeAll
+    static void requireVectorServer() {
+        Assumptions.assumeTrue(
+            cluster.getVersion().isGreaterOrEqual(com.aerospike.client.sdk.util.Version.SERVER_VERSION_8_1_3),
+            "VECTOR requires server version 8.1.3+");
+    }
 
-    /** A representative "normal" vector of the given element type (dims = 4). */
+    /** Representative four-element vector. */
     private static Vector sample(final ElementType t) {
         switch (t) {
             case FLOAT16: return Vector.ofFloat16(new short[] {0x3c00, (short)0xbc00, 0x4000, 0x0000});
@@ -380,24 +378,7 @@ public class VectorIntegrationTest extends ClusterTest {
         assertEquals(keys.size(), count);
     }
 
-    // ------------------------------------------------------------------
-    // Server bug: reading a vector bin through the expression engine crashes the node.
-    //
-    // Root cause is server-side, in rt_bin_translate() (aerospike-server
-    // as/src/exp/exp_rt.c, ~line 3725): its particle-type switch has no
-    // AS_PARTICLE_TYPE_VECTOR arm and falls through to `cf_crash(AS_EXP, "unexpected")`
-    // (exp_rt.c:3748). Every expression that loads a vector bin routes through
-    // rt_load_bin -> rt_bin_translate, so a filter, binExists, binType, or a plain
-    // read expression over a vector bin all abort asd. Note that Exp.vectorBin()
-    // requests the bin as BLOB, yet it still crashes, because rt_bin_translate
-    // switches on the bin's *stored* particle type (VECTOR), not the requested type.
-    //
-    // Treat VECTOR as BLOB in rt_bin_translate(), as rt_value_translate() already does.
-    //
-    // The repros remain disabled until the server handles VECTOR on the expression read path.
-    // ------------------------------------------------------------------
-
-    @Disabled("Server bug: an expression read of a vector bin crashes the node (exp_rt.c rt_bin_translate cf_crash on AS_PARTICLE_TYPE_VECTOR). See section comment.")
+    @Disabled("Generic VECTOR expression reads are not supported")
     @Test
     public void expressionReadOfVectorBinMustNotCrashServer() {
         final Key key = key("vecexpread");
@@ -413,14 +394,13 @@ public class VectorIntegrationTest extends ClusterTest {
             "expression read of a vector bin should return the projected bin");
     }
 
-    @Disabled("Server bug: a filter expression over a vector bin crashes the node (exp_rt.c rt_bin_translate cf_crash on AS_PARTICLE_TYPE_VECTOR). See section comment.")
+    @Disabled("Generic VECTOR expression filters are not supported")
     @Test
     public void filterExpressionOverVectorBinMustNotCrashServer() {
         final Key key = key("vecexpfilter");
         final Vector v = Vector.ofFloat32(new float[] {0.5f, -1.5f, 2.0f});
         session.upsert(key).bin(binName).setTo(v).execute();
 
-        // binExists evaluates through rt_load_bin -> rt_bin_translate.
         final Record rec = session.query(key)
             .where(Exp.binExists(binName))
             .execute()

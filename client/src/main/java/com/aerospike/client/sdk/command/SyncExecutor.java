@@ -29,6 +29,7 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.util.Util;
+import com.aerospike.client.sdk.util.Version;
 
 public abstract class SyncExecutor {
     Cluster cluster;
@@ -103,6 +104,12 @@ public abstract class SyncExecutor {
                 try {
                     // Set command buffer.
                     CommandBuffer cb = getCommandBuffer();
+
+                    if (cb.hasVector() && (!cluster.supportsVector() ||
+                        !node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3))) {
+                        throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                            "VECTOR values and expressions require server version 8.1.3+ on every node");
+                    }
 
                     // Send command.
                     conn.write(cb.getBuffer(), cb.getLength());

@@ -60,4 +60,41 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      * @throws IllegalArgumentException if called more than once
      */
     T withHint(Function<QueryHint.Start, ? extends QueryHint.Result> configurator);
+
+    /**
+     * Sets the Top-K order-by clause, forming {@code ORDER BY <binName> <ASC|DESC> LIMIT k} when
+     * paired with {@link #topK(int)}.
+     *
+     * @return this QueryBuilder for method chaining
+     */
+    T orderBy(String binName, OrderByType type, Order direction);
+
+    /**
+     * Sets the Top-K order-by clause with flags. See {@link #orderBy(String, OrderByType, Order)}.
+     *
+     * @return this QueryBuilder for method chaining
+     */
+    T orderBy(String binName, OrderByType type, Order direction, int flags);
+
+    /**
+     * Adds a second order-by key for lexicographic tie-breaking. Requires a preceding
+     * {@link #orderBy(String, OrderByType, Order)}.
+     *
+     * @return this QueryBuilder for method chaining
+     */
+    T thenOrderBy(String binName, OrderByType type, Order direction);
+
+    /**
+     * Adds a second order-by key with flags. See {@link #thenOrderBy(String, OrderByType, Order)}.
+     *
+     * @return this QueryBuilder for method chaining
+     */
+    T thenOrderBy(String binName, OrderByType type, Order direction, int flags);
+
+    /**
+     * Sets the Top-K limit, pairing with {@link #orderBy(String, OrderByType, Order)}.
+     *
+     * @return this QueryBuilder for method chaining
+     */
+    T topK(int k);
 }

@@ -413,6 +413,19 @@ public final class CTX {
     public final Value value;
     public final Expression exp;
 
+    /** @hidden Whether a context value or expression contains a VECTOR. */
+    public static boolean hasVector(CTX[] ctx) {
+        if (ctx != null) {
+            for (CTX c : ctx) {
+                if ((c.value != null && c.value.hasVector()) ||
+                    (c.exp != null && c.exp.hasVector())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private CTX(int id, Value value) {
         this.id = id;
         this.value = value;
