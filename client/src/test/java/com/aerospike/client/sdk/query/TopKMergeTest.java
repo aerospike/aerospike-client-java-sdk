@@ -17,7 +17,7 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,17 +26,15 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.OperationResult;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.ResultCode;
 
-/**
- * Pure unit tests for {@link TopKMerge}: no cluster/session needed, since this is client-side
- * buffer/sort/dedupe/truncate logic over already-constructed {@link RecordResult} objects.
- */
-class TopKMergeTest {
+/** Top-K merge tests. */
+public class TopKMergeTest {
     private static final String NS = "test";
     private static final String SET = "topk";
 
@@ -52,8 +50,6 @@ class TopKMergeTest {
         Key key = new Key(NS, SET, userKey);
         return new RecordResult(key, ResultCode.TIMEOUT, 0, "timeout", 0, false);
     }
-
-    // -- INTEGER / DOUBLE / STRING / BYTES ordering, both directions -----------
 
     @Test
     void integerAscKeepsSmallest() {
@@ -92,12 +88,10 @@ class TopKMergeTest {
             okRecord("b", "d", 5.0),
             okRecord("c", "d", 100.0)));
 
-        // ASC keeps the smallest -- NaN should never win ASC over a finite value.
         OrderBySpec ascSpec = new OrderBySpec("d", OrderByType.DOUBLE, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> ascResult = TopKMerge.mergeSortDedupeTruncate(candidates, ascSpec, 1);
         assertEquals("b", ascResult.get(0).getKey().userKey.toString());
 
-        // DESC keeps the largest -- NaN sorts greater than all finite values, so it wins DESC.
         OrderBySpec descSpec = new OrderBySpec("d", OrderByType.DOUBLE, Order.DESC, OrderByFlags.NONE);
         List<RecordResult> descResult = TopKMerge.mergeSortDedupeTruncate(candidates, descSpec, 1);
         assertEquals("a", descResult.get(0).getKey().userKey.toString());
@@ -113,9 +107,25 @@ class TopKMergeTest {
         OrderBySpec spec = new OrderBySpec("s", OrderByType.STRING, Order.ASC, OrderByFlags.CASE_INSENSITIVE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
 
-        assertEquals("b", result.get(0).getKey().userKey.toString()); // apple
-        assertEquals("a", result.get(1).getKey().userKey.toString()); // Banana
-        assertEquals("c", result.get(2).getKey().userKey.toString()); // Cherry
+        assertEquals("b", result.get(0).getKey().userKey.toString());
+        assertEquals("a", result.get(1).getKey().userKey.toString());
+        assertEquals("c", result.get(2).getKey().userKey.toString());
+    }
+
+    @Test
+    void stringComparesByUtf8ByteOrderNotJavaUtf16() {
+        // Verify UTF-8 byte ordering differs from UTF-16 ordering.
+        String bmp = "\uFFFF";
+        String supplementary = "\uD800\uDC00";
+        List<RecordResult> candidates = new ArrayList<>(List.of(
+            okRecord("supp", "s", supplementary),
+            okRecord("bmp", "s", bmp)));
+
+        OrderBySpec spec = new OrderBySpec("s", OrderByType.STRING, Order.ASC, OrderByFlags.NONE);
+        List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 2);
+
+        assertEquals("bmp", result.get(0).getKey().userKey.toString());
+        assertEquals("supp", result.get(1).getKey().userKey.toString());
     }
 
     @Test
@@ -128,28 +138,23 @@ class TopKMergeTest {
         OrderBySpec spec = new OrderBySpec("b", OrderByType.BYTES, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
 
-        // {1,2} < {1,2,3} (shorter wins the common-prefix tie) < {1,3}
         assertEquals("b", result.get(0).getKey().userKey.toString());
         assertEquals("a", result.get(1).getKey().userKey.toString());
         assertEquals("c", result.get(2).getKey().userKey.toString());
     }
 
-    // -- NIL handling: missing bin, wrong type, collection ---------------------
-
     @Test
     void nilRanksLastInAscendingOrder() {
         List<RecordResult> candidates = new ArrayList<>(List.of(
             okRecord("a", "n", 10L),
-            okRecord("missingBin", "other", 5L),        // bin absent -> NIL
-            okRecord("wrongType", "n", "not-an-integer") // type mismatch -> NIL
+            okRecord("missingBin", "other", 5L),
+            okRecord("wrongType", "n", "not-an-integer")
         ));
 
         OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
 
         assertEquals("a", result.get(0).getKey().userKey.toString());
-        // Both NIL records follow, tie-broken by digest -- order between them is unspecified
-        // here, but neither may precede the non-NIL record.
         assertEquals(3, result.size());
     }
 
@@ -162,12 +167,32 @@ class TopKMergeTest {
         OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.DESC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 2);
 
-        // NIL ranks last even in DESC, not first.
         assertEquals("a", result.get(0).getKey().userKey.toString());
         assertEquals("missingBin", result.get(1).getKey().userKey.toString());
     }
 
-    // -- Digest dedup and truncation --------------------------------------------
+    @Test
+    void twoKeysAreLexicographicWithNilFirstKeyTies() {
+        List<RecordResult> candidates = new ArrayList<>(List.of(
+            okRecord("a", "first", 1L),
+            okRecord("b", "first", 1L),
+            okRecord("c", "first", 2L),
+            okRecord("nil", "second", 1L)
+        ));
+        candidates.get(0).getRecord().bins.put("second", 2L);
+        candidates.get(1).getRecord().bins.put("second", 3L);
+        candidates.get(2).getRecord().bins.put("second", 0L);
+
+        List<OrderBySpec> specs = List.of(
+            new OrderBySpec("first", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE),
+            new OrderBySpec("second", OrderByType.INTEGER, Order.DESC, OrderByFlags.NONE));
+        List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, specs, 4);
+
+        assertEquals("b", result.get(0).getKey().userKey.toString());
+        assertEquals("a", result.get(1).getKey().userKey.toString());
+        assertEquals("c", result.get(2).getKey().userKey.toString());
+        assertEquals("nil", result.get(3).getKey().userKey.toString());
+    }
 
     @Test
     void duplicateDigestsAreDedupedKeepingOneSurvivor() {
@@ -176,7 +201,6 @@ class TopKMergeTest {
         bins.put("n", 10L);
         Record rec = new Record(bins, new OperationResult[0], 1, 0);
 
-        // Same digest arriving twice, as could happen across two nodes mid partition-migration.
         List<RecordResult> candidates = new ArrayList<>(List.of(
             new RecordResult(sharedKey, rec, 0),
             new RecordResult(sharedKey, rec, 0),
@@ -204,23 +228,72 @@ class TopKMergeTest {
         assertEquals("k2", result.get(2).getKey().userKey.toString());
     }
 
-    // -- Errors are never silently dropped --------------------------------------
-
     @Test
-    void errorResultsPassThroughUnchangedAndDoNotCountAgainstK() {
+    void errorResultTerminatesReduction() {
         List<RecordResult> candidates = new ArrayList<>(List.of(
             okRecord("a", "n", 1L),
             okRecord("b", "n", 2L),
             errorRecord("errored")));
 
         OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
-        List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 1);
+        assertThrows(AerospikeException.class,
+            () -> TopKMerge.mergeSortDedupeTruncate(candidates, spec, 1));
+    }
 
-        // k=1 -> exactly one OK result, plus the error appended unconditionally.
-        long okCount = result.stream().filter(RecordResult::isOk).count();
-        long errorCount = result.stream().filter(rr -> !rr.isOk()).count();
-        assertEquals(1, okCount);
-        assertEquals(1, errorCount);
-        assertTrue(result.stream().anyMatch(rr -> !rr.isOk() && rr.getResultCode() == ResultCode.TIMEOUT));
+    @Test
+    void duplicateDigestKeepsHighestGenerationRegardlessOfArrivalOrder() {
+        Key key = new Key(NS, SET, "dup");
+        Map<String, Object> lowBins = new HashMap<>();
+        lowBins.put("n", 10L);
+        RecordResult low = new RecordResult(key, new Record(lowBins, new OperationResult[0], 1, 0), 0);
+
+        Map<String, Object> highBins = new HashMap<>();
+        highBins.put("n", 99L);
+        RecordResult high = new RecordResult(key, new Record(highBins, new OperationResult[0], 5, 0), 0);
+
+        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+
+        List<RecordResult> lowFirst = TopKMerge.mergeSortDedupeTruncate(
+            new ArrayList<>(List.of(low, high)), spec, 10);
+        List<RecordResult> highFirst = TopKMerge.mergeSortDedupeTruncate(
+            new ArrayList<>(List.of(high, low)), spec, 10);
+
+        assertEquals(1, lowFirst.size());
+        assertEquals(1, highFirst.size());
+        assertEquals(99L, lowFirst.get(0).getRecord().getLong("n"));
+        assertEquals(99L, highFirst.get(0).getRecord().getLong("n"));
+    }
+
+    @Test
+    void heapEvictionBoundaryKeepsExactlyKBest() {
+        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+
+        for (int candidateCount : new int[] {2, 3, 4}) {
+            List<RecordResult> candidates = new ArrayList<>();
+            for (int i = candidateCount - 1; i >= 0; i--) {
+                candidates.add(okRecord("k" + i, "n", (long)i));
+            }
+            List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
+
+            int expected = Math.min(3, candidateCount);
+            assertEquals(expected, result.size());
+            for (int i = 0; i < expected; i++) {
+                assertEquals((long)i, result.get(i).getRecord().getLong("n"));
+            }
+        }
+    }
+
+    @Test
+    void listAndMapOrderKeysRankAsNilLast() {
+        List<RecordResult> candidates = new ArrayList<>(List.of(
+            okRecord("scalar", "n", 10L),
+            okRecord("list", "n", List.of(1L, 2L)),
+            okRecord("map", "n", Map.of("k", 1L))));
+
+        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
+
+        assertEquals(3, result.size());
+        assertEquals("scalar", result.get(0).getKey().userKey.toString());
     }
 }

@@ -20,12 +20,7 @@ import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
 /**
- * Vector expression generator. See {@link com.aerospike.client.sdk.exp.Exp}.
- * <p>
- * NOTE: the vector distance expression is not yet finalized on the server. Both
- * the query-vector wire envelope (headerless elements vs the full vector value)
- * and the exact metric semantics (see {@link VectorDistanceMetric}) are still
- * being decided upstream, so behavior may change once the server contract ships.
+ * Vector distance expression generator. See {@link com.aerospike.client.sdk.exp.Exp}.
  */
 public final class VectorExp {
     /**
@@ -49,7 +44,10 @@ public final class VectorExp {
      * @param bin       vector bin read, typically {@link Exp#vectorBin(String)}
      */
     public static Exp distance(final VectorDistanceMetric metric, final Vector query, final Exp bin) {
-        return new Exp.VectorDist(metric.getCode(), query.getElementBytes(), bin);
+        if (metric == null || query == null || bin == null) {
+            throw new NullPointerException("metric, query, and bin are required");
+        }
+        return new Exp.VectorDist(Exp.vectorDistOpcode(metric), query.getWireBytes(), bin);
     }
 
     private VectorExp() {

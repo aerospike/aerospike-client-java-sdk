@@ -110,6 +110,7 @@ public class MapOperation {
     private static final int GET_BY_KEY_REL_INDEX_RANGE = 109;
     private static final int GET_BY_VALUE_REL_RANK_RANGE = 110;
 
+
     /**
      * Create map create operation.
      * Server creates map at given context level.
@@ -118,11 +119,11 @@ public class MapOperation {
         // If context not defined, the set order for top-level bin map.
         if (ctx == null || ctx.length == 0) {
             byte[] bytes = Pack.pack(MapOperation.SET_TYPE, order.attributes, ctx);
-            return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+            return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
         }
 
         byte[] bytes = packCreate(order, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -145,12 +146,12 @@ public class MapOperation {
                 attr |= 0x10;
             }
             byte[] bytes = Pack.pack(MapOperation.SET_TYPE, attr, ctx);
-            return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+            return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
         }
 
         // Create nested map. persistIndex does not apply here, so ignore it.
         byte[] bytes = packCreate(order, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     private static byte[] packCreate(MapOrder order, CTX[] ctx) {
@@ -183,7 +184,7 @@ public class MapOperation {
             attr &= ~0x10;
         }
         byte[] bytes = Pack.pack(MapOperation.SET_TYPE, attr, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -209,7 +210,8 @@ public class MapOperation {
                 bytes = Pack.pack(policy.itemCommand, key, value, policy.attributes, ctx);
             }
         }
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName,
+            Value.get(bytes, key.hasVector() || value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -254,7 +256,8 @@ public class MapOperation {
                 packer.createBuffer();
             }
         }
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(packer.getBuffer()));
+        return new Operation(Operation.Type.MAP_MODIFY, binName,
+            Value.get(packer.getBuffer(), packer.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -269,7 +272,8 @@ public class MapOperation {
      */
     public static Operation increment(MapPolicy policy, String binName, Value key, Value incr, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.INCREMENT, key, incr, policy.attributes, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName,
+            Value.get(bytes, key.hasVector() || incr.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -288,7 +292,8 @@ public class MapOperation {
     @Deprecated
     public static Operation decrement(MapPolicy policy, String binName, Value key, Value decr, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.DECREMENT, key, decr, policy.attributes, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName,
+            Value.get(bytes, key.hasVector() || decr.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -297,7 +302,7 @@ public class MapOperation {
      */
     public static Operation clear(String binName, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.CLEAR, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -306,7 +311,7 @@ public class MapOperation {
      */
     public static Operation removeByKey(String binName, Value key, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_KEY, returnType, key, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, key.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -315,7 +320,7 @@ public class MapOperation {
      */
     public static Operation removeByKeyList(String binName, List<Value> keys, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_KEY_LIST, returnType, keys, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, Value.objectHasVector(keys) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -328,7 +333,8 @@ public class MapOperation {
      */
     public static Operation removeByKeyRange(String binName, Value keyBegin, Value keyEnd, int returnType, CTX... ctx) {
         byte[] bytes = CDT.packRangeOperation(MapOperation.REMOVE_BY_KEY_INTERVAL, returnType, keyBegin, keyEnd, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName,
+            Value.get(bytes, Value.objectHasVector(keyBegin) || Value.objectHasVector(keyEnd) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -348,7 +354,7 @@ public class MapOperation {
      */
     public static Operation removeByKeyRelativeIndexRange(String binName, Value key, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_KEY_REL_INDEX_RANGE, returnType, key, index, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, key.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -368,7 +374,7 @@ public class MapOperation {
      */
     public static Operation removeByKeyRelativeIndexRange(String binName, Value key, int index, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_KEY_REL_INDEX_RANGE, returnType, key, index, count, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, key.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -377,7 +383,7 @@ public class MapOperation {
      */
     public static Operation removeByValue(String binName, Value value, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_VALUE, returnType, value, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -386,7 +392,7 @@ public class MapOperation {
      */
     public static Operation removeByValueList(String binName, List<Value> values, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_VALUE_LIST, returnType, values, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, Value.objectHasVector(values) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -399,7 +405,8 @@ public class MapOperation {
      */
     public static Operation removeByValueRange(String binName, Value valueBegin, Value valueEnd, int returnType, CTX... ctx) {
         byte[] bytes = CDT.packRangeOperation(MapOperation.REMOVE_BY_VALUE_INTERVAL, returnType, valueBegin, valueEnd, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName,
+            Value.get(bytes, Value.objectHasVector(valueBegin) || Value.objectHasVector(valueEnd) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -416,7 +423,7 @@ public class MapOperation {
      */
     public static Operation removeByValueRelativeRankRange(String binName, Value value, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -433,7 +440,7 @@ public class MapOperation {
      */
     public static Operation removeByValueRelativeRankRange(String binName, Value value, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, count, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -442,7 +449,7 @@ public class MapOperation {
      */
     public static Operation removeByIndex(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_INDEX, returnType, index, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -452,7 +459,7 @@ public class MapOperation {
      */
     public static Operation removeByIndexRange(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_INDEX_RANGE, returnType, index, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -461,7 +468,7 @@ public class MapOperation {
      */
     public static Operation removeByIndexRange(String binName, int index, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_INDEX_RANGE, returnType, index, count, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -470,7 +477,7 @@ public class MapOperation {
      */
     public static Operation removeByRank(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_RANK, returnType, rank, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -480,7 +487,7 @@ public class MapOperation {
      */
     public static Operation removeByRankRange(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_RANK_RANGE, returnType, rank, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -489,7 +496,7 @@ public class MapOperation {
      */
     public static Operation removeByRankRange(String binName, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.REMOVE_BY_RANK_RANGE, returnType, rank, count, ctx);
-        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -498,7 +505,7 @@ public class MapOperation {
      */
     public static Operation size(String binName, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.SIZE, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -507,7 +514,7 @@ public class MapOperation {
      */
     public static Operation getByKey(String binName, Value key, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_KEY, returnType, key, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, key.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -520,7 +527,8 @@ public class MapOperation {
      */
     public static Operation getByKeyRange(String binName, Value keyBegin, Value keyEnd, int returnType, CTX... ctx) {
         byte[] bytes = CDT.packRangeOperation(MapOperation.GET_BY_KEY_INTERVAL, returnType, keyBegin, keyEnd, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName,
+            Value.get(bytes, Value.objectHasVector(keyBegin) || Value.objectHasVector(keyEnd) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -529,7 +537,7 @@ public class MapOperation {
      */
     public static Operation getByKeyList(String binName, List<Value> keys, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_KEY_LIST, returnType, keys, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, Value.objectHasVector(keys) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -549,7 +557,7 @@ public class MapOperation {
      */
     public static Operation getByKeyRelativeIndexRange(String binName, Value key, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_KEY_REL_INDEX_RANGE, returnType, key, index, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, key.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -569,7 +577,7 @@ public class MapOperation {
      */
     public static Operation getByKeyRelativeIndexRange(String binName, Value key, int index, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_KEY_REL_INDEX_RANGE, returnType, key, index, count, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, key.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -578,7 +586,7 @@ public class MapOperation {
      */
     public static Operation getByValue(String binName, Value value, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_VALUE, returnType, value, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -591,7 +599,8 @@ public class MapOperation {
      */
     public static Operation getByValueRange(String binName, Value valueBegin, Value valueEnd, int returnType, CTX... ctx) {
         byte[] bytes = CDT.packRangeOperation(MapOperation.GET_BY_VALUE_INTERVAL, returnType, valueBegin, valueEnd, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName,
+            Value.get(bytes, Value.objectHasVector(valueBegin) || Value.objectHasVector(valueEnd) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -600,7 +609,7 @@ public class MapOperation {
      */
     public static Operation getByValueList(String binName, List<Value> values, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_VALUE_LIST, returnType, values, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, Value.objectHasVector(values) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -617,7 +626,7 @@ public class MapOperation {
      */
     public static Operation getByValueRelativeRankRange(String binName, Value value, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -634,7 +643,7 @@ public class MapOperation {
      */
     public static Operation getByValueRelativeRankRange(String binName, Value value, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, count, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -643,7 +652,7 @@ public class MapOperation {
      */
     public static Operation getByIndex(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_INDEX, returnType, index, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -653,7 +662,7 @@ public class MapOperation {
      */
     public static Operation getByIndexRange(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_INDEX_RANGE, returnType, index, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -662,7 +671,7 @@ public class MapOperation {
      */
     public static Operation getByIndexRange(String binName, int index, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_INDEX_RANGE, returnType, index, count, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -671,7 +680,7 @@ public class MapOperation {
      */
     public static Operation getByRank(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_RANK, returnType, rank, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -681,7 +690,7 @@ public class MapOperation {
      */
     public static Operation getByRankRange(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_RANK_RANGE, returnType, rank, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -690,6 +699,6 @@ public class MapOperation {
      */
     public static Operation getByRankRange(String binName, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(MapOperation.GET_BY_RANK_RANGE, returnType, rank, count, ctx);
-        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.MAP_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 }

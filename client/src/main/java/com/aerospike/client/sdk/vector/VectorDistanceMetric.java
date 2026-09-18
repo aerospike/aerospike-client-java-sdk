@@ -20,13 +20,12 @@ package com.aerospike.client.sdk.vector;
  * Distance metric used to compare two vectors in a vector distance expression.
  * See {@link com.aerospike.client.sdk.exp.VectorExp#distance}.
  * <p>
- * NOTE: {@code EXP_VECTOR_DIST} is not yet implemented by the server, and metric
- * semantics are still being finalized. Current server kernels compute {@link #EUCLIDEAN}
- * as L2-squared and {@link #COSINE} as cosine similarity.
+ * Euclidean distance is returned as squared L2 distance. Dot product and cosine
+ * are similarity metrics, while Euclidean is a distance metric.
  */
 public enum VectorDistanceMetric {
     /**
-     * Euclidean (L2) distance. Smaller values indicate closer vectors.
+     * Squared Euclidean (L2²) distance. Smaller values indicate closer vectors.
      */
     EUCLIDEAN(0),
 

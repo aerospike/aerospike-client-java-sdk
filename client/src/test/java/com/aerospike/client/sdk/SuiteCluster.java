@@ -119,6 +119,10 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     TypedQueryMappingTest.class,
     TxnTest.class,
     UdfTest.class,
+    VectorIntegrationTest.class,
+    VectorExpIntegrationTest.class,
+    VectorLimitsProbeTest.class,
+    TopKIntegrationTest.class,
     // Query
     ExpSecondaryIndexTest.class,
     FilterIndexRangeIntegrationTest.class,

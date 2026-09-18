@@ -121,9 +121,20 @@ public final class Packer {
 
     private byte[] buffer;
     private int offset;
+    private boolean hasVector;
 
     public Packer() {
         // Default to null buffer in estimate buffer size mode.
+    }
+
+    /** Mark a VECTOR encoded as particle bytes. */
+    public void markVector() {
+        hasVector = true;
+    }
+
+    /** Whether this pack pass serialized a VECTOR. */
+    public boolean hasVector() {
+        return hasVector;
     }
 
     public void packValueArray(Value[] values) {
@@ -268,6 +279,9 @@ public final class Packer {
     }
 
     public void packParticleBytes(byte[] b, int type) {
+        if (type == ParticleType.VECTOR) {
+            hasVector = true;
+        }
         packByteArrayBegin(b.length + 1);
         packByte(type);
         packByteArray(b, 0, b.length);
@@ -287,6 +301,7 @@ public final class Packer {
     }
 
     public void packVector(final Vector val) {
+        hasVector = true;
         final byte[] buffer = new byte[val.getWireSize()];
         val.writeTo(buffer, 0);
         packParticleBytes(buffer, ParticleType.VECTOR);

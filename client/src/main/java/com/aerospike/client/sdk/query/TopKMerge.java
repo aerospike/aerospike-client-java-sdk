@@ -17,76 +17,96 @@
 package com.aerospike.client.sdk.query;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.Map;
+import java.util.PriorityQueue;
 
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
 
-/**
- * Client-side Top-K merge: bounded buffer-then-sort-once, since each server node already
- * bounds and sorts its own output to at most {@code k} records, so the total volume across
- * all nodes is tiny and known in advance ({@code k * nodeCount}).
- *
- * <p>The comparator replicates the server's total order: non-NIL before NIL, then the declared
- * per-type comparator (DOUBLE NaN sorts greater than all finite values), then digest-ascending
- * as the tie-break. A key is NIL when the bin is absent, wrong type, or a collection.</p>
- */
+/** Client-side Top-K merge. */
 final class TopKMerge {
 
     private TopKMerge() {
     }
 
-    /**
-     * Sorts the successful candidates, dedupes by digest (a digest can appear twice if partition
-     * ownership migrated mid-scan), truncates to the best {@code k}, and appends any non-OK
-     * results unchanged.
-     *
-     * @param candidates all records collected from every node's already-bounded Top-K result
-     * @param spec       the order-by clause driving both key extraction and comparator direction
-     * @param k          the Top-K limit; the returned OK-result count never exceeds this
-     * @return the merged, deduplicated, truncated result list, in final delivery order
-     */
-    static List<RecordResult> mergeSortDedupeTruncate(List<RecordResult> candidates, OrderBySpec spec, int k) {
-        List<RecordResult> ok = new ArrayList<>();
-        List<RecordResult> errors = new ArrayList<>();
-
-        for (RecordResult rr : candidates) {
-            if (rr.isOk()) {
-                ok.add(rr);
-            }
-            else {
-                errors.add(rr);
-            }
-        }
-
-        ok.sort(comparator(spec));
-
-        List<RecordResult> result = new ArrayList<>(Math.min(k, ok.size()) + errors.size());
-        Set<ByteBuffer> seenDigests = new HashSet<>();
-
-        for (RecordResult rr : ok) {
-            if (result.size() >= k) {
-                break;
-            }
-            if (seenDigests.add(ByteBuffer.wrap(rr.getKey().digest))) {
-                result.add(rr);
-            }
-        }
-
-        result.addAll(errors);
-        return result;
+    /** Merge, deduplicate, and order candidates. */
+    static List<RecordResult> mergeSortDedupeTruncate(
+        List<RecordResult> candidates, List<OrderBySpec> specs, int k
+    ) {
+        Reducer reducer = new Reducer(specs, k);
+        candidates.forEach(reducer::accept);
+        return reducer.finish();
     }
 
-    /**
-     * The order key for a record per the order-by spec, or {@code null} for NIL (bin absent,
-     * wrong type, or a collection). Matches {@code order_key_from_bin} in the server design.
-     */
+    static List<RecordResult> mergeSortDedupeTruncate(
+        List<RecordResult> candidates, OrderBySpec spec, int k
+    ) {
+        return mergeSortDedupeTruncate(candidates, List.of(spec), k);
+    }
+
+    /** Thread-confined bounded reduction state. */
+    static final class Reducer {
+        private final Comparator<RecordResult> bestFirst;
+        private final PriorityQueue<RecordResult> worstFirst;
+        private final Map<ByteBuffer, RecordResult> byDigest = new HashMap<>();
+        private final int k;
+
+        Reducer(List<OrderBySpec> specs, int k) {
+            if (specs == null || specs.isEmpty() || specs.size() > 2) {
+                throw new IllegalArgumentException("Top-K requires one or two order-by specs");
+            }
+            this.bestFirst = comparator(specs);
+            this.worstFirst = new PriorityQueue<>(k, bestFirst.reversed());
+            this.k = k;
+        }
+
+        void accept(RecordResult candidate) {
+            if (!candidate.isOk()) {
+                candidate.orThrow();
+            }
+
+            ByteBuffer digest = ByteBuffer.wrap(candidate.getKey().digest);
+            RecordResult existing = byDigest.get(digest);
+            if (existing != null) {
+                if (!shouldReplaceDuplicate(candidate, existing)) {
+                    return;
+                }
+                worstFirst.remove(existing);
+                byDigest.remove(digest);
+            }
+
+            if (worstFirst.size() == k && bestFirst.compare(candidate, worstFirst.peek()) >= 0) {
+                return;
+            }
+            if (worstFirst.size() == k) {
+                RecordResult evicted = worstFirst.remove();
+                byDigest.remove(ByteBuffer.wrap(evicted.getKey().digest));
+            }
+            worstFirst.add(candidate);
+            byDigest.put(digest, candidate);
+        }
+
+        private boolean shouldReplaceDuplicate(RecordResult candidate, RecordResult existing) {
+            int candidateGeneration = candidate.getRecord().generation;
+            int existingGeneration = existing.getRecord().generation;
+            return candidateGeneration > existingGeneration ||
+                (candidateGeneration == existingGeneration && bestFirst.compare(candidate, existing) < 0);
+        }
+
+        List<RecordResult> finish() {
+            List<RecordResult> result = new ArrayList<>(worstFirst);
+            result.sort(bestFirst);
+            return result;
+        }
+    }
+
+    /** Return the order key, or {@code null} for NIL. */
     static Object extractKey(Record record, OrderBySpec spec) {
         if (record == null) {
             return null;
@@ -105,33 +125,40 @@ final class TopKMerge {
         if (!(raw instanceof String s)) {
             return null;
         }
-        return ((spec.getFlags() & OrderByFlags.CASE_INSENSITIVE) != 0) ? s.toLowerCase(Locale.ROOT) : s;
+        // Compare strings by unsigned UTF-8 bytes.
+        byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+        if ((spec.getFlags() & OrderByFlags.CASE_INSENSITIVE) != 0) {
+            for (int i = 0; i < bytes.length; i++) {
+                if (bytes[i] >= 'A' && bytes[i] <= 'Z') {
+                    bytes[i] += 'a' - 'A';
+                }
+            }
+        }
+        return bytes;
     }
 
-    private static Comparator<RecordResult> comparator(OrderBySpec spec) {
+    private static Comparator<RecordResult> comparator(List<OrderBySpec> specs) {
         return (a, b) -> {
-            Object keyA = extractKey(a.getRecord(), spec);
-            Object keyB = extractKey(b.getRecord(), spec);
+            for (OrderBySpec spec : specs) {
+                Object keyA = extractKey(a.getRecord(), spec);
+                Object keyB = extractKey(b.getRecord(), spec);
+                boolean nilA = keyA == null;
+                boolean nilB = keyB == null;
 
-            boolean nilA = keyA == null;
-            boolean nilB = keyB == null;
-
-            if (nilA != nilB) {
-                // Non-NIL before NIL, in both ASC and DESC.
-                return nilA ? 1 : -1;
+                if (nilA != nilB) {
+                    return nilA ? 1 : -1;
+                }
+                if (!nilA) {
+                    int cmp = compareNonNilKeys(keyA, keyB, spec.getType());
+                    if (spec.getDirection() == Order.DESC) {
+                        cmp = -cmp;
+                    }
+                    if (cmp != 0) {
+                        return cmp;
+                    }
+                }
             }
 
-            if (!nilA) {
-                int cmp = compareNonNilKeys(keyA, keyB, spec.getType());
-                if (spec.getDirection() == Order.DESC) {
-                    cmp = -cmp;
-                }
-                if (cmp != 0) {
-                    return cmp;
-                }
-            }
-
-            // Tie-break: digest ascending, unconditionally (both NIL, or a genuine tie).
             return compareDigests(a, b);
         };
     }
@@ -139,10 +166,14 @@ final class TopKMerge {
     @SuppressWarnings("unchecked")
     private static int compareNonNilKeys(Object keyA, Object keyB, OrderByType type) {
         if (type == OrderByType.DOUBLE) {
-            // Double.compare ranks NaN greater than all finite values.
-            return Double.compare((Double)keyA, (Double)keyB);
+            double a = (Double)keyA;
+            double b = (Double)keyB;
+            if (Double.isNaN(a) || Double.isNaN(b)) {
+                return Double.isNaN(a) == Double.isNaN(b) ? 0 : (Double.isNaN(a) ? 1 : -1);
+            }
+            return Double.compare(a, b);
         }
-        if (type == OrderByType.BYTES) {
+        if (type == OrderByType.BYTES || type == OrderByType.STRING) {
             return compareBytes((byte[])keyA, (byte[])keyB);
         }
         return ((Comparable<Object>)keyA).compareTo(keyB);

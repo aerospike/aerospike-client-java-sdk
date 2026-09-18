@@ -28,12 +28,17 @@ import com.aerospike.client.sdk.policy.BehaviorYamlTest;
 import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
 import com.aerospike.client.sdk.policy.SystemBehaviorTest;
 import com.aerospike.client.sdk.exp.ExpressionToStringTest;
+import com.aerospike.client.sdk.exp.VectorExpTest;
 import com.aerospike.client.sdk.query.AelPlaceholderBinderTest;
 import com.aerospike.client.sdk.query.FilterOverrideTest;
 import com.aerospike.client.sdk.query.FilterWireRangeTest;
 import com.aerospike.client.sdk.query.IndexProbePlannerRoutingTest;
 import com.aerospike.client.sdk.query.QueryHintTest;
+import com.aerospike.client.sdk.query.QueryTopKValidationTest;
 import com.aerospike.client.sdk.query.SortPropertiesValidationTest;
+import com.aerospike.client.sdk.query.TopKMergeTest;
+import com.aerospike.client.sdk.query.TopKMergingRecordStreamTest;
+import com.aerospike.client.sdk.vector.VectorTest;
 import com.aerospike.client.sdk.query.plan.IndexRangeWireTest;
 import com.aerospike.client.sdk.query.plan.QueryPlanTest;
 import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
@@ -56,6 +61,7 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     CdtPathExpressionFluentTest.class,
     CdtPathOperationTest.class,
     CdtSelectorParityTest.class,
+    CdtVectorFlagTest.class,
     CommandContainerToStringTest.class,
     ContainerToStringTest.class,
     CtxSerdeTest.class,
@@ -69,10 +75,17 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     QueryPlanExecuteWireTest.class,
     QueryPlanTest.class,
     QueryProducerCancellationTest.class,
+    QueryTopKValidationTest.class,
+    QueryTopKWireTest.class,
     QueryWhereWireTest.class,
     SortPropertiesValidationTest.class,
     StringApiPackagingTest.class,
     SystemBehaviorTest.class,
+    TopKMergeTest.class,
+    TopKMergingRecordStreamTest.class,
+    VectorExpTest.class,
+    VectorTest.class,
+    VectorWriteGuardWireTest.class,
 })
 public class SuiteCore {
 }

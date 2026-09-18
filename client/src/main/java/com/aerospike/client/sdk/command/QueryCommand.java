@@ -19,10 +19,12 @@ package com.aerospike.client.sdk.command;
 import java.util.List;
 
 import com.aerospike.client.sdk.AsyncRecordStream;
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Operation;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -46,10 +48,12 @@ public final class QueryCommand extends Command {
     final int readTouchTtlPercent;
     final boolean withNoBins;
     final boolean planDriven;
-    /** Top-K order-by clause, or {@code null} if this is not a Top-K query. */
-    public final OrderBySpec orderBySpec;
-    /** Top-K limit, paired 1:1 with {@link #orderBySpec} (both null or both set). */
+    /** Top-K order-by clauses, in lexicographic priority order. */
+    public final List<OrderBySpec> orderBySpecs;
+    /** Top-K limit, paired with non-empty {@link #orderBySpecs}. */
     public final Integer topK;
+    /** True only for a partition round whose every target supports Top-K pushdown. */
+    private volatile boolean sendTopK;
     /** Field {@code 44} execute payload when plan-driven; {@code null} on legacy path. */
     final byte[] executeWhereBytes;
 
@@ -73,8 +77,8 @@ public final class QueryCommand extends Command {
         QueryBuilder qb
     ) {
         if (plan.isFilteredOut()) {
-            throw com.aerospike.client.sdk.AerospikeException.toException(
-                com.aerospike.client.sdk.ResultCode.FILTERED_OUT,
+            throw AerospikeException.toException(
+                ResultCode.FILTERED_OUT,
                 "Query plan filtered out by server"
             );
         }
@@ -107,7 +111,7 @@ public final class QueryCommand extends Command {
         this.maxConcurrentNodes = settings.getMaxConcurrentNodes();
         this.readTouchTtlPercent = settings.getResetTtlOnReadAtPercent();
         this.withNoBins = qb.getWithNoBins();
-        this.orderBySpec = qb.getOrderBySpec();
+        this.orderBySpecs = qb.getOrderBySpecs();
         this.topK = qb.getTopK();
 
         if (qb.getChunkSize() > 0) {
@@ -123,6 +127,14 @@ public final class QueryCommand extends Command {
 
     public boolean isPlanDriven() {
         return planDriven;
+    }
+
+    public void setSendTopK(boolean sendTopK) {
+        this.sendTopK = sendTopK;
+    }
+
+    public boolean shouldSendTopK() {
+        return sendTopK;
     }
 
     public void execute(AsyncRecordStream stream) {

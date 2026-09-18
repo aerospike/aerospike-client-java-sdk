@@ -17,39 +17,38 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Assumptions;
 
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.VectorExp;
+import com.aerospike.client.sdk.query.Order;
+import com.aerospike.client.sdk.query.OrderByType;
+import com.aerospike.client.sdk.util.Version;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
-/**
- * Server round-trip tests for the vector distance expression ({@link VectorExp#distance}).
- * <p>
- * DISABLED: the server does not yet implement the vector distance expression op. The distance math
- * kernels exist ({@code as/src/base/vector_math.c}: euclidean-squared, dot-product, cosine), but the
- * expression engine has no {@code EXP_VECTOR_DIST} op code: {@code as/include/exp/exp_wire.h} defines
- * {@code EXP_MIN=50}, {@code EXP_MAX=51}, then jumps to {@code EXP_META_DIGEST_MOD=64}; op 52 is
- * rejected at expression build time with {@code PARAMETER_ERROR}.
- * <p>
- * When the server wires up {@code EXP_VECTOR_DIST}, re-enable these and revisit metric semantics: the
- * server currently computes Euclidean as <b>L2-squared</b> (see {@code vector_type_design.md}), which
- * differs from the raw-L2 reading in {@link VectorDistanceMetric}.
- */
-@Disabled("Server op EXP_VECTOR_DIST (52) is not implemented; see exp_wire.h.")
+/** Vector-distance expression integration tests. */
 public class VectorExpIntegrationTest extends ClusterTest {
     private static final String vecBin = "embedding";
     private static final String distBin = "dist";
     private static final String keyPrefix = "vecexp";
     private static final int size = 8;
     private static final int dims = 4;
+
+    @BeforeAll
+    static void requireVectorServer() {
+        Assumptions.assumeTrue(
+            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
+            "vector expressions require server version 8.1.3+");
+    }
 
     private List<Key> seed() {
         final List<Key> keys = new ArrayList<>(size);
@@ -119,34 +118,127 @@ public class VectorExpIntegrationTest extends ClusterTest {
 
     @Test
     public void euclideanSelfDistanceIsZero() {
-        // Regardless of whether EUCLIDEAN is L2 or L2-squared on the server, the
-        // distance from a vector to itself must be zero.
         final List<Key> keys = seed();
         final int self = 3;
 
         final RecordStream rs = session.query(keys)
-            .bin("id").selectFrom("$." + vecBin)      // placeholder read to keep bin ordering deterministic
             .bin(distBin).selectFrom(
                 VectorExp.distance(VectorDistanceMetric.EUCLIDEAN, query(self), Exp.vectorBin(vecBin)))
             .execute();
 
-        double selfDistance = Double.NaN;
+        double nearestDistance = Double.POSITIVE_INFINITY;
         try {
             while (rs.hasNext()) {
                 final Record rec = rs.next().recordOrThrow();
                 final double dist = rec.getDouble(distBin);
-                // Identify the record whose embedding equals query(self): its first
-                // element equals `self`.
-                final Vector stored = rec.getVector("id");
-                if (stored != null && stored.getFloat32Data()[0] == (float)self) {
-                    selfDistance = dist;
-                }
+                nearestDistance = Math.min(nearestDistance, dist);
             }
         }
         finally {
             rs.close();
         }
 
-        assertEquals(0.0, selfDistance, 1e-6, "distance from a vector to itself should be zero");
+        assertEquals(0.0, nearestDistance, 1e-6, "distance from a vector to itself should be zero");
+    }
+
+    @Test
+    public void cosineSelfSimilarityIsOne() {
+        final List<Key> keys = seed();
+        final int self = 3;
+
+        double best = Double.NEGATIVE_INFINITY;
+        try (RecordStream rs = session.query(keys)
+            .bin(distBin).selectFrom(
+                VectorExp.distance(VectorDistanceMetric.COSINE, query(self), Exp.vectorBin(vecBin)))
+            .execute()) {
+            while (rs.hasNext()) {
+                best = Math.max(best, rs.next().recordOrThrow().getDouble(distBin));
+            }
+        }
+
+        assertEquals(1.0, best, 1e-6, "cosine self-similarity should be one");
+    }
+
+    @Test
+    public void dotProductRanksLargerAsMoreSimilar() {
+        final DataSet dataSet = DataSet.of(args.namespace, "vector_dot_dir");
+        for (int i = 1; i <= 4; i++) {
+            final Key key = dataSet.id("dot-" + i);
+            session.delete(key).execute();
+            session.upsert(key).bin("id").setTo((long)i)
+                .bin(vecBin).setTo(Vector.ofFloat32(new float[] {i, 0.0f})).execute();
+        }
+
+        long bestId = -1;
+        double bestDot = Double.NEGATIVE_INFINITY;
+        try (RecordStream rs = session.query(dataSet)
+            .bin("id").get()
+            .bin(distBin).selectFrom(VectorExp.distance(
+                VectorDistanceMetric.DOT_PRODUCT,
+                Vector.ofFloat32(new float[] {1.0f, 0.0f}),
+                Exp.vectorBin(vecBin)))
+            .execute()) {
+            while (rs.hasNext()) {
+                final Record rec = rs.next().recordOrThrow();
+                final double dot = rec.getDouble(distBin);
+                if (dot > bestDot) {
+                    bestDot = dot;
+                    bestId = rec.getLong("id");
+                }
+            }
+        }
+
+        assertEquals(4L, bestId);
+        assertEquals(4.0, bestDot, 1e-6);
+    }
+
+    @Test
+    public void vectorKnnTopKReturnsNearestRecordsInDistanceOrder() {
+        final DataSet dataSet = DataSet.of(args.namespace, "vector_knn_topk");
+        for (int i = 0; i < 6; i++) {
+            final Key key = dataSet.id("knn-" + i);
+            session.delete(key).execute();
+            session.upsert(key)
+                .bin(vecBin).setTo(Vector.ofFloat32(new float[] {i, 0.0f}))
+                .execute();
+        }
+
+        final List<Double> distances = new ArrayList<>();
+        try (RecordStream rs = session.query(dataSet)
+            .bin(distBin).selectFrom(VectorExp.distance(
+                VectorDistanceMetric.EUCLIDEAN,
+                Vector.ofFloat32(new float[] {0.0f, 0.0f}),
+                Exp.vectorBin(vecBin)))
+            .orderBy(distBin, OrderByType.DOUBLE, Order.ASC)
+            .topK(3)
+            .execute()) {
+            while (rs.hasNext()) {
+                distances.add(rs.next().recordOrThrow().getDouble(distBin));
+            }
+        }
+
+        assertEquals(List.of(0.0, 1.0, 4.0), distances);
+    }
+
+    @Test
+    public void incomparableDistanceOperandsYieldNilWithNoFail() {
+        assertUnknownDistance("wrong-type", "not-a-vector");
+        assertUnknownDistance("wrong-dimensions", Vector.ofFloat32(new float[] {1.0f, 2.0f}));
+        assertUnknownDistance("wrong-element-type", Vector.ofInt32(new int[] {1, 2, 3, 4}));
+    }
+
+    private void assertUnknownDistance(String suffix, Object value) {
+        Key key = args.set.id("vecexp-unknown-" + suffix);
+        session.delete(key).execute();
+        session.upsert(key).bin(vecBin).setTo(value).execute();
+
+        Record result = session.query(key)
+            .bin(distBin).selectFrom(
+                VectorExp.distance(VectorDistanceMetric.EUCLIDEAN, query(0), Exp.vectorBin(vecBin)),
+                options -> options.ignoreEvalFailure())
+            .execute()
+            .getFirstRecord();
+
+        assertNull(result.getValue(distBin), "incomparable vector " + suffix + " must evaluate to NIL");
     }
 }

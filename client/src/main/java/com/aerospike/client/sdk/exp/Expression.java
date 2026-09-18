@@ -32,6 +32,7 @@ public final class Expression implements Serializable {
     public static final int SERVER_COMPILED_AEL_EXPRESSION_OP = 128;
 
     private final byte[] bytes;
+    private final transient boolean hasVector;
 
     /**
      * Expression constructor used by {@link Exp#build(Exp)}
@@ -42,13 +43,20 @@ public final class Expression implements Serializable {
         packer.createBuffer();
         exp.pack(packer);
         bytes = packer.getBuffer();
+        hasVector = packer.hasVector();
     }
 
     /**
      * Expression constructor for packed expression instructions.
      */
     Expression(byte[] bytes) {
+        this(bytes, false);
+    }
+
+    /** Creates an expression from packed bytes and a VECTOR flag. */
+    Expression(byte[] bytes, boolean hasVector) {
         this.bytes = bytes;
+        this.hasVector = hasVector;
     }
 
     /**
@@ -112,6 +120,11 @@ public final class Expression implements Serializable {
      */
     public byte[] getBytes() {
         return bytes;
+    }
+
+    /** @hidden Whether this expression contains a VECTOR literal. */
+    public boolean hasVector() {
+        return hasVector;
     }
 
     /**

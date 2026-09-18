@@ -16,6 +16,9 @@
  */
 package com.aerospike.client.sdk.query;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -31,11 +34,13 @@ import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.NavigatableRecordStream;
+import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.ael.BooleanExpression;
+import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
@@ -95,10 +100,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private Txn txnToUse;
     private int recordsPerSecond = 0;
     private QueryHint.Result queryHint;
-    private java.util.List<com.aerospike.client.sdk.Operation> operations = null;
+    private List<Operation> operations = null;
     private boolean withNoBins = false;
     private boolean transactionSet;
-    private OrderBySpec orderBySpec = null;
+    private List<OrderBySpec> orderBySpecs = List.of();
     private Integer topK = null;
 
     /**
@@ -163,9 +168,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * Package-private method to add an operation.
      * Used by QueryBuilderBinBuilder.
      */
-    void addOperation(com.aerospike.client.sdk.Operation op) {
+    void addOperation(Operation op) {
         if (this.operations == null) {
-            this.operations = new java.util.ArrayList<>();
+            this.operations = new ArrayList<>();
         }
         this.operations.add(op);
     }
@@ -173,7 +178,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Get the list of operations (may be null).
      */
-    public java.util.List<com.aerospike.client.sdk.Operation> getOperations() {
+    public List<Operation> getOperations() {
         return this.operations;
     }
 
@@ -267,11 +272,8 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>{@code binName} must name a bin in the returned record. Not supported together with
      * {@link #withNoBins()}, {@link #chunkSize(int)}, or {@link #limit(long)}.</p>
      *
-     * <p>Not yet supported by any server version -- see
-     * {@link com.aerospike.client.sdk.Cluster#supportsTopK()}.</p>
-     *
      * @param binName   the order-key bin name, as it appears in the returned record
-     * @param type      the declared scalar type of the order-key bin (Aerospike has no schema)
+     * @param type      the declared scalar type of the order-key bin
      * @param direction {@link Order#ASC} (keep the K smallest) or {@link Order#DESC} (keep the
      *                  K largest)
      * @return this QueryBuilder for method chaining
@@ -292,33 +294,68 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} if the arguments are invalid
      */
     public QueryBuilder orderBy(String binName, OrderByType type, Order direction, int flags) {
-        validateOrderBySpec(binName, type, direction, flags);
-        this.orderBySpec = new OrderBySpec(binName, type, direction, flags);
+        this.orderBySpecs = List.of(newOrderBySpec(binName, type, direction, flags));
         return this;
     }
 
-    private static void validateOrderBySpec(String binName, OrderByType type, Order direction, int flags) {
+    /**
+     * Add the second, lexicographic Top-K key. The first key must be configured
+     * with {@link #orderBy(String, OrderByType, Order)} first.
+     */
+    public QueryBuilder thenOrderBy(String binName, OrderByType type, Order direction) {
+        return thenOrderBy(binName, type, direction, OrderByFlags.NONE);
+    }
+
+    /**
+     * Add the second, lexicographic Top-K key with comparison flags.
+     */
+    public QueryBuilder thenOrderBy(String binName, OrderByType type, Order direction, int flags) {
+        if (orderBySpecs.isEmpty()) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "thenOrderBy(...) requires a preceding orderBy(...)");
+        }
+        if (orderBySpecs.size() == 2) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Top-K supports at most two orderBy keys");
+        }
+        OrderBySpec next = newOrderBySpec(binName, type, direction, flags);
+        if (orderBySpecs.get(0).getBinName().equals(next.getBinName())) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Top-K orderBy bin names must be distinct");
+        }
+        orderBySpecs = List.of(orderBySpecs.get(0), next);
+        return this;
+    }
+
+    private static OrderBySpec newOrderBySpec(String binName, OrderByType type, Order direction, int flags) {
         if (binName == null || binName.isEmpty()) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "orderBy requires a non-empty bin name");
         }
-        if (binName.length() > Bin.MAX_BIN_NAME_LENGTH) {
+        byte[] nameBytes = Buffer.stringToUtf8(binName);
+        if (nameBytes.length == 0 || nameBytes.length > Bin.MAX_BIN_NAME_LENGTH ||
+            binName.indexOf('\0') >= 0) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
-                "orderBy bin name '" + binName + "' exceeds the " +
-                Bin.MAX_BIN_NAME_LENGTH + "-character bin name limit");
+                "orderBy bin name must be 1-" + Bin.MAX_BIN_NAME_LENGTH +
+                " UTF-8 bytes and contain no NUL");
         }
         if (type == null) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
-                "orderBy requires a type declaration (INTEGER, DOUBLE, STRING, or BYTES); Aerospike has no schema");
+                "orderBy requires a type declaration (INTEGER, DOUBLE, STRING, or BYTES)");
         }
         if (direction == null) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "orderBy direction must be ASC or DESC");
         }
+        if ((flags & ~OrderByFlags.CASE_INSENSITIVE) != 0) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy contains unsupported flags: " + flags);
+        }
         if ((flags & OrderByFlags.CASE_INSENSITIVE) != 0 && type != OrderByType.STRING) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "orderBy flag CASE_INSENSITIVE is only valid with type STRING");
         }
+        return new OrderBySpec(binName, type, direction, flags);
     }
 
     /**
@@ -341,7 +378,14 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * Gets the Top-K order-by clause, or {@code null} if {@link #orderBy} was not called.
      */
     public OrderBySpec getOrderBySpec() {
-        return orderBySpec;
+        return orderBySpecs.isEmpty() ? null : orderBySpecs.get(0);
+    }
+
+    /**
+     * Gets all Top-K order-by clauses in lexicographic priority order.
+     */
+    public List<OrderBySpec> getOrderBySpecs() {
+        return orderBySpecs;
     }
 
     /**
@@ -359,7 +403,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} on any conflict
      */
     void validateTopKQueryState() {
-        boolean hasOrderBy = orderBySpec != null;
+        boolean hasOrderBy = !orderBySpecs.isEmpty();
         boolean hasTopK = topK != null;
 
         if (hasOrderBy != hasTopK) {
@@ -385,20 +429,37 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
                 "-- remove limit() when using orderBy()/topK()");
         }
 
-        String binName = orderBySpec.getBinName();
         boolean hasBinListProjection = this.binNames != null;
         boolean hasOpsProjection = this.operations != null && !this.operations.isEmpty();
 
-        if (hasBinListProjection || hasOpsProjection) {
-            boolean inBinList = hasBinListProjection &&
-                java.util.Arrays.asList(this.binNames).contains(binName);
-            boolean inOps = hasOpsProjection &&
-                this.operations.stream().anyMatch(op -> binName.equals(op.binName));
+        // An operation projection replaces a bin-list projection, so it must produce each order key.
+        if (hasOpsProjection) {
+            for (OrderBySpec spec : orderBySpecs) {
+                String binName = spec.getBinName();
+                long outputCount = this.operations.stream()
+                    .filter(op -> binName.equals(op.binName))
+                    .count();
 
-            if (!inBinList && !inOps) {
-                throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
-                    "orderBy bin '" + binName + "' is not in the query's projection; add it to " +
-                    "readingOnlyBins(...)/selectFrom(...) or remove the projection");
+                if (outputCount == 0) {
+                    throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                        "orderBy bin '" + binName + "' is not produced by the query's operation projection; " +
+                        "add an operation that outputs it via selectFrom(...)");
+                }
+                if (outputCount > 1) {
+                    throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                        "orderBy bin '" + binName + "' is produced more than once by the query's operation projection");
+                }
+            }
+        }
+        else if (hasBinListProjection) {
+            for (OrderBySpec spec : orderBySpecs) {
+                String binName = spec.getBinName();
+
+                if (!Arrays.asList(this.binNames).contains(binName)) {
+                    throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                        "orderBy bin '" + binName + "' is not in the query's projection; add it to " +
+                        "readingOnlyBins(...) or remove the projection");
+                }
             }
         }
     }
@@ -870,6 +931,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     @Override
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
+        rejectAsyncTopK();
         warnIfInTransaction();
         return this.implementation.executeAsync(strategy);
     }
@@ -893,8 +955,17 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     @Override
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
+        rejectAsyncTopK();
         warnIfInTransaction();
         return this.implementation.executeAsync(handler);
+    }
+
+    private void rejectAsyncTopK() {
+        validateTopKQueryState();
+        if (!orderBySpecs.isEmpty()) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy/topK is only supported by synchronous foreground queries");
+        }
     }
 
     private void warnIfInTransaction() {

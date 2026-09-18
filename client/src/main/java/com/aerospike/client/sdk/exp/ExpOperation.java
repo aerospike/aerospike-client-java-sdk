@@ -63,6 +63,7 @@ public final class ExpOperation {
         packer.packByteArray(b, 0, b.length);
         packer.packInt(flags);
 
-        return new Operation(type, name, Value.get(packer.getBuffer()));
+        // Preserve the expression's VECTOR flag.
+        return new Operation(type, name, Value.get(packer.getBuffer(), exp.hasVector()));
     }
 }
