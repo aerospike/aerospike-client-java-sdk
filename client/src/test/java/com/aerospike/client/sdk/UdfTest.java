@@ -560,6 +560,10 @@ public class UdfTest extends ClusterTest {
         assertFalse(rs.hasNext());
     }
 
+    /* By default, the server no longer allows access to the lua global variable "os".
+     * "os" is called to sleep in order to induce the timeout. The only way for this test to
+     * work is to set "allow-unsafe-lua" to true in the server config which is something that
+     * we should not rely on. Therefore, disable the test.
     @Test
     public void batchUdfLongWaitFailsWithClientTimeoutMarksInDoubt() {
         long secsToWait = 1;
@@ -597,6 +601,7 @@ public class UdfTest extends ClusterTest {
         assertTrue(ae.inDoubt, "expected inDoubt after client write timeout: " + ae.inDoubt);
         assertEquals(ResultCode.TIMEOUT, ae.resultCode, "expected TIMEOUT, got " + ae + ": " + ae.getMessage());
     }
+    */
 
     @Test
     public void typedUdfSingleKeyCarriesReadMappingForUdfResultAsObject() {

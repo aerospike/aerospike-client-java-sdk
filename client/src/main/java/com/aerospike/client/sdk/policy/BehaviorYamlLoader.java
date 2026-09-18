@@ -30,6 +30,8 @@ import java.util.Optional;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.introspector.BeanAccess;
+import org.yaml.snakeyaml.introspector.MissingProperty;
 import org.yaml.snakeyaml.introspector.Property;
 import org.yaml.snakeyaml.introspector.PropertyUtils;
 import org.yaml.snakeyaml.nodes.Node;
@@ -68,18 +70,9 @@ public class BehaviorYamlLoader {
             // Register Duration constructor
             this.yamlConstructors.put(new Tag(Duration.class), new DurationConstruct());
 
-            // Use custom property utils to skip missing properties
-            PropertyUtils propertyUtils = new PropertyUtils() {
-                @Override
-                public Property getProperty(Class<?> type, String name) {
-                    try {
-                        return super.getProperty(type, name);
-                    } catch (Exception e) {
-                        // If property not found, skip it
-                        return null;
-                    }
-                }
-            };
+            // YAML keys are snake_case; map them onto the camelCase bean properties
+            // of BehaviorYamlConfig and skip anything that does not resolve.
+            PropertyUtils propertyUtils = new SnakeCasePropertyUtils();
             propertyUtils.setSkipMissingProperties(true);
             this.setPropertyUtils(propertyUtils);
         }
@@ -104,6 +97,69 @@ public class BehaviorYamlLoader {
             }
             // Check if it looks like a duration (number followed by time unit or ISO-8601)
             return value.matches("^\\d+\\s*[a-zA-Z]+$") || value.startsWith("PT") || value.startsWith("P");
+        }
+    }
+
+    /**
+     * Binds the {@code snake_case} keys used in the YAML configuration file to the
+     * {@code camelCase} JavaBean properties of {@link BehaviorYamlConfig}.
+     *
+     * <p>The configuration file is snake_case only: a key that is not valid snake_case
+     * (a legacy {@code camelCase} key, for example) is reported as missing and skipped
+     * rather than being bound to a property.</p>
+     */
+    static class SnakeCasePropertyUtils extends PropertyUtils {
+
+        @Override
+        public Property getProperty(Class<?> type, String name, BeanAccess beanAccess) {
+            String propertyName = toCamelCase(name);
+
+            if (propertyName == null) {
+                // Not a snake_case key, so it is not part of the schema.
+                return new MissingProperty(name);
+            }
+
+            try {
+                return super.getProperty(type, propertyName, beanAccess);
+            }
+            catch (Exception e) {
+                // If property not found, skip it
+                return new MissingProperty(name);
+            }
+        }
+
+        /**
+         * Convert a snake_case YAML key to the equivalent camelCase property name,
+         * for example {@code allow_inline_ssd_access} to {@code allowInlineSsdAccess}.
+         *
+         * @param name the YAML key
+         * @return the camelCase property name, or null when the key is not valid snake_case
+         */
+        static String toCamelCase(String name) {
+            if (name == null || name.isEmpty()) {
+                return null;
+            }
+
+            StringBuilder sb = new StringBuilder(name.length());
+            boolean toUpper = false;
+
+            for (int i = 0; i < name.length(); i++) {
+                char c = name.charAt(i);
+
+                if (Character.isUpperCase(c)) {
+                    // snake_case keys never contain upper case characters.
+                    return null;
+                }
+
+                if (c == '_') {
+                    toUpper = true;
+                    continue;
+                }
+
+                sb.append(toUpper ? Character.toUpperCase(c) : c);
+                toUpper = false;
+            }
+            return sb.length() == 0 ? null : sb.toString();
         }
     }
 

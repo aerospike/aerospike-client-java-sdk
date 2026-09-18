@@ -4,25 +4,25 @@
 system:
   DEFAULT:
     connections:
-      minimumConnectionsPerNode: 10
-      maximumConnectionsPerNode: 300
-      maximumSocketIdleTime: 55s
-    circuitBreaker:
-      numTendIntervalsInErrorWindow: 2
-      maximumErrorsInErrorWindow: 100
+      minimum_connections_per_node: 10
+      maximum_connections_per_node: 300
+      maximum_socket_idle_time: 55s
+    circuit_breaker:
+      num_tend_intervals_in_error_window: 2
+      maximum_errors_in_error_window: 100
     refresh:
-      tendInterval: 1s
+      tend_interval: 1s
     transactions:
-      implicitBatchWriteTransactions: false
-      sleepBetweenAttempts: 250ms
-      numberOfAttempts: 3
+      implicit_batch_write_transactions: false
+      sleep_between_attempts: 250ms
+      number_of_attempts: 3
     metrics:
       enabled: false
       interval: 31
-      reportDir: "metrics"
-      reportSizeLimit: 5000000 
-      latencyColumns: 6
-      latencyShift: 2
+      report_dir: "metrics"
+      report_size_limit: 5000000 
+      latency_columns: 6
+      latency_shift: 2
       latencyWarn: 51ms
       connectCreateWarn: 501ms
       batchSizeWarn: 501
@@ -33,37 +33,37 @@ system:
 
   production:
     connections:
-      minimumConnectionsPerNode: 50
-      maximumConnectionsPerNode: 500
-      maximumSocketIdleTime: 60s
-    circuitBreaker:
-      numTendIntervalsInErrorWindow: 3
-      maximumErrorsInErrorWindow: 50
+      minimum_connections_per_node: 50
+      maximum_connections_per_node: 500
+      maximum_socket_idle_time: 60s
+    circuit_breaker:
+      num_tend_intervals_in_error_window: 3
+      maximum_errors_in_error_window: 50
     refresh:
-      tendInterval: 500ms
+      tend_interval: 500ms
     transactions:
-      sleepBetweenAttempts: 500ms
-      numberOfAttempts: 5
+      sleep_between_attempts: 500ms
+      number_of_attempts: 5
 
   development:
     connections:
-      minimumConnectionsPerNode: 1
-      maximumConnectionsPerNode: 20
-      maximumSocketIdleTime: 30s
-    circuitBreaker:
-      numTendIntervalsInErrorWindow: 1
-      maximumErrorsInErrorWindow: 200
+      minimum_connections_per_node: 1
+      maximum_connections_per_node: 20
+      maximum_socket_idle_time: 30s
+    circuit_breaker:
+      num_tend_intervals_in_error_window: 1
+      maximum_errors_in_error_window: 200
     refresh:
-      tendInterval: 2s
+      tend_interval: 2s
 
   bncluster:
     connections:
-      minimumConnectionsPerNode: 400
-      maximumConnectionsPerNode: 600
-      maximumSocketIdleTime: 45s
-    circuitBreaker:
-      numTendIntervalsInErrorWindow: 2
-      maximumErrorsInErrorWindow: 75
+      minimum_connections_per_node: 400
+      maximum_connections_per_node: 600
+      maximum_socket_idle_time: 45s
+    circuit_breaker:
+      num_tend_intervals_in_error_window: 2
+      maximum_errors_in_error_window: 75
 
 
 # =============================================================================
@@ -74,229 +74,229 @@ system:
 # and optional `name` are valid alongside those blocks at this indentation.
 behaviors:
   high-performance:
-    allOperations:
-      abandonCallAfter: 1s
-      maximumNumberOfCallAttempts: 2
-      delayBetweenRetries: 25ms
-      waitForCallToComplete: 3s
-      waitForConnectionToComplete: 500ms
-      waitForSocketResponseAfterCallFails: 100ms
-      replicaOrder: SEQUENCE
-      sendKey: false
-      useCompression: false
+    all_operations:
+      abandon_call_after: 1s
+      maximum_number_of_call_attempts: 2
+      delay_between_retries: 25ms
+      wait_for_call_to_complete: 3s
+      wait_for_connection_to_complete: 500ms
+      wait_for_socket_response_after_call_fails: 100ms
+      replica_order: SEQUENCE
+      send_key: false
+      use_compression: false
       # Auto-touch records when TTL drops below this percentage (read operations)
-      resetTtlOnReadAtPercent: 50
+      reset_ttl_on_read_at_percent: 50
 
-    retryableWrites:
-      useDurableDelete: false
-      maximumNumberOfCallAttempts: 3
-      delayBetweenRetries: 50ms
-      abandonCallAfter: 2s
+    retryable_writes:
+      use_durable_delete: false
+      maximum_number_of_call_attempts: 3
+      delay_between_retries: 50ms
+      abandon_call_after: 2s
 
-    nonRetryableWrites:
-      useDurableDelete: false
-      abandonCallAfter: 2s
-      maximumNumberOfCallAttempts: 1
+    non_retryable_writes:
+      use_durable_delete: false
+      abandon_call_after: 2s
+      maximum_number_of_call_attempts: 1
 
-    consistencyModeReads:
-      readConsistency: SESSION
-      abandonCallAfter: 1s
-      maximumNumberOfCallAttempts: 2
+    consistency_mode_reads:
+      read_consistency: SESSION
+      abandon_call_after: 1s
+      maximum_number_of_call_attempts: 2
 
-    availabilityModeReads:
-      migrationReadConsistency: ONE
-      abandonCallAfter: 1s
-      maximumNumberOfCallAttempts: 2
+    availability_mode_reads:
+      migration_read_consistency: ONE
+      abandon_call_after: 1s
+      maximum_number_of_call_attempts: 2
 
-    batchReads:
-      maxConcurrentServers: 8
-      allowInlineMemoryAccess: true
-      allowInlineSsdAccess: true
-      abandonCallAfter: 3s
-      maximumNumberOfCallAttempts: 2
+    batch_reads:
+      max_concurrent_servers: 8
+      allow_inline_memory_access: true
+      allow_inline_ssd_access: true
+      abandon_call_after: 3s
+      maximum_number_of_call_attempts: 2
 
-    batchWrites:
-      maxConcurrentServers: 6
-      abandonCallAfter: 5s
-      maximumNumberOfCallAttempts: 2
+    batch_writes:
+      max_concurrent_servers: 6
+      abandon_call_after: 5s
+      maximum_number_of_call_attempts: 2
 
     query:
-      recordQueueSize: 5000
-      allowScansWithWhere: false
-      maxConcurrentServers: 8
-      abandonCallAfter: 30s
-      maximumNumberOfCallAttempts: 1
+      record_queue_size: 5000
+      allow_scans_with_where: false
+      max_concurrent_servers: 8
+      abandon_call_after: 30s
+      maximum_number_of_call_attempts: 1
 
-    systemTxnVerify:
+    system_txn_verify:
       consistency: SESSION
-      abandonCallAfter: 2s
-      maximumNumberOfCallAttempts: 3
+      abandon_call_after: 2s
+      maximum_number_of_call_attempts: 3
 
-    systemTxnRoll:
-      abandonCallAfter: 5s
-      maximumNumberOfCallAttempts: 5
-      delayBetweenRetries: 200ms
+    system_txn_roll:
+      abandon_call_after: 5s
+      maximum_number_of_call_attempts: 5
+      delay_between_retries: 200ms
 
 
   high-reliability:
-    allOperations:
-      abandonCallAfter: 10s
-      maximumNumberOfCallAttempts: 5
-      delayBetweenRetries: 1s
-      waitForCallToComplete: 30s
-      waitForConnectionToComplete: 2s
-      waitForSocketResponseAfterCallFails: 500ms
-      replicaOrder: MASTER_PROLES
-      sendKey: true
-      useCompression: true
+    all_operations:
+      abandon_call_after: 10s
+      maximum_number_of_call_attempts: 5
+      delay_between_retries: 1s
+      wait_for_call_to_complete: 30s
+      wait_for_connection_to_complete: 2s
+      wait_for_socket_response_after_call_fails: 500ms
+      replica_order: MASTER_PROLES
+      send_key: true
+      use_compression: true
       # Auto-touch when TTL below 30% for critical data
-      resetTtlOnReadAtPercent: 30
+      reset_ttl_on_read_at_percent: 30
 
-    retryableWrites:
-      useDurableDelete: true
-      maximumNumberOfCallAttempts: 7
-      delayBetweenRetries: 2s
-      abandonCallAfter: 20s
+    retryable_writes:
+      use_durable_delete: true
+      maximum_number_of_call_attempts: 7
+      delay_between_retries: 2s
+      abandon_call_after: 20s
 
-    nonRetryableWrites:
-      useDurableDelete: true
-      abandonCallAfter: 15s
-      maximumNumberOfCallAttempts: 3
+    non_retryable_writes:
+      use_durable_delete: true
+      abandon_call_after: 15s
+      maximum_number_of_call_attempts: 3
 
-    consistencyModeReads:
-      readConsistency: LINEARIZE
-      abandonCallAfter: 8s
-      maximumNumberOfCallAttempts: 4
+    consistency_mode_reads:
+      read_consistency: LINEARIZE
+      abandon_call_after: 8s
+      maximum_number_of_call_attempts: 4
 
-    availabilityModeReads:
-      migrationReadConsistency: ALL
-      abandonCallAfter: 8s
-      maximumNumberOfCallAttempts: 4
+    availability_mode_reads:
+      migration_read_consistency: ALL
+      abandon_call_after: 8s
+      maximum_number_of_call_attempts: 4
 
-    batchReads:
-      maxConcurrentServers: 5
-      allowInlineMemoryAccess: false
-      allowInlineSsdAccess: false
-      abandonCallAfter: 15s
-      maximumNumberOfCallAttempts: 3
+    batch_reads:
+      max_concurrent_servers: 5
+      allow_inline_memory_access: false
+      allow_inline_ssd_access: false
+      abandon_call_after: 15s
+      maximum_number_of_call_attempts: 3
 
-    batchWrites:
-      maxConcurrentServers: 4
-      abandonCallAfter: 20s
-      maximumNumberOfCallAttempts: 4
+    batch_writes:
+      max_concurrent_servers: 4
+      abandon_call_after: 20s
+      maximum_number_of_call_attempts: 4
 
     query:
-      recordQueueSize: 10000
-      allowScansWithWhere: false
-      maxConcurrentServers: 4
-      abandonCallAfter: 60s
+      record_queue_size: 10000
+      allow_scans_with_where: false
+      max_concurrent_servers: 4
+      abandon_call_after: 60s
 
 
   batch-optimized:
     parent: high-performance
 
-    batchReads:
-      maxConcurrentServers: 16
-      allowInlineMemoryAccess: true
-      allowInlineSsdAccess: true
-      abandonCallAfter: 5s
-      maximumNumberOfCallAttempts: 3
+    batch_reads:
+      max_concurrent_servers: 16
+      allow_inline_memory_access: true
+      allow_inline_ssd_access: true
+      abandon_call_after: 5s
+      maximum_number_of_call_attempts: 3
 
-    batchWrites:
-      maxConcurrentServers: 12
-      abandonCallAfter: 8s
-      maximumNumberOfCallAttempts: 3
+    batch_writes:
+      max_concurrent_servers: 12
+      abandon_call_after: 8s
+      maximum_number_of_call_attempts: 3
 
     query:
-      recordQueueSize: 20000
-      allowScansWithWhere: false
-      maxConcurrentServers: 16
-      abandonCallAfter: 45s
+      record_queue_size: 20000
+      allow_scans_with_where: false
+      max_concurrent_servers: 16
+      abandon_call_after: 45s
 
 
   development:
-    allOperations:
-      abandonCallAfter: 30s
-      maximumNumberOfCallAttempts: 1
-      delayBetweenRetries: 0ms
-      waitForCallToComplete: 60s
-      waitForConnectionToComplete: 10s
-      sendKey: true
-      useCompression: false
+    all_operations:
+      abandon_call_after: 30s
+      maximum_number_of_call_attempts: 1
+      delay_between_retries: 0ms
+      wait_for_call_to_complete: 60s
+      wait_for_connection_to_complete: 10s
+      send_key: true
+      use_compression: false
 
-    retryableWrites:
-      useDurableDelete: false
-      maximumNumberOfCallAttempts: 1
+    retryable_writes:
+      use_durable_delete: false
+      maximum_number_of_call_attempts: 1
 
-    nonRetryableWrites:
-      useDurableDelete: false
-      maximumNumberOfCallAttempts: 1
+    non_retryable_writes:
+      use_durable_delete: false
+      maximum_number_of_call_attempts: 1
 
-    batchReads:
-      maxConcurrentServers: 2
-      allowInlineMemoryAccess: true
-      allowInlineSsdAccess: true
-      abandonCallAfter: 60s
+    batch_reads:
+      max_concurrent_servers: 2
+      allow_inline_memory_access: true
+      allow_inline_ssd_access: true
+      abandon_call_after: 60s
 
     query:
-      recordQueueSize: 1000
-      allowScansWithWhere: false
-      maxConcurrentServers: 2
-      abandonCallAfter: 120s
+      record_queue_size: 1000
+      allow_scans_with_where: false
+      max_concurrent_servers: 2
+      abandon_call_after: 120s
 
 
   analytics:
     parent: high-reliability
 
     query:
-      recordQueueSize: 50000
-      allowScansWithWhere: false
-      maxConcurrentServers: 32
-      abandonCallAfter: 300s
-      maximumNumberOfCallAttempts: 2
+      record_queue_size: 50000
+      allow_scans_with_where: false
+      max_concurrent_servers: 32
+      abandon_call_after: 300s
+      maximum_number_of_call_attempts: 2
 
-    batchReads:
-      maxConcurrentServers: 32
-      allowInlineMemoryAccess: true
-      allowInlineSsdAccess: true
-      abandonCallAfter: 60s
+    batch_reads:
+      max_concurrent_servers: 32
+      allow_inline_memory_access: true
+      allow_inline_ssd_access: true
+      abandon_call_after: 60s
 
 
   real-time:
-    allOperations:
-      abandonCallAfter: 500ms
-      maximumNumberOfCallAttempts: 1
-      delayBetweenRetries: 0ms
-      waitForCallToComplete: 1s
-      waitForConnectionToComplete: 200ms
-      waitForSocketResponseAfterCallFails: 50ms
-      replicaOrder: MASTER
-      sendKey: false
-      useCompression: false
+    all_operations:
+      abandon_call_after: 500ms
+      maximum_number_of_call_attempts: 1
+      delay_between_retries: 0ms
+      wait_for_call_to_complete: 1s
+      wait_for_connection_to_complete: 200ms
+      wait_for_socket_response_after_call_fails: 50ms
+      replica_order: MASTER
+      send_key: false
+      use_compression: false
 
-    retryableWrites:
-      useDurableDelete: false
-      maximumNumberOfCallAttempts: 1
-      abandonCallAfter: 500ms
+    retryable_writes:
+      use_durable_delete: false
+      maximum_number_of_call_attempts: 1
+      abandon_call_after: 500ms
 
-    availabilityModeReads:
-      migrationReadConsistency: ONE
-      abandonCallAfter: 300ms
+    availability_mode_reads:
+      migration_read_consistency: ONE
+      abandon_call_after: 300ms
 
 
   # Cache-refresh behavior: auto-touch records to extend TTL on reads
   cache-refresh:
     parent: high-performance
 
-    allOperations:
+    all_operations:
       # Touch records when their TTL drops below 80% of original
       # This keeps frequently-accessed records from expiring
-      resetTtlOnReadAtPercent: 80
+      reset_ttl_on_read_at_percent: 80
 
     # For cache reads, use ONE replica for speed
-    availabilityModeReads:
-      migrationReadConsistency: ONE
-      abandonCallAfter: 500ms
+    availability_mode_reads:
+      migration_read_consistency: ONE
+      abandon_call_after: 500ms
 
 
 # =============================================================================

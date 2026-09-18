@@ -1163,7 +1163,7 @@ Behavior highLoad = production.deriveWithChanges("highLoad", b -> b
 
 ### YAML layout (`BehaviorYamlLoader`)
 
-YAML under `behaviors:` mirrors the selector model: put policy fields (`sendKey`, `useCompression`, timeouts, retries, and so on) **inside** a named block such as `allOperations` (maps to `Selectors.all()`), `retryableWrites`, `consistencyModeReads`, `batchReads`, `query`, etc. Use `parent:` for inheritance. Do **not** place those policy keys directly under the behavior name beside `parent`; they are not part of the supported schema and will not load.
+All YAML keys are `snake_case`; they are bound to the camelCase configuration properties by the loader, and camelCase keys are **not** recognized. YAML under `behaviors:` mirrors the selector model: put policy fields (`send_key`, `use_compression`, timeouts, retries, and so on) **inside** a named block such as `all_operations` (maps to `Selectors.all()`), `retryable_writes`, `consistency_mode_reads`, `batch_reads`, `query`, etc. Use `parent:` for inheritance. Do **not** place those policy keys directly under the behavior name beside `parent`; they are not part of the supported schema and will not load.
 
 **YAML file reload:** When a behavior file is reloaded (for example via `Behavior.startMonitoring` / `ClusterDefinition` config path), existing **registered** profiles are updated **in place** on the same `Behavior` instance. Sessions and other code that already hold a reference to that profile therefore pick up new settings without creating a new session.
 

@@ -47,9 +47,9 @@ public class BehaviorFileMonitorRestartTest {
     private static final String YAML = """
         behaviors:
           simple:
-            allOperations:
-              abandonCallAfter: 5s
-              maximumNumberOfCallAttempts: 3
+            all_operations:
+              abandon_call_after: 5s
+              maximum_number_of_call_attempts: 3
         """;
 
     private Path writeConfig(Path dir) throws IOException {
