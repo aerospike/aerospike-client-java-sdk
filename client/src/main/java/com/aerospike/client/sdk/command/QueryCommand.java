@@ -19,10 +19,12 @@ package com.aerospike.client.sdk.command;
 import java.util.List;
 
 import com.aerospike.client.sdk.AsyncRecordStream;
+import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Operation;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
@@ -75,8 +77,8 @@ public final class QueryCommand extends Command {
         QueryBuilder qb
     ) {
         if (plan.isFilteredOut()) {
-            throw com.aerospike.client.sdk.AerospikeException.toException(
-                com.aerospike.client.sdk.ResultCode.FILTERED_OUT,
+            throw AerospikeException.toException(
+                ResultCode.FILTERED_OUT,
                 "Query plan filtered out by server"
             );
         }

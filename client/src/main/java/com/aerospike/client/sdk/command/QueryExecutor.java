@@ -28,6 +28,7 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.util.RandomShift;
 import com.aerospike.client.sdk.util.Util;
+import com.aerospike.client.sdk.util.Version;
 
 public final class QueryExecutor implements IQueryExecutor {
 
@@ -69,7 +70,7 @@ public final class QueryExecutor implements IQueryExecutor {
             cmd.setSendTopK(!cmd.orderBySpecs.isEmpty() &&
                 list.stream().allMatch(nodePartitions ->
                     nodePartitions.node.getVersion().isGreaterOrEqual(
-                        com.aerospike.client.sdk.util.Version.SERVER_VERSION_8_1_3)));
+                    Version.SERVER_VERSION_8_1_3)));
 
             // Initialize maximum number of nodes to query in parallel.
             maxConcurrentThreads = (cmd.maxConcurrentNodes == 0 || cmd.maxConcurrentNodes >= list.size())?

@@ -29,6 +29,9 @@ import org.junit.jupiter.api.Assumptions;
 
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.VectorExp;
+import com.aerospike.client.sdk.query.Order;
+import com.aerospike.client.sdk.query.OrderByType;
+import com.aerospike.client.sdk.util.Version;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
@@ -43,7 +46,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
     @BeforeAll
     static void requireVectorServer() {
         Assumptions.assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(com.aerospike.client.sdk.util.Version.SERVER_VERSION_8_1_3),
+            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
             "vector expressions require server version 8.1.3+");
     }
 
@@ -206,8 +209,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
                 VectorDistanceMetric.EUCLIDEAN,
                 Vector.ofFloat32(new float[] {0.0f, 0.0f}),
                 Exp.vectorBin(vecBin)))
-            .orderBy(distBin, com.aerospike.client.sdk.query.OrderByType.DOUBLE,
-                com.aerospike.client.sdk.query.Order.ASC)
+            .orderBy(distBin, OrderByType.DOUBLE, Order.ASC)
             .topK(3)
             .execute()) {
             while (rs.hasNext()) {

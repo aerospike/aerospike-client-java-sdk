@@ -27,12 +27,13 @@ import org.junit.jupiter.api.Assumptions;
 
 import com.aerospike.client.sdk.query.Order;
 import com.aerospike.client.sdk.query.OrderByType;
+import com.aerospike.client.sdk.util.Version;
 
 class TopKIntegrationTest extends ClusterTest {
     @BeforeAll
     static void requireTopKServer() {
         Assumptions.assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(com.aerospike.client.sdk.util.Version.SERVER_VERSION_8_1_3),
+            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
             "Top-K requires server version 8.1.3+");
     }
 

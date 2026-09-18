@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.command;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.Deflater;
 
@@ -36,6 +37,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ReadModeAP;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.query.OrderBySpec;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.Packer;
 
@@ -903,12 +905,12 @@ public final class CommandBuffer {
         }
 
         // Write Top-K fields.
-        java.util.List<byte[]> orderByNameBytes = null;
+        List<byte[]> orderByNameBytes = null;
 
         if (cmd.shouldSendTopK()) {
-            orderByNameBytes = new java.util.ArrayList<>(cmd.orderBySpecs.size());
+            orderByNameBytes = new ArrayList<>(cmd.orderBySpecs.size());
             int orderByBodySize = 0;
-            for (com.aerospike.client.sdk.query.OrderBySpec spec : cmd.orderBySpecs) {
+            for (OrderBySpec spec : cmd.orderBySpecs) {
                 byte[] nameBytes = Buffer.stringToUtf8(spec.getBinName());
                 orderByNameBytes.add(nameBytes);
                 orderByBodySize += 4 + nameBytes.length;
@@ -1066,8 +1068,8 @@ public final class CommandBuffer {
 
     /** Write one or two ORDER_BY specs. */
     private void writeFieldOrderBy(
-        java.util.List<com.aerospike.client.sdk.query.OrderBySpec> specs,
-        java.util.List<byte[]> nameBytes
+        List<OrderBySpec> specs,
+        List<byte[]> nameBytes
     ) {
         int bodySize = 0;
         for (byte[] bytes : nameBytes) {
@@ -1075,7 +1077,7 @@ public final class CommandBuffer {
         }
         writeFieldHeader(bodySize, FieldType.ORDER_BY);
         for (int i = 0; i < specs.size(); i++) {
-            com.aerospike.client.sdk.query.OrderBySpec spec = specs.get(i);
+            OrderBySpec spec = specs.get(i);
             byte[] bytes = nameBytes.get(i);
             dataBuffer[dataOffset++] = (byte)spec.getType().getWireCode();
             dataBuffer[dataOffset++] = (byte)spec.getDirection().getWireCode();

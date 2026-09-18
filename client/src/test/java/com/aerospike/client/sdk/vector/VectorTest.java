@@ -35,6 +35,11 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.Value.VectorValue;
+import com.aerospike.client.sdk.cdt.ListOperation;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.cdt.MapOperation;
+import com.aerospike.client.sdk.cdt.MapPolicy;
+import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.util.Packer;
@@ -520,26 +525,26 @@ public class VectorTest {
     @Test
     void cdtListAppendVectorPropagatesFlagToOperation() {
         final Vector v = Vector.ofFloat32(new float[] {1.0f, 2.0f});
-        assertTrue(com.aerospike.client.sdk.cdt.ListOperation.append("l", Value.get(v))
+        assertTrue(ListOperation.append("l", Value.get(v))
             .value.hasVector());
-        assertTrue(!com.aerospike.client.sdk.cdt.ListOperation.append("l", Value.get(1L))
+        assertTrue(!ListOperation.append("l", Value.get(1L))
             .value.hasVector());
     }
 
     @Test
     void cdtMapPutVectorPropagatesFlagToOperation() {
         final Vector v = Vector.ofInt32(new int[] {3, 4, 5});
-        assertTrue(com.aerospike.client.sdk.cdt.MapOperation.put(
-            com.aerospike.client.sdk.cdt.MapPolicy.Default, "m", Value.get("k"), Value.get(v))
+        assertTrue(MapOperation.put(
+            MapPolicy.Default, "m", Value.get("k"), Value.get(v))
             .value.hasVector());
-        assertTrue(!com.aerospike.client.sdk.cdt.MapOperation.put(
-            com.aerospike.client.sdk.cdt.MapPolicy.Default, "m", Value.get("k"), Value.get(1L))
+        assertTrue(!MapOperation.put(
+            MapPolicy.Default, "m", Value.get("k"), Value.get(1L))
             .value.hasVector());
     }
 
     @Test
     void cdtListReadOperationIsNotFlagged() {
-        assertTrue(!com.aerospike.client.sdk.cdt.ListOperation.size("l").value.hasVector());
+        assertTrue(!ListOperation.size("l").value.hasVector());
     }
 
     @Test
@@ -562,12 +567,12 @@ public class VectorTest {
     @Test
     void cdtRemoveByVectorValuePropagatesFlagToOperation() {
         final Vector v = Vector.ofFloat32(new float[] {1.0f, 2.0f});
-        assertTrue(com.aerospike.client.sdk.cdt.ListOperation.removeByValue(
-            "l", Value.get(v), com.aerospike.client.sdk.cdt.ListReturnType.NONE).value.hasVector());
-        assertTrue(com.aerospike.client.sdk.cdt.MapOperation.removeByValue(
-            "m", Value.get(v), com.aerospike.client.sdk.cdt.MapReturnType.NONE).value.hasVector());
-        assertTrue(com.aerospike.client.sdk.cdt.MapOperation.removeByKey(
-            "m", Value.get(v), com.aerospike.client.sdk.cdt.MapReturnType.NONE).value.hasVector());
+        assertTrue(ListOperation.removeByValue(
+            "l", Value.get(v), ListReturnType.NONE).value.hasVector());
+        assertTrue(MapOperation.removeByValue(
+            "m", Value.get(v), MapReturnType.NONE).value.hasVector());
+        assertTrue(MapOperation.removeByKey(
+            "m", Value.get(v), MapReturnType.NONE).value.hasVector());
     }
 
     @Test

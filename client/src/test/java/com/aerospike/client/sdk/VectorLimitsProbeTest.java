@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Assumptions;
 
+import com.aerospike.client.sdk.util.Version;
 import com.aerospike.client.sdk.vector.Vector;
 
 /** VECTOR dimension-limit integration tests. */
@@ -34,7 +35,7 @@ public class VectorLimitsProbeTest extends ClusterTest {
     @BeforeAll
     static void requireVectorServer() {
         Assumptions.assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(com.aerospike.client.sdk.util.Version.SERVER_VERSION_8_1_3),
+            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
             "VECTOR requires server version 8.1.3+");
     }
 

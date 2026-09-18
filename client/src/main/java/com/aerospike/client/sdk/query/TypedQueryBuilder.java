@@ -16,11 +16,14 @@
  */
 package com.aerospike.client.sdk.query;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
+import com.aerospike.client.sdk.Operation;
+import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.TypedDataSet;
 import com.aerospike.client.sdk.TypedRecordStream;
@@ -32,7 +35,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
 
 /**
  * Query builder for a {@link TypedDataSet}; delegates to {@link QueryBuilder} and wraps
- * {@link com.aerospike.client.sdk.RecordStream} results as {@link TypedRecordStream}.
+ * {@link RecordStream} results as {@link TypedRecordStream}.
  *
  * @param <T> entity type bound to the dataset
  */
@@ -48,7 +51,7 @@ public final class TypedQueryBuilder<T> {
         this.delegate = Objects.requireNonNull(delegate, "delegate");
     }
 
-    private TypedRecordStream<T> wrap(com.aerospike.client.sdk.RecordStream raw) {
+    private TypedRecordStream<T> wrap(RecordStream raw) {
         return new TypedRecordStream<>(session, entityClass, raw);
     }
 
@@ -202,7 +205,7 @@ public final class TypedQueryBuilder<T> {
         return delegate.getEndPartition();
     }
 
-    public java.util.List<com.aerospike.client.sdk.Operation> getOperations() {
+    public List<Operation> getOperations() {
         return delegate.getOperations();
     }
 

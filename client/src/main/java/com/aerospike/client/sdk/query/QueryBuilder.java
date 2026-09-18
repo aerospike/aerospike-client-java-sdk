@@ -16,8 +16,10 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -32,11 +34,13 @@ import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.NavigatableRecordStream;
+import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.RecordMapper;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.ael.BooleanExpression;
+import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
@@ -96,7 +100,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private Txn txnToUse;
     private int recordsPerSecond = 0;
     private QueryHint.Result queryHint;
-    private java.util.List<com.aerospike.client.sdk.Operation> operations = null;
+    private List<Operation> operations = null;
     private boolean withNoBins = false;
     private boolean transactionSet;
     private List<OrderBySpec> orderBySpecs = List.of();
@@ -164,9 +168,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * Package-private method to add an operation.
      * Used by QueryBuilderBinBuilder.
      */
-    void addOperation(com.aerospike.client.sdk.Operation op) {
+    void addOperation(Operation op) {
         if (this.operations == null) {
-            this.operations = new java.util.ArrayList<>();
+            this.operations = new ArrayList<>();
         }
         this.operations.add(op);
     }
@@ -174,7 +178,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Get the list of operations (may be null).
      */
-    public java.util.List<com.aerospike.client.sdk.Operation> getOperations() {
+    public List<Operation> getOperations() {
         return this.operations;
     }
 
@@ -328,7 +332,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "orderBy requires a non-empty bin name");
         }
-        byte[] nameBytes = com.aerospike.client.sdk.command.Buffer.stringToUtf8(binName);
+        byte[] nameBytes = Buffer.stringToUtf8(binName);
         if (nameBytes.length == 0 || nameBytes.length > Bin.MAX_BIN_NAME_LENGTH ||
             binName.indexOf('\0') >= 0) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
@@ -451,7 +455,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
             for (OrderBySpec spec : orderBySpecs) {
                 String binName = spec.getBinName();
 
-                if (!java.util.Arrays.asList(this.binNames).contains(binName)) {
+                if (!Arrays.asList(this.binNames).contains(binName)) {
                     throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                         "orderBy bin '" + binName + "' is not in the query's projection; add it to " +
                         "readingOnlyBins(...) or remove the projection");

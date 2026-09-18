@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk.query;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -125,7 +126,7 @@ final class TopKMerge {
             return null;
         }
         // Compare strings by unsigned UTF-8 bytes.
-        byte[] bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
         if ((spec.getFlags() & OrderByFlags.CASE_INSENSITIVE) != 0) {
             for (int i = 0; i < bytes.length; i++) {
                 if (bytes[i] >= 'A' && bytes[i] <= 'Z') {
