@@ -385,10 +385,12 @@ public class TransactionalSession extends Session{
                 return tr.abort(rollPolicy);
 
             case COMMIT_FAILED:
-                throw new AerospikeException.Abort(ResultCode.TXN_FAILED, AbortStatus.COMMIT_FAILED);
+                throw new AerospikeException.Abort(AbortStatus.COMMIT_FAILED,
+                    "Transaction commit failed. Abort is not allowed.");
 
             case COMMITTED:
-                throw new AerospikeException.Abort(ResultCode.TXN_ALREADY_COMMITTED, AbortStatus.ALREADY_COMMITTED);
+                throw AerospikeException.toException(ResultCode.TXN_ALREADY_COMMITTED,
+                    "Transaction already committed");
 
             case ABORTED:
                 return AbortStatus.ALREADY_ABORTED;

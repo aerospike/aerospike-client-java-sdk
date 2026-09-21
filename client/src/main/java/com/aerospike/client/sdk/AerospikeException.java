@@ -869,12 +869,12 @@ public class AerospikeException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
         /**
-         * Error status of the attempted commit.
+         * Status of the attempted abort.
          */
         public final AbortStatus status;
 
-        public Abort(int resultCode, AbortStatus status) {
-            super(resultCode, status.str);
+        public Abort(AbortStatus status, String message) {
+            super(ResultCode.TXN_FAILED, message);
             this.status = status;
         }
     }

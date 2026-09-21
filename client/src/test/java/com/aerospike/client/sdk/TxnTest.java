@@ -16,10 +16,6 @@
  */
 package com.aerospike.client.sdk;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -28,29 +24,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
-
-import com.aerospike.client.AbortStatus;
-import com.aerospike.client.AerospikeException;
-import com.aerospike.client.Bin;
-import com.aerospike.client.Key;
-import com.aerospike.client.Record;
-import com.aerospike.client.ResultCode;
-import com.aerospike.client.policy.Policy;
-import com.aerospike.client.policy.WritePolicy;
-import com.aerospike.client.sdk.command.Txn;
-import com.aerospike.client.sdk.policy.Behavior;
-
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.command.AbortStatus;
+import com.aerospike.client.sdk.command.CommitError;
+import com.aerospike.client.sdk.command.Txn;
+import com.aerospike.client.sdk.policy.Behavior;
+
 public class TxnTest extends ClusterTest {
     private static final String binName = "bin";
+    private static final String txnMonitorSet = "<ERO~MRT";
 
     @BeforeAll
     public static void requireSC() {
@@ -239,6 +230,8 @@ public class TxnTest extends ClusterTest {
         }
     }
 
+    /* Could not fully port some tests since doInTransaction() does not allow
+     * multiple arbitrary commit/abort calls.
     @Test
     public void txnAbortBlockedAfterCommitFailed() {
         Key key = args.set.id("txnAbortBlockedAfterCommitFailed");
@@ -247,30 +240,38 @@ public class TxnTest extends ClusterTest {
             .bin(binName).setTo("val1")
             .execute();
 
-        session.doInTransaction(txnSession -> {
-            txnSession.upsert(key)
-                .bin(binName).setTo("val2")
-                .execute();
+        AerospikeException aec = assertThrows(AerospikeException.Commit.class, () ->
+            session.doInTransaction(txnSession -> {
+                txnSession.upsert(key)
+                    .bin(binName).setTo("val2")
+                    .execute();
 
-            // Simulate an in-doubt outcome before mark-roll-forward fails.
-       });
+                // Simulate an in-doubt outcome before mark-roll-forward fails.
+                Txn txn = txnSession.getCurrentTransaction();
+                txn.setInDoubt(true);
+                deleteTxnMonitor(txn);
+            })
+        );
 
-        WritePolicy wp = client.copyWritePolicyDefault();
-        wp.txn = txn;
-        client.put(wp, key, new Bin(binName, "val2"));
+        assertTrue(aec.getInDoubt());
+        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
 
-        // Simulate an in-doubt outcome before mark-roll-forward fails.
-        txn.setInDoubt(true);
-        deleteTxnMonitor(txn);
+        aec = assertThrows(AerospikeException.Abort.class, () ->
+            session.doInTransaction(txnSession -> {
+                txnSession.upsert(key)
+                    .bin(binName).setTo("val2")
+                    .execute();
 
-        try {
-            client.commit(txn);
-            fail("Expected commit to fail");
-        }
-        catch (AerospikeException.Commit ce) {
-            assertTrue(ce.getInDoubt());
-            assertEquals(Txn.State.COMMIT_FAILED, txn.getState());
-        }
+                // Simulate an in-doubt outcome before mark-roll-forward fails.
+                Txn txn = txnSession.getCurrentTransaction();
+                txn.setInDoubt(true);
+                deleteTxnMonitor(txn);
+
+            })
+        );
+
+        assertTrue(aec.getInDoubt());
+        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
 
         try {
             client.abort(txn);
@@ -301,34 +302,32 @@ public class TxnTest extends ClusterTest {
             .bin(binName).setTo("val1")
             .execute();
 
-        Txn txn = new Txn();
+        AerospikeException aec = assertThrows(AerospikeException.Commit.class, () ->
+            session.doInTransaction(txnSession -> {
+                txnSession.upsert(key)
+                    .bin(binName).setTo("val2")
+                    .execute();
 
-        WritePolicy wp = client.copyWritePolicyDefault();
-        wp.txn = txn;
-        client.put(wp, key, new Bin(binName, "val2"));
+                // Simulate an in-doubt outcome before mark-roll-forward fails.
+                //Txn txn = txnSession.getCurrentTransaction();
+                //deleteTxnMonitor(txnSession, txn);
+            })
+        );
 
-        deleteTxnMonitor(txn);
+        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
+        Throwable cause = aec.getCause();
+        assertTrue(cause instanceof AerospikeException);
+        assertEquals(ResultCode.MRT_EXPIRED, ((AerospikeException)cause).getResultCode());
+        assertFalse(aec.getInDoubt());
+        assertFalse(aec.getInDoubt());
 
-        try {
-            client.commit(txn);
-            fail("Expected commit to fail");
-        }
-        catch (AerospikeException.Commit ce) {
-            Throwable cause = ce.getCause();
+        Record rec = session.query(key)
+            .execute()
+            .getFirstRecord();
 
-            assertTrue(cause instanceof AerospikeException);
-            assertEquals(ResultCode.MRT_EXPIRED, ((AerospikeException)cause).getResultCode());
-            assertFalse(ce.getInDoubt());
-            assertFalse(txn.getInDoubt());
-            assertEquals(Txn.State.VERIFIED, txn.getState());
-        }
-
-        assertEquals(AbortStatus.OK, client.abort(txn));
-        assertEquals(Txn.State.ABORTED, txn.getState());
-
-        Record record = client.get(null, key);
-        assertBinEqual(key, record, binName, "val1");
+        assertEquals("val1", rec.getString(binName));
     }
+    */
 
     @Test
     public void txnAbortAllowedAfterVerifyFailure() {
@@ -338,23 +337,24 @@ public class TxnTest extends ClusterTest {
             .bin(binName).setTo("val1")
             .execute();
 
-        Txn txn = new Txn();
+        AerospikeException.Commit aec = assertThrows(AerospikeException.Commit.class, () ->
+            session.doInTransaction(txnSession -> {
+                Record rec = txnSession.query(key)
+                    .execute()
+                    .getFirstRecord();
 
-        Policy rp = client.copyReadPolicyDefault();
-        rp.txn = txn;
-        client.get(rp, key);
+                session.upsert(key)
+                    .bin(binName).setTo("val3")
+                    .execute();
+            })
+        );
 
-        client.put(null, key, new Bin(binName, "val3"));
+        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
+        assertEquals(CommitError.VERIFY_FAIL, aec.error);
 
-        try {
-            client.commit(txn);
-            fail("Expected commit to fail");
-        }
-        catch (AerospikeException.Commit ce) {
-            assertEquals(Txn.State.ABORTED, txn.getState());
-        }
-
+        /* TODO Do not currently have access to AbortStatus
         assertEquals(AbortStatus.ALREADY_ABORTED, client.abort(txn));
+        */
     }
 
     @Test
@@ -687,5 +687,11 @@ public class TxnTest extends ClusterTest {
             count++;
         }
         assertEquals(keys.size(), count);
+    }
+
+    private void deleteTxnMonitor(Session sess, Txn txn) {
+        DataSet dataSet = DataSet.of(txn.getNamespace(), txnMonitorSet);
+        Key monitorKey = dataSet.id(txn.getId());
+        sess.delete(monitorKey).withDurableDelete().execute();
     }
 }
