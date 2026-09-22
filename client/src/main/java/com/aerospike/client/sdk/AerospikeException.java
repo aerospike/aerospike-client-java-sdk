@@ -21,6 +21,7 @@ import java.util.List;
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.CommitError;
+import com.aerospike.client.sdk.command.TxnStatus;
 import com.aerospike.client.sdk.tend.Partition;
 
 public class AerospikeException extends RuntimeException {
@@ -858,6 +859,23 @@ public class AerospikeException extends RuntimeException {
             recordsToString(sb, "verify errors:", verifyRecords);
             recordsToString(sb, "roll errors:", rollRecords);
             return msg + sb.toString();
+        }
+    }
+
+    /**
+     * Transaction abort failed.
+     */
+    public static final class Abort extends TransactionException {
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Status of the attempted abort.
+         */
+        public final TxnStatus status;
+
+        public Abort(TxnStatus status, String message) {
+            super(ResultCode.TXN_FAILED, message);
+            this.status = status;
         }
     }
 

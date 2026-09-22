@@ -17,17 +17,24 @@
 package com.aerospike.client.sdk.command;
 
 /**
- * Transaction abort status code.
+ * Transaction commit status code.
  */
-public enum AbortStatus {
-    OK("Abort succeeded"),
+public enum TxnStatus {
+    COMMITTED("Commit succeeded"),
+    ABORTED("Abort succeeded"),
+    ALREADY_COMMITTED("Already committed"),
     ALREADY_ABORTED("Already aborted"),
+    VERIFY_FAILED("Transaction verify failed"),
+    COMMIT_FAILED("Abort not allowed because a commit already failed on this transaction with an in-doubt outcome"),
+    MARK_ROLL_FORWARD_ABANDONED("Transaction mark roll forward abandonded"),
+    ROLL_FORWARD_ABANDONED("Transaction client roll forward abandoned. Server will eventually commit the transaction."),
+    ROLL_FORWARD_CLOSE_ABANDONED("Transaction has been rolled forward, but transaction client close was abandoned. Server will eventually close the transaction."),
     ROLL_BACK_ABANDONED("Transaction client roll back abandoned. Server will eventually abort the transaction."),
-    CLOSE_ABANDONED("Transaction has been rolled back, but transaction client close was abandoned. Server will eventually close the transaction.");
+    ROLL_BACK_CLOSE_ABANDONED("Transaction has been rolled back, but transaction client close was abandoned. Server will eventually close the transaction.");
 
     public final String str;
 
-    AbortStatus(String str) {
+    TxnStatus(String str) {
         this.str = str;
     }
 }
