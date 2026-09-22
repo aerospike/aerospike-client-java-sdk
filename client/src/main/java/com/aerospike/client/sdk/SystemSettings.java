@@ -128,9 +128,11 @@ public class SystemSettings {
                     .latencyUnit(TimeUnit.MILLISECONDS)
                     .latencyColumns(7)
                     .latencyShift(1)
-                    .samplerRange(1)
-                    .samplerThreshold(1)
                     .enabled(false)
+                    .sampler(sam -> sam
+                        .range(1)
+                        .threshold(1)
+                    )
                 )
                 .usage(ops4 -> ops4
                     .enabled(false)

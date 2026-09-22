@@ -18,6 +18,9 @@ package com.aerospike.client.sdk;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+import com.aerospike.client.sdk.MetricsSampler.MetricsSamplerTweaks;
 
 /**
  * Metrics extended operational settings.
@@ -26,17 +29,15 @@ public class MetricsOperational {
     private final TimeUnit latencyUnit;
     private final Integer latencyColumns;
     private final Integer latencyShift;
-    private final Integer samplerRange;
-    private final Integer samplerThreshold;
     private final Boolean enabled;
+    private final MetricsSampler sampler;
 
     MetricsOperational(Builder builder) {
         this.latencyUnit = builder.latencyUnit;
         this.latencyColumns = builder.latencyColumns;
         this.latencyShift = builder.latencyShift;
-        this.samplerRange = builder.samplerRange;
-        this.samplerThreshold = builder.samplerThreshold;
         this.enabled = builder.enabled;
+        this.sampler = new MetricsSampler(builder.sampler);
     }
 
     /**
@@ -59,12 +60,9 @@ public class MetricsOperational {
             ? this.latencyColumns : base.latencyColumns;
         merged.latencyShift = this.latencyShift != null
             ? this.latencyShift : base.latencyShift;
-        merged.samplerRange = this.samplerRange != null
-            ? this.samplerRange : base.samplerRange;
-        merged.samplerThreshold = this.samplerThreshold != null
-            ? this.samplerThreshold : base.samplerThreshold;
         merged.enabled = this.enabled != null
             ? this.enabled : base.enabled;
+        merged.sampler = this.sampler.mergeWith(base.sampler);
 
         return merged;
     }
@@ -73,9 +71,8 @@ public class MetricsOperational {
     public TimeUnit getLatencyUnit() { return latencyUnit; }
     public Integer getLatencyColumns() { return latencyColumns; }
     public Integer getLatencyShift() { return latencyShift; }
-    public Integer getSamplerRange() { return samplerRange; }
-    public Integer getSamplerThreshold() { return samplerThreshold; }
     public Boolean getEnabled() { return enabled; }
+    public MetricsSampler getSampler() { return sampler; }
 
     @Override
     public boolean equals(Object o) {
@@ -90,14 +87,13 @@ public class MetricsOperational {
             Objects.equals(latencyUnit, that.latencyUnit) &&
             Objects.equals(latencyColumns, that.latencyColumns) &&
             Objects.equals(latencyShift, that.latencyShift) &&
-            Objects.equals(samplerRange, that.samplerRange) &&
-            Objects.equals(samplerThreshold, that.samplerThreshold) &&
-            Objects.equals(enabled, that.enabled);
+            Objects.equals(enabled, that.enabled) &&
+            Objects.equals(sampler, that.sampler);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(latencyUnit, latencyColumns, latencyShift, samplerRange, samplerThreshold, enabled);
+        return Objects.hash(latencyUnit, latencyColumns, latencyShift, sampler, enabled);
     }
 
     @Override
@@ -106,9 +102,8 @@ public class MetricsOperational {
             "latencyUnit=" + latencyUnit+
             ", latencyColumns=" + latencyColumns +
             ", latencyShift=" + latencyShift +
-            ", samplerRange=" + samplerRange +
-            ", samplerThreshold=" + samplerThreshold +
             ", enabled=" + enabled +
+            ", sampler=" + sampler +
             '}';
     }
 
@@ -119,9 +114,8 @@ public class MetricsOperational {
         private TimeUnit latencyUnit;
         private Integer latencyColumns;
         private Integer latencyShift;
-        private Integer samplerRange;
-        private Integer samplerThreshold;
         private Boolean enabled;
+        private MetricsSampler.Builder sampler = MetricsSampler.builder();
 
         public MetricsOperational build() {
             return new MetricsOperational(this);
@@ -139,9 +133,8 @@ public class MetricsOperational {
         MetricsOperationalTweaks latencyUnit(TimeUnit unit);
         MetricsOperationalTweaks latencyColumns(Integer limit);
         MetricsOperationalTweaks latencyShift(Integer limit);
-        MetricsOperationalTweaks samplerRange(Integer range);
-        MetricsOperationalTweaks samplerThreshold(Integer threshold);
         MetricsOperationalTweaks enabled(Boolean b);
+        MetricsOperationalTweaks sampler(Consumer<MetricsSamplerTweaks> configurator);
     }
 
     // -----------------------------------------------------------------------------------
@@ -174,20 +167,14 @@ public class MetricsOperational {
         }
 
         @Override
-        public MetricsOperationalTweaks samplerRange(Integer n) {
-            builder.samplerRange = n;
-            return this;
-        }
-
-        @Override
-        public MetricsOperationalTweaks samplerThreshold(Integer n) {
-            builder.samplerThreshold = n;
-            return this;
-        }
-
-        @Override
         public MetricsOperationalTweaks enabled(Boolean b) {
             builder.enabled = b;
+            return this;
+        }
+
+        @Override
+        public MetricsOperationalTweaks sampler(Consumer<MetricsSamplerTweaks> configurator) {
+            configurator.accept(new MetricsSampler.MetricsSamplerTweaksImpl(builder.sampler));
             return this;
         }
     }

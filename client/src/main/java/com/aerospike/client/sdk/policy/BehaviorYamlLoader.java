@@ -617,14 +617,19 @@ public class BehaviorYamlLoader {
                                 if (operationalConfig.getLatencyShift() != null) {
                                     opc.latencyShift(operationalConfig.getLatencyShift());
                                 }
-                                if (operationalConfig.getSamplerRange() != null) {
-                                    opc.samplerRange(operationalConfig.getSamplerRange());
-                                }
-                                if (operationalConfig.getSamplerThreshold() != null) {
-                                    opc.samplerThreshold(operationalConfig.getSamplerThreshold());
-                                }
                                 if (operationalConfig.getEnabled() != null) {
                                     opc.enabled(operationalConfig.getEnabled());
+                                }
+                                if (operationalConfig.getSampler() != null) {
+                                    BehaviorYamlConfig.MetricsSamplerConfig samplerConfig = operationalConfig.getSampler();
+                                    opc.sampler(sam -> {
+                                        if (samplerConfig.getRange() != null) {
+                                            sam.range(samplerConfig.getRange());
+                                        }
+                                        if (samplerConfig.getThreshold() != null) {
+                                            sam.threshold(samplerConfig.getThreshold());
+                                        }
+                                    });
                                 }
                             });
                         }
