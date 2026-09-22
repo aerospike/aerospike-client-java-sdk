@@ -24,18 +24,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.command.CommitError;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.policy.Behavior;
-
-import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class TxnTest extends ClusterTest {
     private static final String binName = "bin";
@@ -225,6 +226,30 @@ public class TxnTest extends ClusterTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void txnAbortAllowedAfterVerifyFailure() {
+        Key key = args.set.id("txnAbortAllowedAfterVerifyFailure");
+
+        session.upsert(key)
+            .bin(binName).setTo("val1")
+            .execute();
+
+        AerospikeException.Commit aec = assertThrows(AerospikeException.Commit.class, () ->
+            session.doInTransaction(txnSession -> {
+                txnSession.query(key)
+                    .execute()
+                    .getFirstRecord();
+
+                session.upsert(key)
+                    .bin(binName).setTo("val3")
+                    .execute();
+            })
+        );
+
+        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
+        assertEquals(CommitError.VERIFY_FAIL, aec.error);
     }
 
     @Test
