@@ -26,7 +26,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.command.CommitError;
-import com.aerospike.client.sdk.command.CommitStatus;
+import com.aerospike.client.sdk.command.TxnStatus;
 import com.aerospike.client.sdk.policy.Behavior;
 
 /**
@@ -54,13 +54,13 @@ public class TxnCommitStatusTest extends ClusterTest {
     @Test
     public void abandonedRollForwardIsReportedToTheCaller() throws IOException {
         withGatedSession((gate, gated, key) -> {
-            CommitStatus status = gated.doInTransaction(txn -> {
+            TxnStatus status = gated.doInTransaction(txn -> {
                 txn.update(key).bin(binName).add(1).execute();
                 gate.refuseAfterClientMessages(THROUGH_MARK_ROLL_FORWARD);
             });
 
             // The writes are still provisional here. Reporting OK would present them as committed.
-            assertEquals(CommitStatus.ROLL_FORWARD_ABANDONED, status);
+            assertEquals(TxnStatus.ROLL_FORWARD_ABANDONED, status);
         });
     }
 
@@ -83,24 +83,24 @@ public class TxnCommitStatusTest extends ClusterTest {
     @Test
     public void abandonedMonitorCloseStillCommits() throws IOException {
         withGatedSession((gate, gated, key) -> {
-            CommitStatus status = gated.doInTransaction(txn -> {
+            TxnStatus status = gated.doInTransaction(txn -> {
                 txn.update(key).bin(binName).add(1).execute();
                 gate.refuseAfterClientMessages(THROUGH_ROLL_FORWARD);
             });
 
             // The roll-forward landed, so the writes are durable. Only the server side cleanup of
             // the transaction monitor was left undone, which is not the caller's problem.
-            assertEquals(CommitStatus.CLOSE_ABANDONED, status);
+            assertEquals(TxnStatus.ROLL_FORWARD_CLOSE_ABANDONED, status);
         });
     }
 
     @Test
     public void undisturbedCommitReportsOk() throws IOException {
         withGatedSession((gate, gated, key) -> {
-            CommitStatus status = gated.doInTransaction(txn ->
+            TxnStatus status = gated.doInTransaction(txn ->
                 txn.update(key).bin(binName).add(1).execute());
 
-            assertEquals(CommitStatus.OK, status);
+            assertEquals(TxnStatus.COMMITTED, status);
         });
     }
 

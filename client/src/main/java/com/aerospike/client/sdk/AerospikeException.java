@@ -18,10 +18,10 @@ package com.aerospike.client.sdk;
 
 import java.util.List;
 
-import com.aerospike.client.sdk.command.AbortStatus;
 import com.aerospike.client.sdk.command.BatchRecord;
 import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.CommitError;
+import com.aerospike.client.sdk.command.TxnStatus;
 import com.aerospike.client.sdk.tend.Partition;
 
 public class AerospikeException extends RuntimeException {
@@ -871,9 +871,9 @@ public class AerospikeException extends RuntimeException {
         /**
          * Status of the attempted abort.
          */
-        public final AbortStatus status;
+        public final TxnStatus status;
 
-        public Abort(AbortStatus status, String message) {
+        public Abort(TxnStatus status, String message) {
             super(ResultCode.TXN_FAILED, message);
             this.status = status;
         }

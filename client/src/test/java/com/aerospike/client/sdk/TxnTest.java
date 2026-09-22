@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.command.AbortStatus;
 import com.aerospike.client.sdk.command.CommitError;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.policy.Behavior;
@@ -230,105 +229,6 @@ public class TxnTest extends ClusterTest {
         }
     }
 
-    /* Could not fully port some tests since doInTransaction() does not allow
-     * multiple arbitrary commit/abort calls.
-    @Test
-    public void txnAbortBlockedAfterCommitFailed() {
-        Key key = args.set.id("txnAbortBlockedAfterCommitFailed");
-
-        session.upsert(key)
-            .bin(binName).setTo("val1")
-            .execute();
-
-        AerospikeException aec = assertThrows(AerospikeException.Commit.class, () ->
-            session.doInTransaction(txnSession -> {
-                txnSession.upsert(key)
-                    .bin(binName).setTo("val2")
-                    .execute();
-
-                // Simulate an in-doubt outcome before mark-roll-forward fails.
-                Txn txn = txnSession.getCurrentTransaction();
-                txn.setInDoubt(true);
-                deleteTxnMonitor(txn);
-            })
-        );
-
-        assertTrue(aec.getInDoubt());
-        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
-
-        aec = assertThrows(AerospikeException.Abort.class, () ->
-            session.doInTransaction(txnSession -> {
-                txnSession.upsert(key)
-                    .bin(binName).setTo("val2")
-                    .execute();
-
-                // Simulate an in-doubt outcome before mark-roll-forward fails.
-                Txn txn = txnSession.getCurrentTransaction();
-                txn.setInDoubt(true);
-                deleteTxnMonitor(txn);
-
-            })
-        );
-
-        assertTrue(aec.getInDoubt());
-        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
-
-        try {
-            client.abort(txn);
-            fail("Expected abort to be blocked");
-        }
-        catch (AerospikeException ae) {
-            assertEquals(ResultCode.TXN_FAILED, ae.getResultCode());
-            assertEquals(Txn.State.COMMIT_FAILED, txn.getState());
-        }
-
-        // Commit retry is allowed from COMMIT_FAILED (may fail again at mark-roll-forward).
-        try {
-            client.commit(txn);
-        }
-        catch (AerospikeException.Commit ce) {
-            assertEquals(Txn.State.COMMIT_FAILED, txn.getState());
-        }
-        catch (AerospikeException ae) {
-            fail("Unexpected commit rejection: " + ae);
-        }
-    }
-
-    @Test
-    public void txnAbortAllowedAfterCleanMarkFailure() {
-        Key key = args.set.id("txnAbortAllowedAfterCleanMarkFailure");
-
-        session.upsert(key)
-            .bin(binName).setTo("val1")
-            .execute();
-
-        AerospikeException aec = assertThrows(AerospikeException.Commit.class, () ->
-            session.doInTransaction(txnSession -> {
-                txnSession.upsert(key)
-                    .bin(binName).setTo("val2")
-                    .execute();
-
-                // Simulate an in-doubt outcome before mark-roll-forward fails.
-                //Txn txn = txnSession.getCurrentTransaction();
-                //deleteTxnMonitor(txnSession, txn);
-            })
-        );
-
-        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
-        Throwable cause = aec.getCause();
-        assertTrue(cause instanceof AerospikeException);
-        assertEquals(ResultCode.MRT_EXPIRED, ((AerospikeException)cause).getResultCode());
-        assertFalse(aec.getInDoubt());
-        assertFalse(aec.getInDoubt());
-
-        Record rec = session.query(key)
-            .execute()
-            .getFirstRecord();
-
-        assertEquals("val1", rec.getString(binName));
-    }
-    */
-
     @Test
     public void txnAbortAllowedAfterVerifyFailure() {
         Key key = args.set.id("txnAbortAllowedAfterVerifyFailure");
@@ -339,7 +239,7 @@ public class TxnTest extends ClusterTest {
 
         AerospikeException.Commit aec = assertThrows(AerospikeException.Commit.class, () ->
             session.doInTransaction(txnSession -> {
-                Record rec = txnSession.query(key)
+                txnSession.query(key)
                     .execute()
                     .getFirstRecord();
 
@@ -351,10 +251,6 @@ public class TxnTest extends ClusterTest {
 
         assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
         assertEquals(CommitError.VERIFY_FAIL, aec.error);
-
-        /* TODO Do not currently have access to AbortStatus
-        assertEquals(AbortStatus.ALREADY_ABORTED, client.abort(txn));
-        */
     }
 
     @Test

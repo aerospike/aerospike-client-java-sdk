@@ -25,7 +25,7 @@ import java.util.Objects;
 
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
-import com.aerospike.client.sdk.command.CommitStatus;
+import com.aerospike.client.sdk.command.TxnStatus;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.command.RegisterCommand;
@@ -1775,7 +1775,7 @@ public class Session {
      * });
      * }</pre>
      *
-     * <p><b>Check the returned status.</b> {@link CommitStatus#ROLL_FORWARD_ABANDONED} means the
+     * <p><b>Check the returned status.</b> {@link TxnStatus#ROLL_FORWARD_ABANDONED} means the
      * writes are still provisional and not yet visible, even though no exception was thrown. A
      * caller that ignores it will read pre-transaction values back.</p>
      *
@@ -1786,7 +1786,7 @@ public class Session {
      * @see TransactionalSession#doInTransaction(TransactionalVoid)
      * @see #doInTransactionReturning(Transactional)
      */
-    public CommitStatus doInTransaction(TransactionalVoid operation) {
+    public TxnStatus doInTransaction(TransactionalVoid operation) {
         return new TransactionalSession(cluster, behavior).doInTransaction(txn -> {
             operation.execute(txn);
         });

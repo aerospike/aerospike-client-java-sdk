@@ -18,10 +18,9 @@ package com.aerospike.client.sdk;
 
 import java.time.Duration;
 
-import com.aerospike.client.sdk.command.AbortStatus;
-import com.aerospike.client.sdk.command.CommitStatus;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnRoll;
+import com.aerospike.client.sdk.command.TxnStatus;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
@@ -124,7 +123,7 @@ public class TransactionalSession extends Session{
      * @param operation the transactional operation to execute
      * @return the result of the operation
      * <p>The return value carries the operation's result, so there is no room for a
-     * {@link CommitStatus}. An abandoned roll-forward is therefore thrown rather than reported,
+     * {@link TxnStatus}. An abandoned roll-forward is therefore thrown rather than reported,
      * since returning normally would present provisional writes as committed. Use
      * {@link #doInTransaction(Session.TransactionalVoid)} to inspect the status instead.</p>
      *
@@ -154,7 +153,7 @@ public class TransactionalSession extends Session{
                         result = operation.execute(this);
                     }
                     catch (AbortException abortex) {
-                        abortTxn();
+                        abortTxnOrThrow();
                         return null;
                     }
                     catch (AerospikeException ae) {
@@ -212,7 +211,7 @@ public class TransactionalSession extends Session{
      * });
      * }</pre>
      *
-     * <p><b>Check the returned status.</b> {@link CommitStatus#ROLL_FORWARD_ABANDONED} means the
+     * <p><b>Check the returned status.</b> {@link TxnStatus#ROLL_FORWARD_ABANDONED} means the
      * writes are still provisional and not yet visible, even though no exception was thrown. A
      * caller that ignores it will read pre-transaction values back.</p>
      *
@@ -224,7 +223,7 @@ public class TransactionalSession extends Session{
      * @throws RuntimeException if any other exception occurs during execution
      * @see #doInTransactionReturning(Transactional)
      */
-    public CommitStatus doInTransaction(TransactionalVoid operation) {
+    public TxnStatus doInTransaction(TransactionalVoid operation) {
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
@@ -242,8 +241,7 @@ public class TransactionalSession extends Session{
                         operation.execute(this);
                     }
                     catch (AbortException abortex) {
-                        abortTxn();
-                        return null;
+                        return abortTxn();
                     }
                     catch (AerospikeException ae) {
                         abortTxn();
@@ -333,25 +331,25 @@ public class TransactionalSession extends Session{
         }
     }
 
-    private CommitStatus commitTxn() {
+    private TxnStatus commitTxn() {
         return commitTxn(new TxnRoll(getCluster(), txn));
     }
 
     /**
      * Commits, throwing when the roll-forward was abandoned. Used where the caller has no way to
-     * receive a {@link CommitStatus}, so silence would leave provisional writes looking committed.
+     * receive a {@link TxnStatus}, so silence would leave provisional writes looking committed.
      * CLOSE_ABANDONED is not an error: those writes are durable and only the transaction monitor
      * cleanup was left to the server.
      */
     private void commitTxnOrThrow() {
         TxnRoll tr = new TxnRoll(getCluster(), txn);
 
-        if (commitTxn(tr) == CommitStatus.ROLL_FORWARD_ABANDONED) {
+        if (commitTxn(tr) == TxnStatus.ROLL_FORWARD_ABANDONED) {
             throw tr.getRollForwardException();
         }
     }
 
-    private CommitStatus commitTxn(TxnRoll tr) {
+    private TxnStatus commitTxn(TxnRoll tr) {
         ResolvedSettings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
         ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
@@ -366,7 +364,7 @@ public class TransactionalSession extends Session{
                 return tr.commit(rollPolicy);
 
             case COMMITTED:
-                return CommitStatus.ALREADY_COMMITTED;
+                return TxnStatus.ALREADY_COMMITTED;
 
             case ABORTED:
                 throw AerospikeException.toException(ResultCode.TXN_ALREADY_ABORTED,
@@ -374,7 +372,15 @@ public class TransactionalSession extends Session{
         }
     }
 
-    private AbortStatus abortTxn() {
+    private void abortTxnOrThrow() {
+        TxnStatus ts = abortTxn();
+
+        if (ts != TxnStatus.ABORTED) {
+            throw new AerospikeException.Abort(ts, ts.str);
+        }
+    }
+
+    private TxnStatus abortTxn() {
         TxnRoll tr = new TxnRoll(getCluster(), txn);
         ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
@@ -385,7 +391,7 @@ public class TransactionalSession extends Session{
                 return tr.abort(rollPolicy);
 
             case COMMIT_FAILED:
-                throw new AerospikeException.Abort(AbortStatus.COMMIT_FAILED,
+                throw new AerospikeException.Abort(TxnStatus.COMMIT_FAILED,
                     "Transaction commit failed. Abort is not allowed.");
 
             case COMMITTED:
@@ -393,7 +399,7 @@ public class TransactionalSession extends Session{
                     "Transaction already committed");
 
             case ABORTED:
-                return AbortStatus.ALREADY_ABORTED;
+                return TxnStatus.ALREADY_ABORTED;
         }
     }
 
