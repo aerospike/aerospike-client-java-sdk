@@ -40,7 +40,6 @@ import com.aerospike.client.sdk.policy.Behavior;
 
 public class TxnTest extends ClusterTest {
     private static final String binName = "bin";
-    private static final String txnMonitorSet = "<ERO~MRT";
 
     @BeforeAll
     public static void requireSC() {
@@ -583,11 +582,5 @@ public class TxnTest extends ClusterTest {
             count++;
         }
         assertEquals(keys.size(), count);
-    }
-
-    private void deleteTxnMonitor(Session sess, Txn txn) {
-        DataSet dataSet = DataSet.of(txn.getNamespace(), txnMonitorSet);
-        Key monitorKey = dataSet.id(txn.getId());
-        sess.delete(monitorKey).withDurableDelete().execute();
     }
 }
