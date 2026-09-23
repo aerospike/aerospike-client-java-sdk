@@ -1400,4 +1400,23 @@ public class OperateMapTest extends ClusterTest {
             assertEquals(1L, result.getLong(binName));
         }
     }
+
+    @Test
+    public void mapRankRangeReturns() {
+        Key key = args.set.id("mapRankRangeReturns");
+        String name = "b";
+
+        session.replace(key)
+            .bin(name).setTo(Map.of(1,2,3,4,5,6,7,8,9,19))
+            .execute();
+
+        Record rec = session.query(key)
+            .bin(name).onMapRankRange(2).getKeysAndValues()
+            .execute()
+            .getFirstRecord();
+
+        AerospikeMap<?,?> map = rec.getMap(name);
+        System.out.println("MAP="+map);
+        assertEquals(3L, map.size());
+    }
 }
