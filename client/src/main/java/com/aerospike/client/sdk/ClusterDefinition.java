@@ -53,7 +53,7 @@ import com.aerospike.client.sdk.policy.Behavior;
  * @see Session
  */
 public class ClusterDefinition {
-    private static final String CONFIG_PATH_ENV = "AEROSPIKE_CLIENT_CONFIG_URL";
+    private static final String CONFIG_PATH_ENV = "AEROSPIKE_SDK_CONFIG_URL";
     private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
 
     private SystemSettings userSuppliedSystemSettings;
