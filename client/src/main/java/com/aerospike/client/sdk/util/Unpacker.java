@@ -280,6 +280,10 @@ public abstract class Unpacker<T> {
             val = getGeoJSON(Buffer.utf8ToString(buffer, offset, count));
             break;
 
+        case ParticleType.HLL:
+            val = getHLL(Arrays.copyOfRange(buffer, offset, offset + count));
+            break;
+
         case ParticleType.JBLOB:
             // Java deserialization is no longer allowed, so return java serialized blob as byte[].
             val = getBlob(Arrays.copyOfRange(buffer, offset, offset + count));
@@ -489,6 +493,7 @@ public abstract class Unpacker<T> {
     protected abstract T getDouble(double value);
     protected abstract T getBoolean(boolean value);
     protected abstract T getGeoJSON(String value);
+    protected abstract T getHLL(byte[] value);
 
     public static Object unpackObjectList(byte[] buffer, int offset, int length) {
         ObjectUnpacker unpacker = new ObjectUnpacker(buffer, offset, length);
@@ -557,6 +562,11 @@ public abstract class Unpacker<T> {
         @Override
         protected Object getGeoJSON(String value) {
             return Value.getAsGeoJSON(value);
+        }
+
+        @Override
+        protected Object getHLL(byte[] value) {
+            return Value.getAsHLL(value);
         }
     }
 }
