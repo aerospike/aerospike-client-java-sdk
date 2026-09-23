@@ -102,7 +102,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.VALUE, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.VALUE, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.VALUE, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.VALUE, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.VALUE, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -175,7 +179,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.KEY, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.KEY, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.KEY, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.KEY, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.KEY, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -228,7 +236,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.COUNT, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.COUNT, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.COUNT, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.COUNT, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.COUNT, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -301,7 +313,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.INDEX, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.INDEX, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.INDEX, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.INDEX, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.INDEX, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -354,7 +370,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.REVERSE_INDEX, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.REVERSE_INDEX, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.REVERSE_INDEX, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.REVERSE_INDEX, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.REVERSE_INDEX, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -407,7 +427,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.RANK, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.RANK, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.RANK, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.RANK, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.RANK, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -460,7 +484,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.REVERSE_RANK, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.REVERSE_RANK, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.REVERSE_RANK, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.REVERSE_RANK, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.REVERSE_RANK, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -513,7 +541,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.KEY_VALUE, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.KEY_VALUE, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.KEY_VALUE, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.KEY_VALUE, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.KEY_VALUE, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -566,7 +598,12 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.EXISTS, params.context()));
+            }
+            else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.EXISTS, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.EXISTS, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -641,7 +678,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.UNORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.UNORDERED_MAP, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.UNORDERED_MAP, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -696,7 +737,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_RANK:
             return addOpAndReturn(MapOperation.getByRank(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.ORDERED_MAP, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.ORDERED_MAP, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.ORDERED_MAP, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -803,7 +848,11 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         case MAP_BY_KEY_RANGE:
             return addOpAndReturn(MapOperation.getByKeyRange(binName, params.getVal1(), params.getVal2(), invertedMapType, params.context()));
         case MAP_BY_RANK_RANGE:
-            return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), invertedMapType, params.context()));
+            if (params.hasInt2()) {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), invertedMapType, params.context()));
+            } else {
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), invertedMapType, params.context()));
+            }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), invertedMapType, params.context()));
         case MAP_BY_VALUE_LIST:
