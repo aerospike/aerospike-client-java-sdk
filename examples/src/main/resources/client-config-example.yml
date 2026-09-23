@@ -1,6 +1,6 @@
 # Aerospike SDK Configuration Example
 # This file demonstrates the YAML configuration structure for the Aerospike Java SDK.
-# Set the environment variable AEROSPIKE_CLIENT_CONFIG_URL to point to this file.
+# Set the environment variable AEROSPIKE_SDK_CONFIG_URL to point to this file.
 
 system:
   # Default settings apply to all clusters unless overridden

@@ -27,7 +27,7 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
 
 /**
  * Example demonstrating how to connect to an Aerospike cluster using a custom
- * YAML configuration file specified via the AEROSPIKE_CLIENT_CONFIG_URL environment variable.
+ * YAML configuration file specified via the AEROSPIKE_SDK_CONFIG_URL environment variable.
  *
  * <p>This example shows:
  * <ul>
@@ -52,15 +52,15 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
  * <h2>Using a custom configuration file (optional)</h2>
  *
  * <p>To specify a custom YAML configuration file with behaviors and settings,
- * set the {@code AEROSPIKE_CLIENT_CONFIG_URL} environment variable before running:</p>
+ * set the {@code AEROSPIKE_SDK_CONFIG_URL} environment variable before running:</p>
  * <pre>{@code
- * export AEROSPIKE_CLIENT_CONFIG_URL=/path/to/client-config-example.yml
+ * export AEROSPIKE_SDK_CONFIG_URL=/path/to/client-config-example.yml
  * ./run_examples YamlConfigConnectionExample -h localhost -p 3000
  * }</pre>
  *
  * <p>Or with file:// prefix:</p>
  * <pre>{@code
- * export AEROSPIKE_CLIENT_CONFIG_URL=file:///path/to/client-config-example.yml
+ * export AEROSPIKE_SDK_CONFIG_URL=file:///path/to/client-config-example.yml
  * ./run_examples YamlConfigConnectionExample -h localhost -p 3000
  * }</pre>
  *
@@ -68,7 +68,7 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
  */
 public class YamlConfigConnectionExample extends Example {
 
-    private static final String ENV_CONFIG_URL = "AEROSPIKE_CLIENT_CONFIG_URL";
+    private static final String ENV_CONFIG_URL = "AEROSPIKE_SDK_CONFIG_URL";
 
     @Override
     public void runExample() throws Exception {
@@ -93,7 +93,7 @@ public class YamlConfigConnectionExample extends Example {
         }
 
         // Create cluster definition
-        // When connect() is called, it automatically checks for AEROSPIKE_CLIENT_CONFIG_URL
+        // When connect() is called, it automatically checks for AEROSPIKE_SDK_CONFIG_URL
         // and loads the configuration if the environment variable is set
         ClusterDefinition clusterDef = new ClusterDefinition(host(), port())
             .appId("yaml-config-example")
