@@ -1416,7 +1416,26 @@ public class OperateMapTest extends ClusterTest {
             .getFirstRecord();
 
         AerospikeMap<?,?> map = rec.getMap(name);
-        System.out.println("MAP="+map);
+        //System.out.println("MAP="+map);
         assertEquals(3L, map.size());
+    }
+
+    @Test
+    public void mapIndexRangeReturns() {
+        Key key = args.set.id("mapIndexRangeReturns");
+        String name = "b";
+
+        session.replace(key)
+            .bin(name).setTo(Map.of(1,2,3,4,5,6,7,8,9,19))
+            .execute();
+
+        Record rec = session.query(key)
+            .bin(name).onMapIndexRange(2, 0).getKeysAndValues()
+            .execute()
+            .getFirstRecord();
+
+        AerospikeMap<?,?> map = rec.getMap(name);
+        //System.out.println("MAP="+map);
+        assertEquals(0L, map.size());
     }
 }
