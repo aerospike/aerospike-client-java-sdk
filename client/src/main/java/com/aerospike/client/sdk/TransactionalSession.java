@@ -332,6 +332,10 @@ public class TransactionalSession extends Session{
     }
 
     private TxnStatus commitTxn() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.COMMITTED);
+            return TxnStatus.COMMITTED;
+        }
         return commitTxn(new TxnRoll(getCluster(), txn));
     }
 
@@ -342,6 +346,11 @@ public class TransactionalSession extends Session{
      * cleanup was left to the server.
      */
     private void commitTxnOrThrow() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.COMMITTED);
+            return;
+        }
+
         TxnRoll tr = new TxnRoll(getCluster(), txn);
 
         if (commitTxn(tr) == TxnStatus.ROLL_FORWARD_ABANDONED) {
@@ -373,6 +382,11 @@ public class TransactionalSession extends Session{
     }
 
     private void abortTxnOrThrow() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.ABORTED);
+            return;
+        }
+
         TxnStatus ts = abortTxn();
 
         if (ts != TxnStatus.ABORTED) {
@@ -381,6 +395,11 @@ public class TransactionalSession extends Session{
     }
 
     private TxnStatus abortTxn() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.ABORTED);
+            return TxnStatus.ABORTED;
+        }
+
         TxnRoll tr = new TxnRoll(getCluster(), txn);
         ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
@@ -401,6 +420,10 @@ public class TransactionalSession extends Session{
             case ABORTED:
                 return TxnStatus.ALREADY_ABORTED;
         }
+    }
+
+    private boolean isTxnEmpty() {
+        return txn.getNamespace() == null;
     }
 
     private static final class AbortException extends RuntimeException {

@@ -304,7 +304,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
             if (params.hasInt2()) {
                 return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), mapReturnType, params.context()));
             } else {
-                return opBuilder.addOp(MapOperation.getByIndexRange(binName, params.getInt1(), mapReturnType, params.context()));
+                return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), mapReturnType, params.context()));
             }
         case MAP_BY_VALUE:
             return opBuilder.addOp(MapOperation.getByValue(binName, params.getVal1(), mapReturnType, params.context()));

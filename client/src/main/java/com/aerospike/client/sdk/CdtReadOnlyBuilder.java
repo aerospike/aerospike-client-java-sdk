@@ -239,7 +239,7 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
             if (params.hasInt2()) {
                 return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), MapReturnType.COUNT, params.context()));
             } else {
-                return addOpAndReturn(MapOperation.getByIndexRange(binName, params.getInt1(), MapReturnType.COUNT, params.context()));
+                return addOpAndReturn(MapOperation.getByRankRange(binName, params.getInt1(), MapReturnType.COUNT, params.context()));
             }
         case MAP_BY_VALUE:
             return addOpAndReturn(MapOperation.getByValue(binName, params.getVal1(), MapReturnType.COUNT, params.context()));

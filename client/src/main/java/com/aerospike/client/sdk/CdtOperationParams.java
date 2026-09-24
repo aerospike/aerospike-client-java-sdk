@@ -37,6 +37,7 @@ public class CdtOperationParams {
     private MapOrder mapCreateType;
     private ListOrder listCreateType;
     private boolean pad;
+    private boolean hasInt2;
 
     /** Filter expression for {@link CdtOperation#ALL_CHILDREN_WITH_FILTER}; cleared after push. */
     private Exp pathChildFilterExp;
@@ -83,6 +84,7 @@ public class CdtOperationParams {
         this.int1 = int1;
         this.int2 = int2;
         this.operation = operation;
+        this.hasInt2 = true;
     }
 
     public CdtOperationParams(CdtOperation operation, int int1, ListOrder createType, boolean pad) {
@@ -120,6 +122,7 @@ public class CdtOperationParams {
         this.int1 = int1;
         this.int2 = int2;
         this.operation = operation;
+        this.hasInt2 = true;
     }
 
     public CdtOperationParams(CdtOperation operation, List<Value> values) {
@@ -276,6 +279,7 @@ public class CdtOperationParams {
         this.operation = operation;
         this.int1 = int1;
         this.int2 = int2;
+        this.hasInt2 = true;
     }
 
     /**
@@ -362,6 +366,7 @@ public class CdtOperationParams {
         this.val1 = val1;
         this.int1 = int1;
         this.int2 = int2;
+        this.hasInt2 = true;
     }
 
     /**
@@ -406,7 +411,6 @@ public class CdtOperationParams {
      * @return {@code true} if {@link #getInt2()} is non-zero (used to distinguish optional second int)
      */
     public boolean hasInt2() {
-        return this.int2 != 0;
+        return this.hasInt2;
     }
-
 }

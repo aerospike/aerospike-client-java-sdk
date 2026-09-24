@@ -416,46 +416,4 @@ class CdtGetOrRemoveBuilderDispatchTest {
                                                        int unused) {
         assertThrows(IllegalArgumentException.class, () -> emitOperate(b -> b.onMapKey("a"), apply));
     }
-
-    // ========================================
-    // Optional-count encoding
-    // ========================================
-
-    /**
-     * {@code CdtOperationParams.hasInt2()} tests {@code int2 != 0}, so an explicitly requested count of
-     * zero is indistinguishable from "no count supplied" and takes the open-ended branch. The chain
-     * below asks for zero elements but encodes "from index 1 to the end of the map".
-     *
-     * <p>This pins current behaviour; it is a defect, not the intended contract.</p>
-     */
-    @Test
-    @Tag(KnownDefect.TAG)
-    void explicitZeroCountIsEncodedAsOpenEndedRange() {
-        KnownDefect.pinned(
-            "onMapIndexRange(index, 0) asks for no elements but encodes an open-ended range, selecting "
-                + "everything from index onwards; hasInt2() cannot tell a count of zero from an absent count",
-            () -> assertOperation(emitOperate(b -> b.onMapIndexRange(INDEX, 0), CdtGetOrRemoveBuilder::getValues),
-                    MapOperation.getByIndexRange(BIN, INDEX, MapReturnType.VALUE, ROOT_CTX)));
-    }
-
-    /**
-     * {@code MAP_BY_RANK_RANGE} is the one selector whose dispatch has no open-ended branch, so
-     * {@code onMapRankRange(rank)} reads the unset {@code int2} and encodes a count of zero, selecting
-     * nothing instead of everything from {@code rank} onwards.
-     *
-     * <p>This pins current behaviour; it is a defect, not the intended contract.</p>
-     */
-    @Test
-    @Tag(KnownDefect.TAG)
-    void openEndedMapRankRangeIsEncodedAsZeroCount() {
-        KnownDefect.pinned(
-            "onMapRankRange(rank) should select every entry from rank onwards, but MAP_BY_RANK_RANGE has no "
-                + "open-ended branch in either dispatch switch, so it encodes a count of zero and selects nothing",
-            () -> {
-                assertOperation(emitOperate(b -> b.onMapRankRange(RANK), CdtGetOrRemoveBuilder::getValues),
-                        MapOperation.getByRankRange(BIN, RANK, 0, MapReturnType.VALUE, ROOT_CTX));
-                assertOperation(emitOperate(b -> b.onMapRankRange(RANK), CdtGetOrRemoveBuilder::remove),
-                        MapOperation.removeByRankRange(BIN, RANK, 0, MapReturnType.NONE, ROOT_CTX));
-            });
-    }
 }

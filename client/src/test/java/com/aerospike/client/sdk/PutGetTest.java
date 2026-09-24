@@ -64,6 +64,25 @@ public class PutGetTest extends ClusterTest {
     }
 
     @Test
+    public void getWithIncludeMissingKeys() {
+        session.replace(args.set.ids(1,2,3))
+            .bin("name").setTo("Tim")
+            .bin("age").setTo(312)
+            .execute();
+
+        RecordStream rs = session.query(args.set.ids(1))
+            .where("$.name == 'Bob'")
+            .includeMissingKeys()
+            .execute();
+
+        rs.getFirst().ifPresent(
+            r -> {
+                int code = r.getResultCode();
+                System.out.printf("Received code: %d, %s\n", code, ResultCode.getResultString(code));
+            });
+    }
+
+    @Test
     public void putGet() {
         String key = "putgetkey";
 

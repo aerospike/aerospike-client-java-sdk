@@ -572,6 +572,16 @@ public class TxnTest extends ClusterTest {
         assertEquals(ResultCode.MRT_EXPIRED, ae.getResultCode());
     }
 
+    @Test
+    public void txnEmpty() {
+        session.doInTransaction(txn -> {
+        });
+
+        session.doInTransaction(txn -> {
+            txn.abort();
+        });
+    }
+
     private void assertBatchEqual(java.util.List<Key> keys, RecordStream recs, int expected) {
         int count = 0;
         while (recs.hasNext()) {
