@@ -945,7 +945,10 @@ public class ObjectBuilder<T> {
                     recordStream.publish(result);
                 }
             }
-            return new RecordStream(recordStream);
+
+            RecordStream rs = new RecordStream(recordStream);
+
+            return opBuilder.includeMissingKeys ? rs.markMissingKeysExpected() : rs;
         }
         finally {
             recordStream.complete();

@@ -41,6 +41,12 @@ import com.aerospike.client.sdk.util.ContainerString;
 public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;
 
+    /**
+     * Set when this stream's KEY_NOT_FOUND entries are present because the caller asked for them
+     * with {@code includeMissingKeys()}. See {@link #markMissingKeysExpected()}.
+     */
+    private boolean missingKeysExpected;
+
     // ========================================
     // Unconsumed error stream detection (disabled)
     // ========================================
@@ -1101,11 +1107,36 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public Optional<RecordResult> pop(boolean throwException) {
         if (hasNext()) {
-            return throwException
-                ? Optional.of(next().orThrow())
-                : Optional.of(next());
+            RecordResult result = next();
+
+            return Optional.of(throwException && ! isExpectedMissingKey(result) ? result.orThrow() : result);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Marks this stream's KEY_NOT_FOUND entries as an expected outcome rather than an error.
+     *
+     * <p>Called by the builders when the caller asked for missing keys with
+     * {@code includeMissingKeys()}. Such an entry is in the stream precisely because it was
+     * requested, so {@link #pop()} and {@link #getFirst()} hand it back for inspection instead of
+     * throwing. Only KEY_NOT_FOUND is affected: every other non-OK result code still throws, and
+     * the entry still reports {@code isOk() == false} and its own result code.</p>
+     *
+     * <p>The accessors that promise a {@link Record} - {@link #popRecord()},
+     * {@link #getFirstRecord()} and the {@link RecordMapper} variants - are deliberately not
+     * relaxed. A missing key carries no record, so they would have to return null.</p>
+     *
+     * @return this stream
+     */
+    RecordStream markMissingKeysExpected() {
+        missingKeysExpected = true;
+        return this;
+    }
+
+    /** True when {@code result} is a missing key this stream was asked to carry. */
+    private boolean isExpectedMissingKey(RecordResult result) {
+        return missingKeysExpected && result.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR;
     }
 
     /**

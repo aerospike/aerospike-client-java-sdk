@@ -362,7 +362,10 @@ class OperationSpecExecutor {
                 AbstractFilterableBuilder.routeBatchResult(
                     result, br.resultCode, disposition, recordStream);
             }
-            return new RecordStream(recordStream);
+
+            RecordStream rs = new RecordStream(recordStream);
+
+            return includeMissingKeys ? rs.markMissingKeysExpected() : rs;
         }
         finally {
             recordStream.complete();
@@ -714,9 +717,14 @@ class OperationSpecExecutor {
         }
     }
 
+    /**
+     * A stream holding the one missing key the caller asked to see. The entry is marked expected, so
+     * inspecting it does not throw - see {@link RecordStream#markMissingKeysExpected()}.
+     */
     private static RecordStream streamNotFound(Key key) {
         return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, SubCode.NONE,
-            ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0, false));
+            ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0, false))
+            .markMissingKeysExpected();
     }
 
     /**
