@@ -201,6 +201,7 @@ public final class Behavior {
             )
             // Query defaults
             .on(Selectors.reads().query(), ops -> ops
+                    .abandonCallAfter(Duration.ofSeconds(0))
                     .recordQueueSize(5000)
                     .allowScansWithWhere(false)
                     .maximumNumberOfCallAttempts(6)
