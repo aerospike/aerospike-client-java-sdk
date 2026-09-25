@@ -531,6 +531,266 @@ public class OperateStringTest extends ClusterTest {
             }
         }
 
+        /**
+         * The {@link StringWriteOptions} overloads delegate to the {@code int flags} forms, so these
+         * tests pin the server-visible result of each one rather than restating the flag arithmetic.
+         */
+        @Nested
+        @DisplayName("StringOperation / StringWriteOptions")
+        class OperationOptionsApi {
+            private static final String UP_BIN = "oUp";
+            private static final String LOW_BIN = "oLow";
+            private static final String REPL_BIN = "oRepl";
+            private static final String REPL_ALL_BIN = "oReplAll";
+            private static final String INSERT_BIN = "oInsert";
+            private static final String OVERWRITE_BIN = "oOverwrite";
+            private static final String SNIP_BIN = "oSnip";
+            private static final String SNIP_END_BIN = "oSnipEnd";
+            private static final String APPEND_BIN = "oAppend";
+            private static final String PREPEND_BIN = "oPrepend";
+            private static final String PAD_START_BIN = "oPadStart";
+            private static final String PAD_END_BIN = "oPadEnd";
+            private static final String REPEAT_BIN = "oRepeat";
+            private static final String FOLD_BIN = "oFold";
+            private static final String CONCAT_BIN = "oConcat";
+            private static final String CONCAT_LIST_BIN = "oConcatList";
+            private static final String NFC_BIN = "oNfc";
+            private static final String TRIM_ALL_BIN = "oTrimAll";
+            private static final String TRIM_START_BIN = "oTrimStart";
+            private static final String TRIM_END_BIN = "oTrimEnd";
+            private static final String DIGITS_BIN = "oDigits";
+
+            Key key;
+
+            @BeforeEach
+            void seedModifyBins() {
+                key = freshKey("stringOpOptionsSweep");
+                seed(key, b -> b
+                    .bin(UP_BIN).setTo("Hello")
+                    .bin(LOW_BIN).setTo("Hello")
+                    .bin(REPL_BIN).setTo("Hello")
+                    .bin(REPL_ALL_BIN).setTo("Hello")
+                    .bin(INSERT_BIN).setTo("Hello")
+                    .bin(OVERWRITE_BIN).setTo("Hello")
+                    .bin(SNIP_BIN).setTo("Hello")
+                    .bin(SNIP_END_BIN).setTo("Hello")
+                    .bin(APPEND_BIN).setTo("Hello")
+                    .bin(PREPEND_BIN).setTo("Hello")
+                    .bin(PAD_START_BIN).setTo("Hello")
+                    .bin(PAD_END_BIN).setTo("Hello")
+                    .bin(REPEAT_BIN).setTo("Hello")
+                    .bin(FOLD_BIN).setTo("Hello")
+                    .bin(CONCAT_BIN).setTo("Hello")
+                    .bin(CONCAT_LIST_BIN).setTo("Hello")
+                    .bin(NFC_BIN).setTo("e\u0301")
+                    .bin(TRIM_ALL_BIN).setTo("  hello  ")
+                    .bin(TRIM_START_BIN).setTo("  hello  ")
+                    .bin(TRIM_END_BIN).setTo("  hello  ")
+                    .bin(DIGITS_BIN).setTo("abc123def456"));
+            }
+
+            @Test
+            @DisplayName("StringOperation modify API sweep (StringWriteOptions)")
+            public void stringOperationOptionsModifySweep() {
+                StringWriteOptions options = new StringWriteOptions();
+                seed(key, b -> b.appendOperations(
+                        StringOperation.upper(options, UP_BIN),
+                        StringOperation.lower(options, LOW_BIN),
+                        StringOperation.replace(options, REPL_BIN, "lo", "LL"),
+                        StringOperation.replaceAll(options, REPL_ALL_BIN, "l", "L"),
+                        StringOperation.insert(options, INSERT_BIN, 1, "X"),
+                        StringOperation.overwrite(options, OVERWRITE_BIN, 1, "i"),
+                        StringOperation.snip(options, SNIP_BIN, 1, 4),
+                        StringOperation.snip(options, SNIP_END_BIN, 1),
+                        StringOperation.append(options, APPEND_BIN, "!"),
+                        StringOperation.prepend(options, PREPEND_BIN, ">"),
+                        StringOperation.padStart(options, PAD_START_BIN, 7, "0"),
+                        StringOperation.padEnd(options, PAD_END_BIN, 10, "."),
+                        StringOperation.repeat(options, REPEAT_BIN, 2),
+                        StringOperation.caseFold(options, FOLD_BIN),
+                        StringOperation.normalizeNFC(options, NFC_BIN),
+                        StringOperation.concat(options, CONCAT_BIN, "!"),
+                        StringOperation.concat(options, CONCAT_LIST_BIN, List.of("!", "?"))));
+
+                try (RecordStream rs = session.query(key)
+                    .bin(UP_BIN).get()
+                    .bin(LOW_BIN).get()
+                    .bin(REPL_BIN).get()
+                    .bin(REPL_ALL_BIN).get()
+                    .bin(INSERT_BIN).get()
+                    .bin(OVERWRITE_BIN).get()
+                    .bin(SNIP_BIN).get()
+                    .bin(SNIP_END_BIN).get()
+                    .bin(APPEND_BIN).get()
+                    .bin(PREPEND_BIN).get()
+                    .bin(PAD_START_BIN).get()
+                    .bin(PAD_END_BIN).get()
+                    .bin(REPEAT_BIN).get()
+                    .bin(FOLD_BIN).get()
+                    .bin(NFC_BIN).get()
+                    .bin(CONCAT_BIN).get()
+                    .bin(CONCAT_LIST_BIN).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("StringOperation modify sweep (options)",
+                        () -> assertEquals("HELLO", rec.getString(UP_BIN),
+                            "StringOperation.upper(options, stringBin)"),
+                        () -> assertEquals("hello", rec.getString(LOW_BIN),
+                            "StringOperation.lower(options, stringBin)"),
+                        () -> assertEquals("HelLL", rec.getString(REPL_BIN),
+                            "StringOperation.replace(options, lo, LL, stringBin)"),
+                        () -> assertEquals("HeLLo", rec.getString(REPL_ALL_BIN),
+                            "StringOperation.replaceAll(options, l, L, stringBin)"),
+                        () -> assertEquals("HXello", rec.getString(INSERT_BIN),
+                            "StringOperation.insert(options, index=1, X, stringBin)"),
+                        () -> assertEquals("Hillo", rec.getString(OVERWRITE_BIN),
+                            "StringOperation.overwrite(options, index=1, i, stringBin)"),
+                        () -> assertEquals("Ho", rec.getString(SNIP_BIN),
+                            "StringOperation.snip(options, index=1, count=4, stringBin)"),
+                        () -> assertEquals("H", rec.getString(SNIP_END_BIN),
+                            "StringOperation.snip(options, index=1, stringBin)"),
+                        () -> assertEquals("Hello!", rec.getString(APPEND_BIN),
+                            "StringOperation.append(options, !, stringBin)"),
+                        () -> assertEquals(">Hello", rec.getString(PREPEND_BIN),
+                            "StringOperation.prepend(options, >, stringBin)"),
+                        () -> assertEquals("00Hello", rec.getString(PAD_START_BIN),
+                            "StringOperation.padStart(options, width=7, pad=0, stringBin)"),
+                        () -> assertEquals("Hello.....", rec.getString(PAD_END_BIN),
+                            "StringOperation.padEnd(options, width=10, pad=., stringBin)"),
+                        () -> assertEquals("HelloHello", rec.getString(REPEAT_BIN),
+                            "StringOperation.repeat(options, count=2, stringBin)"),
+                        () -> assertEquals("hello", rec.getString(FOLD_BIN),
+                            "StringOperation.caseFold(options, stringBin)"),
+                        () -> assertEquals("\u00e9", rec.getString(NFC_BIN),
+                            "StringOperation.normalizeNFC(options, nfcBin)"),
+                        () -> assertEquals("Hello!", rec.getString(CONCAT_BIN),
+                            "StringOperation.concat(options, !, stringBin)"),
+                        () -> assertEquals("Hello!?", rec.getString(CONCAT_LIST_BIN),
+                            "StringOperation.concat(options, [!,?], stringBin)"));
+                }
+            }
+
+            @Test
+            @DisplayName("StringOperation trim API sweep (StringWriteOptions)")
+            public void stringOperationOptionsTrimSweep() {
+                StringWriteOptions options = new StringWriteOptions();
+                seed(key, b -> b.appendOperations(
+                        StringOperation.trim(options, TRIM_ALL_BIN),
+                        StringOperation.trimStart(options, TRIM_START_BIN),
+                        StringOperation.trimEnd(options, TRIM_END_BIN)));
+
+                try (RecordStream rs = session.query(key)
+                    .bin(TRIM_ALL_BIN).get()
+                    .bin(TRIM_START_BIN).get()
+                    .bin(TRIM_END_BIN).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("StringOperation trim sweep (options)",
+                        () -> assertEquals("hello", rec.getString(TRIM_ALL_BIN),
+                            "StringOperation.trim(options, stringBin)"),
+                        () -> assertEquals("hello  ", rec.getString(TRIM_START_BIN),
+                            "StringOperation.trimStart(options, stringBin)"),
+                        () -> assertEquals("  hello", rec.getString(TRIM_END_BIN),
+                            "StringOperation.trimEnd(options, stringBin)"));
+                }
+            }
+
+            @Test
+            @DisplayName("StringOperation.regexReplace(options, pattern=[0-9]+, replacement=NUM, GLOBAL)")
+            public void stringOperationOptionsRegexReplace() {
+                seed(key, b -> b.appendOperations(StringOperation.regexReplace(
+                        new StringWriteOptions(),
+                        DIGITS_BIN,
+                        "[0-9]+",
+                        "NUM",
+                        StringRegexFlags.GLOBAL)));
+
+                try (RecordStream rs = session.query(key)
+                    .bin(DIGITS_BIN).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertEquals("abcNUMdefNUM", rec.getString(DIGITS_BIN),
+                        "StringOperation.regexReplace(options, [0-9]+, NUM, GLOBAL, digitsBin)");
+                }
+            }
+
+            @Test
+            public void createOnlyOptionsAppendCreatesMissingBin() {
+                String binName = "oCreateFresh";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    new StringWriteOptions().createOnly(), binName, "created")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("created", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void createOnlyOptionsAppendOnLiveBinReturnsBinExists() {
+                String binName = "oCreateLive";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                AerospikeException ae = assertThrows(AerospikeException.class, () -> seed(key, b -> b.appendOperations(
+                    StringOperation.append(new StringWriteOptions().createOnly(), binName, "!"))));
+
+                assertEquals(ResultCode.BIN_EXISTS_ERROR, ae.getResultCode());
+            }
+
+            @Test
+            public void createOnlyNoFailOptionsAppendOnLiveBinIsNoOp() {
+                String binName = "oCoNoFail";
+                seed(key, b -> b.bin(binName).setTo("original"));
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    new StringWriteOptions().createOnly().noFail(), binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("original", rec.getString(binName));
+                }
+            }
+
+            @Test
+            public void updateOnlyOptionsAppendOnMissingBinDoesNotCreate() {
+                String binName = "oUpdMissing";
+
+                seed(key, b -> b.appendOperations(StringOperation.append(
+                    new StringWriteOptions().updateOnly(), binName, "!")));
+
+                try (RecordStream rs = session.query(key).bin(binName).get().execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertNull(rec.getString(binName));
+                }
+            }
+
+            @Test
+            @DisplayName("options overload matches the equivalent flags overload")
+            public void optionsMatchEquivalentFlags() {
+                String optionsBin = "oParityOpt";
+                String flagsBin = "oParityFlag";
+                seed(key, b -> b.bin(optionsBin).setTo("Hello").bin(flagsBin).setTo("Hello"));
+
+                seed(key, b -> b.appendOperations(
+                        StringOperation.append(new StringWriteOptions().noFail(), optionsBin, "!"),
+                        StringOperation.append(StringWriteFlags.NO_FAIL, flagsBin, "!")));
+
+                try (RecordStream rs = session.query(key)
+                    .bin(optionsBin).get()
+                    .bin(flagsBin).get()
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertEquals(rec.getString(flagsBin), rec.getString(optionsBin),
+                        "append(options) should write what append(flags) writes");
+                }
+            }
+        }
+
         @Nested
         @DisplayName("StringOperation trim")
         class OperationTrim {
@@ -832,6 +1092,165 @@ public class OperateStringTest extends ClusterTest {
                     Record rec = rs.next().recordOrThrow();
                     assertEquals("abcNUMdefNUM", rec.getString("regexOut"),
                         "StringExp.regexReplace(flags, [0-9]+, NUM, GLOBAL, digitsBin)");
+                }
+            }
+        }
+
+        /**
+         * The {@link StringWriteOptions} overloads delegate to the {@code int flags} forms, so these
+         * projections pin the server-visible result of each one rather than restating flag arithmetic.
+         */
+        @Nested
+        @DisplayName("StringExp modify projections (StringWriteOptions)")
+        class OptionsProjections {
+            /** Whitespace at both ends, so every trim variant has something to remove. */
+            private static final String PADDED_BIN = "oPadded";
+
+            Key key;
+
+            @BeforeEach
+            void seedOptionsProjectionRecord() {
+                key = freshKey("stringExpOptionsProj");
+                seed(key, b -> b
+                    .bin(STRING_BIN).setTo("Hello")
+                    .bin(NFC_BIN).setTo("e\u0301")
+                    .bin(DIGITS_BIN).setTo("abc123def456")
+                    .bin(PADDED_BIN).setTo("  hello  "));
+            }
+
+            @Test
+            @DisplayName("StringExp modify API sweep (StringWriteOptions, single query)")
+            public void stringExpOptionsModifyProjections() {
+                Exp s = Exp.stringBin(STRING_BIN);
+                Exp nfc = Exp.stringBin(NFC_BIN);
+                StringWriteOptions options = new StringWriteOptions();
+                try (RecordStream rs = session.query(key)
+                    .bin("orig").selectFrom(s)
+                    .bin("up").selectFrom(StringExp.upper(options, s))
+                    .bin("low").selectFrom(StringExp.lower(options, s))
+                    .bin("repl").selectFrom(StringExp.replace(options, Exp.val("lo"), Exp.val("LL"), s))
+                    .bin("replAll").selectFrom(StringExp.replaceAll(options, Exp.val("l"), Exp.val("L"), s))
+                    .bin("inserted").selectFrom(StringExp.insert(options, Exp.val(1), Exp.val("X"), s))
+                    .bin("overwritten").selectFrom(StringExp.overwrite(options, Exp.val(1), Exp.val("i"), s))
+                    .bin("snipped").selectFrom(StringExp.snip(options, Exp.val(1), Exp.val(4), s))
+                    .bin("snippedEnd").selectFrom(StringExp.snip(options, Exp.val(1), s))
+                    .bin("appended").selectFrom(StringExp.append(options, Exp.val("!"), s))
+                    .bin("prepended").selectFrom(StringExp.prepend(options, Exp.val(">"), s))
+                    .bin("paddedStart").selectFrom(StringExp.padStart(options, Exp.val(7), Exp.val("0"), s))
+                    .bin("paddedEnd").selectFrom(StringExp.padEnd(options, Exp.val(10), Exp.val("."), s))
+                    .bin("repeated").selectFrom(StringExp.repeat(options, Exp.val(2), s))
+                    .bin("folded").selectFrom(StringExp.caseFold(options, s))
+                    .bin("normalized").selectFrom(StringExp.normalizeNFC(options, nfc))
+                    .bin("concatenated").selectFrom(StringExp.concat(options, Exp.val(List.of("!", "?")), s))
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("string modify projections (options)",
+                        () -> assertEquals("Hello", rec.getString("orig"),
+                            "selectFrom(stringBin s) original value"),
+                        () -> assertEquals("HELLO", rec.getString("up"),
+                            "StringExp.upper(options, stringBin s)"),
+                        () -> assertEquals("hello", rec.getString("low"),
+                            "StringExp.lower(options, stringBin s)"),
+                        () -> assertEquals("HelLL", rec.getString("repl"),
+                            "StringExp.replace(options, lo, LL, stringBin s)"),
+                        () -> assertEquals("HeLLo", rec.getString("replAll"),
+                            "StringExp.replaceAll(options, l, L, stringBin s)"),
+                        () -> assertEquals("HXello", rec.getString("inserted"),
+                            "StringExp.insert(options, index=1, X, stringBin s)"),
+                        () -> assertEquals("Hillo", rec.getString("overwritten"),
+                            "StringExp.overwrite(options, index=1, i, stringBin s)"),
+                        () -> assertEquals("Ho", rec.getString("snipped"),
+                            "StringExp.snip(options, index=1, count=4, stringBin s)"),
+                        () -> assertEquals("H", rec.getString("snippedEnd"),
+                            "StringExp.snip(options, index=1, stringBin s)"),
+                        () -> assertEquals("Hello!", rec.getString("appended"),
+                            "StringExp.append(options, !, stringBin s)"),
+                        () -> assertEquals(">Hello", rec.getString("prepended"),
+                            "StringExp.prepend(options, >, stringBin s)"),
+                        () -> assertEquals("00Hello", rec.getString("paddedStart"),
+                            "StringExp.padStart(options, width=7, pad=0, stringBin s)"),
+                        () -> assertEquals("Hello.....", rec.getString("paddedEnd"),
+                            "StringExp.padEnd(options, width=10, pad=., stringBin s)"),
+                        () -> assertEquals("HelloHello", rec.getString("repeated"),
+                            "StringExp.repeat(options, count=2, stringBin s)"),
+                        () -> assertEquals("hello", rec.getString("folded"),
+                            "StringExp.caseFold(options, stringBin s)"),
+                        () -> assertEquals("\u00e9", rec.getString("normalized"),
+                            "StringExp.normalizeNFC(options, nfcBin)"),
+                        () -> assertEquals("Hello!?", rec.getString("concatenated"),
+                            "StringExp.concat(options, [!,?], stringBin s)"));
+                }
+            }
+
+            @Test
+            @DisplayName("StringExp trim API sweep (StringWriteOptions, single query)")
+            public void stringExpOptionsTrimProjections() {
+                Exp padded = Exp.stringBin(PADDED_BIN);
+                StringWriteOptions options = new StringWriteOptions();
+                try (RecordStream rs = session.query(key)
+                    .bin("trimmed").selectFrom(StringExp.trim(options, padded))
+                    .bin("trimStart").selectFrom(StringExp.trimStart(options, padded))
+                    .bin("trimEnd").selectFrom(StringExp.trimEnd(options, padded))
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertAll("string trim projections (options)",
+                        () -> assertEquals("hello", rec.getString("trimmed"),
+                            "StringExp.trim(options, paddedBin)"),
+                        () -> assertEquals("hello  ", rec.getString("trimStart"),
+                            "StringExp.trimStart(options, paddedBin)"),
+                        () -> assertEquals("  hello", rec.getString("trimEnd"),
+                            "StringExp.trimEnd(options, paddedBin)"));
+                }
+            }
+
+            @Test
+            @DisplayName("StringExp.regexReplace(options, pattern=[0-9]+, replacement=NUM, GLOBAL)")
+            public void stringExpOptionsRegexReplace() {
+                try (RecordStream rs = session.query(key)
+                    .bin("regexOut").selectFrom(StringExp.regexReplace(
+                        new StringWriteOptions(),
+                        Exp.val("[0-9]+"),
+                        Exp.val("NUM"),
+                        StringRegexFlags.GLOBAL,
+                        Exp.stringBin(DIGITS_BIN)))
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertEquals("abcNUMdefNUM", rec.getString("regexOut"),
+                        "StringExp.regexReplace(options, [0-9]+, NUM, GLOBAL, digitsBin)");
+                }
+            }
+
+            @Test
+            public void noFailOptionsSuppressedStringExpModifyReturnsOriginalString() {
+                Exp s = Exp.stringBin(STRING_BIN);
+
+                try (RecordStream rs = session.query(key)
+                    .bin("repeatFail").selectFrom(
+                        StringExp.repeat(new StringWriteOptions().noFail(), Exp.val(-1), s))
+                    .execute()) {
+                    Record rec = rs.getFirstRecord();
+                    assertEquals("Hello", rec.getString("repeatFail"));
+                }
+            }
+
+            @Test
+            @DisplayName("options overload matches the equivalent flags overload")
+            public void optionsMatchEquivalentFlags() {
+                Exp s = Exp.stringBin(STRING_BIN);
+
+                try (RecordStream rs = session.query(key)
+                    .bin("fromOptions").selectFrom(
+                        StringExp.append(new StringWriteOptions().noFail(), Exp.val("!"), s))
+                    .bin("fromFlags").selectFrom(
+                        StringExp.append(StringWriteFlags.NO_FAIL, Exp.val("!"), s))
+                    .execute()) {
+                    assertTrue(rs.hasNext());
+                    Record rec = rs.next().recordOrThrow();
+                    assertEquals(rec.getString("fromFlags"), rec.getString("fromOptions"),
+                        "append(options) should project what append(flags) projects");
                 }
             }
         }

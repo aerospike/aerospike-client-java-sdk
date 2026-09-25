@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.exp;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.StringWriteOptions;
 import com.aerospike.client.sdk.operation.StringRegexFlags;
 import com.aerospike.client.sdk.operation.StringWriteFlags;
 import com.aerospike.client.sdk.util.Pack;
@@ -529,6 +530,21 @@ public final class StringExp {
      * {@code index} and returns the resulting string. Negative indexes count from the
      * end. Does not modify the underlying bin.
      *
+     * @param options   write options.
+     * @param index     codepoint index at which to insert (negative counts from end)
+     * @param value     text to insert
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp insert(StringWriteOptions options, Exp index, Exp value, Exp src) {
+        return insert(options.toFlags(), index, value, src);
+    }
+
+    /**
+     * Create expression that splices {@code value} into {@code src} at codepoint
+     * {@code index} and returns the resulting string. Negative indexes count from the
+     * end. Does not modify the underlying bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param index     codepoint index at which to insert (negative counts from end)
      * @param value     text to insert
@@ -539,6 +555,22 @@ public final class StringExp {
         validateWriteFlags("string_insert", flags, true);
         byte[] bytes = Pack.pack(INSERT, index, value, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that overwrites codepoints in {@code src} starting at codepoint
+     * {@code index} with {@code value}, returning the resulting string. The result may
+     * grow beyond the original length when {@code value} extends past the end. Does not
+     * modify the underlying bin.
+     *
+     * @param options   write options.
+     * @param index     codepoint index at which to start overwriting
+     * @param value     text to write
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp overwrite(StringWriteOptions options, Exp index, Exp value, Exp src) {
+        return overwrite(options.toFlags(), index, value, src);
     }
 
     /**
@@ -564,6 +596,20 @@ public final class StringExp {
      * {@code src} in order, returning the resulting string. Does not modify the
      * underlying bin.
      *
+     * @param options   write options.
+     * @param values    expression yielding a list of strings to append
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp concat(StringWriteOptions options, Exp values, Exp src) {
+        return concat(options.toFlags(), values, src);
+    }
+
+    /**
+     * Create expression that concatenates {@code values} (a list of strings) onto
+     * {@code src} in order, returning the resulting string. Does not modify the
+     * underlying bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param values    expression yielding a list of strings to append
      * @param src       source string expression
@@ -573,6 +619,19 @@ public final class StringExp {
         validateWriteFlags("string_concat", flags, true);
         byte[] bytes = Pack.pack(CONCAT, values, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that appends {@code value} (a single string) to the end of {@code src},
+     * returning the resulting string. Does not modify the underlying bin.
+     *
+     * @param options   write options.
+     * @param value     expression yielding the string to append to the end
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp append(StringWriteOptions options, Exp value, Exp src) {
+        return append(options.toFlags(), value, src);
     }
 
     /**
@@ -594,6 +653,19 @@ public final class StringExp {
      * Create expression that prepends {@code value} (a single string) to the start of {@code src},
      * returning the resulting string. Does not modify the underlying bin.
      *
+     * @param options   write options.
+     * @param value     expression yielding the string to prepend to the start
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp prepend(StringWriteOptions options, Exp value, Exp src) {
+        return prepend(options.toFlags(), value, src);
+    }
+
+    /**
+     * Create expression that prepends {@code value} (a single string) to the start of {@code src},
+     * returning the resulting string. Does not modify the underlying bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param value     expression yielding the string to prepend to the start
      * @param src       source string expression
@@ -603,6 +675,27 @@ public final class StringExp {
         validateWriteFlags("string_prepend", flags, true);
         byte[] bytes = Pack.pack(PREPEND, value, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that removes codepoints from {@code src} starting at codepoint
+     * {@code start} through the end, returning the resulting string. Does not modify
+     * the underlying bin.
+     * <p>
+     * The server's snip argument list is positional — {@code start}, {@code end},
+     * {@code flags} — so this form cannot carry the write options without also
+     * supplying an explicit {@code end}: they are accepted for signature parity with the
+     * other modify expressions and are <strong>not</strong> transmitted. Use
+     * {@link #snip(StringWriteOptions, Exp, Exp, Exp)} when the write options must be
+     * honored.
+     *
+     * @param options   write options.
+     * @param start     first codepoint to remove (inclusive)
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp snip(StringWriteOptions options, Exp start, Exp src) {
+        return snip(options.toFlags(), start, src);
     }
 
     /**
@@ -632,6 +725,21 @@ public final class StringExp {
      * from {@code src} and returns the resulting string. Does not modify the underlying
      * bin.
      *
+     * @param options   write options.
+     * @param start     first codepoint to remove (inclusive)
+     * @param end       one past the last codepoint to remove (exclusive)
+     * @param src       source string expression
+     * @return          string-typed expression yielding the modified string
+     */
+    public static Exp snip(StringWriteOptions options, Exp start, Exp end, Exp src) {
+        return snip(options.toFlags(), start, end, src);
+    }
+
+    /**
+     * Create expression that removes the half-open codepoint range {@code [start, end)}
+     * from {@code src} and returns the resulting string. Does not modify the underlying
+     * bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param start     first codepoint to remove (inclusive)
      * @param end       one past the last codepoint to remove (exclusive)
@@ -642,6 +750,21 @@ public final class StringExp {
         validateWriteFlags("string_snip", flags, false);
         byte[] bytes = Pack.pack(SNIP, start, end, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that replaces the first occurrence of {@code needle} in
+     * {@code src} with {@code replacement} and returns the resulting string. Does not
+     * modify the underlying bin.
+     *
+     * @param options       write options.
+     * @param needle        substring to find
+     * @param replacement   text to substitute (may be empty to delete the match)
+     * @param src           source string expression
+     * @return              string-typed expression yielding the modified string
+     */
+    public static Exp replace(StringWriteOptions options, Exp needle, Exp replacement, Exp src) {
+        return replace(options.toFlags(), needle, replacement, src);
     }
 
     /**
@@ -666,6 +789,21 @@ public final class StringExp {
      * with {@code replacement} and returns the resulting string. Does not modify the
      * underlying bin.
      *
+     * @param options       write options.
+     * @param needle        substring to find
+     * @param replacement   text to substitute (may be empty to delete each match)
+     * @param src           source string expression
+     * @return              string-typed expression yielding the modified string
+     */
+    public static Exp replaceAll(StringWriteOptions options, Exp needle, Exp replacement, Exp src) {
+        return replaceAll(options.toFlags(), needle, replacement, src);
+    }
+
+    /**
+     * Create expression that replaces every occurrence of {@code needle} in {@code src}
+     * with {@code replacement} and returns the resulting string. Does not modify the
+     * underlying bin.
+     *
      * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param needle        substring to find
      * @param replacement   text to substitute (may be empty to delete each match)
@@ -682,6 +820,18 @@ public final class StringExp {
      * Create expression that returns {@code src} uppercased. Does not modify the
      * underlying bin.
      *
+     * @param options   write options.
+     * @param src       source string expression
+     * @return          string-typed expression yielding the uppercased string
+     */
+    public static Exp upper(StringWriteOptions options, Exp src) {
+        return upper(options.toFlags(), src);
+    }
+
+    /**
+     * Create expression that returns {@code src} uppercased. Does not modify the
+     * underlying bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param src       source string expression
      * @return          string-typed expression yielding the uppercased string
@@ -690,6 +840,18 @@ public final class StringExp {
         validateWriteFlags("string_upper", flags, false);
         byte[] bytes = Pack.pack(UPPER, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that returns {@code src} lowercased. Does not modify the
+     * underlying bin.
+     *
+     * @param options   write options.
+     * @param src       source string expression
+     * @return          string-typed expression yielding the lowercased string
+     */
+    public static Exp lower(StringWriteOptions options, Exp src) {
+        return lower(options.toFlags(), src);
     }
 
     /**
@@ -711,6 +873,19 @@ public final class StringExp {
      * lowercase). Useful for normalized comparison keys. Does not modify the underlying
      * bin.
      *
+     * @param options   write options.
+     * @param src       source string expression
+     * @return          string-typed expression yielding the case-folded string
+     */
+    public static Exp caseFold(StringWriteOptions options, Exp src) {
+        return caseFold(options.toFlags(), src);
+    }
+
+    /**
+     * Create expression that returns {@code src} case-folded (locale-independent
+     * lowercase). Useful for normalized comparison keys. Does not modify the underlying
+     * bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param src       source string expression
      * @return          string-typed expression yielding the case-folded string
@@ -719,6 +894,18 @@ public final class StringExp {
         validateWriteFlags("string_case_fold", flags, false);
         byte[] bytes = Pack.pack(CASE_FOLD, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that returns {@code src} normalized to Unicode NFC form.
+     * Already-normalized strings are unchanged. Does not modify the underlying bin.
+     *
+     * @param options   write options.
+     * @param src       source string expression
+     * @return          string-typed expression yielding the NFC-normalized string
+     */
+    public static Exp normalizeNFC(StringWriteOptions options, Exp src) {
+        return normalizeNFC(options.toFlags(), src);
     }
 
     /**
@@ -739,6 +926,18 @@ public final class StringExp {
      * Create expression that returns {@code src} with whitespace removed from the start.
      * Does not modify the underlying bin.
      *
+     * @param options   write options.
+     * @param src       source string expression
+     * @return          string-typed expression yielding the left-trimmed string
+     */
+    public static Exp trimStart(StringWriteOptions options, Exp src) {
+        return trimStart(options.toFlags(), src);
+    }
+
+    /**
+     * Create expression that returns {@code src} with whitespace removed from the start.
+     * Does not modify the underlying bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param src       source string expression
      * @return          string-typed expression yielding the left-trimmed string
@@ -747,6 +946,18 @@ public final class StringExp {
         validateWriteFlags("string_trim_start", flags, false);
         byte[] bytes = Pack.pack(TRIM_START, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that returns {@code src} with whitespace removed from the end.
+     * Does not modify the underlying bin.
+     *
+     * @param options   write options.
+     * @param src       source string expression
+     * @return          string-typed expression yielding the right-trimmed string
+     */
+    public static Exp trimEnd(StringWriteOptions options, Exp src) {
+        return trimEnd(options.toFlags(), src);
     }
 
     /**
@@ -767,6 +978,18 @@ public final class StringExp {
      * Create expression that returns {@code src} with whitespace removed from both
      * ends. Does not modify the underlying bin.
      *
+     * @param options   write options.
+     * @param src       source string expression
+     * @return          string-typed expression yielding the trimmed string
+     */
+    public static Exp trim(StringWriteOptions options, Exp src) {
+        return trim(options.toFlags(), src);
+    }
+
+    /**
+     * Create expression that returns {@code src} with whitespace removed from both
+     * ends. Does not modify the underlying bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param src       source string expression
      * @return          string-typed expression yielding the trimmed string
@@ -775,6 +998,21 @@ public final class StringExp {
         validateWriteFlags("string_trim", flags, false);
         byte[] bytes = Pack.pack(TRIM, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that prepends {@code padString} to {@code src} repeatedly until
+     * the result reaches {@code targetLength} codepoints. No-op when the source is
+     * already at or above the target length. Does not modify the underlying bin.
+     *
+     * @param options       write options.
+     * @param targetLength  codepoint length to pad up to
+     * @param padString     text used to fill (repeated as needed)
+     * @param src           source string expression
+     * @return              string-typed expression yielding the padded string
+     */
+    public static Exp padStart(StringWriteOptions options, Exp targetLength, Exp padString, Exp src) {
+        return padStart(options.toFlags(), targetLength, padString, src);
     }
 
     /**
@@ -799,6 +1037,21 @@ public final class StringExp {
      * the result reaches {@code targetLength} codepoints. No-op when the source is
      * already at or above the target length. Does not modify the underlying bin.
      *
+     * @param options       write options.
+     * @param targetLength  codepoint length to pad up to
+     * @param padString     text used to fill (repeated as needed)
+     * @param src           source string expression
+     * @return              string-typed expression yielding the padded string
+     */
+    public static Exp padEnd(StringWriteOptions options, Exp targetLength, Exp padString, Exp src) {
+        return padEnd(options.toFlags(), targetLength, padString, src);
+    }
+
+    /**
+     * Create expression that appends {@code padString} to {@code src} repeatedly until
+     * the result reaches {@code targetLength} codepoints. No-op when the source is
+     * already at or above the target length. Does not modify the underlying bin.
+     *
      * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param targetLength  codepoint length to pad up to
      * @param padString     text used to fill (repeated as needed)
@@ -815,6 +1068,19 @@ public final class StringExp {
      * Create expression that returns {@code src} repeated {@code count} times. Does
      * not modify the underlying bin.
      *
+     * @param options   write options.
+     * @param count     number of repetitions (must be non-negative)
+     * @param src       source string expression
+     * @return          string-typed expression yielding the repeated string
+     */
+    public static Exp repeat(StringWriteOptions options, Exp count, Exp src) {
+        return repeat(options.toFlags(), count, src);
+    }
+
+    /**
+     * Create expression that returns {@code src} repeated {@code count} times. Does
+     * not modify the underlying bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param count     number of repetitions (must be non-negative)
      * @param src       source string expression
@@ -824,6 +1090,36 @@ public final class StringExp {
         validateWriteFlags("string_repeat", flags, true);
         byte[] bytes = Pack.pack(REPEAT, count, flags);
         return addModify(src, bytes);
+    }
+
+    /**
+     * Create expression that replaces matches of {@code pattern} (ICU regex syntax) in
+     * {@code src} with {@code replacement} and returns the resulting string. Pass
+     * {@link StringRegexFlags#GLOBAL} to replace every match. Flag values may be
+     * combined with bitwise OR. Does not modify the underlying bin.
+     *
+     * <pre>{@code
+     * // "abc123def456" regexReplace "[0-9]+"->"NUM" with GLOBAL -> "abcNUMdefNUM"
+     * Exp out = StringExp.regexReplace(
+     *     Exp.val("[0-9]+"), Exp.val("NUM"), StringRegexFlags.GLOBAL,
+     *     Exp.stringBin("text"));
+     * }</pre>
+     *
+     * @param options       write options.
+     * @param pattern       ICU-syntax regex pattern (must be valid UTF-8)
+     * @param replacement   replacement text (must be valid UTF-8)
+     * @param regexFlags    bitwise-OR of {@link StringRegexFlags} constants
+     * @param src           source string expression
+     * @return              string-typed expression yielding the modified string
+     */
+    public static Exp regexReplace(
+        StringWriteOptions options,
+        Exp pattern,
+        Exp replacement,
+        int regexFlags,
+        Exp src
+    ) {
+        return regexReplace(options.toFlags(), pattern, replacement, regexFlags, src);
     }
 
     /**
