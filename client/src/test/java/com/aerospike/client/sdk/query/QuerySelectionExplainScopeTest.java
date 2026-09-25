@@ -552,7 +552,9 @@ public class QuerySelectionExplainScopeTest extends ClusterTest {
             () -> assertEquals(QuerySelection.PRIMARY_INDEX, plan(dataSet,where).getSelection()),
             () -> assertNull(plan(dataSet,where).getIndexName()),
             () -> assertNull(plan(dataSet,where).getIndexRangeBytes()),
-            () -> assertEquals(1, countRecords(session.query(dataSet)
+            // PI-only by construction, so the row read needs the scan fallback the plan above
+            // reports; the default behavior would reject the clause before it ran.
+            () -> assertEquals(1, countRecords(sessionAllowingScansWithWhere().query(dataSet)
                 .readingOnlyBins(nameBin)
                 .where(where)
                 .execute())));

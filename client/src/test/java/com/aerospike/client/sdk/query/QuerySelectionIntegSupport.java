@@ -81,12 +81,23 @@ final class QuerySelectionIntegSupport {
         ServerFeatureSupport.assume(ServerFeature.QUERY_SELECTION);
     }
 
+    /**
+     * Explain a where clause and report the plan the server would choose - including
+     * {@code PRIMARY_INDEX} when no index can serve it.
+     *
+     * <p>Scans are permitted here: {@code allowScansWithWhere} is false by default, which makes the
+     * server reject an unservable clause outright (CLIENT-5483), so a primary-index plan would be
+     * unreachable and any test asserting one could never pass. A test that wants the index-only
+     * contract asks for it with {@code disallowScansWithWhere()} on the query, or passes its own
+     * session to the overloads below.</p>
+     */
     static QueryPlan plan(DataSet dataSet, String where) {
-        return plan(ClusterTest.session, dataSet, where);
+        return plan(ClusterTest.sessionAllowingScansWithWhere(), dataSet, where);
     }
 
+    /** @see #plan(DataSet, String) */
     static QueryPlan plan(DataSet dataSet, QueryBuilder qb) {
-        return plan(ClusterTest.session, dataSet, qb);
+        return plan(ClusterTest.sessionAllowingScansWithWhere(), dataSet, qb);
     }
 
     static QueryPlan plan(Session session, DataSet dataSet, String where) {

@@ -89,7 +89,9 @@ public class QueryContextTest extends ClusterTest {
         // Filter filter = Filter.range(binName, begin, end, CTX.listRank(-1));
         String where = "$." + binName + ".[#-1] >= " + begin + " and $." + binName + ".[#-1] <= " + end;
 
-        RecordStream rs = session.query(dataSet)
+        // The index carries a CTX the planner does not match to this rank-path predicate, so the
+        // query runs on the primary index; the assertions below are about the rows.
+        RecordStream rs = sessionAllowingScansWithWhere().query(dataSet)
             .where(where)
             .execute();
 

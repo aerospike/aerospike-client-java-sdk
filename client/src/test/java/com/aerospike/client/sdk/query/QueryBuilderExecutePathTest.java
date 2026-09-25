@@ -34,8 +34,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -43,7 +41,6 @@ import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.ErrorHandler;
 import com.aerospike.client.sdk.ErrorStrategy;
-import com.aerospike.client.sdk.KnownDefect;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Session;
@@ -54,9 +51,12 @@ import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
  * Dataset {@link QueryBuilder} / {@link IndexQueryBuilderImpl} execute overload coverage.
  *
  * <p>Documents known gaps: {@code execute(ErrorStrategy)} and {@code executeAsync(ErrorStrategy)}
- * null-check the strategy then call {@code executeInternal(null)}; {@code executeAsync} is not
- * actually async on the dataset path; {@link QueryBuilder#getTxnToUse()} is never read by
+ * null-check the strategy and then discard it; {@link QueryBuilder#getTxnToUse()} is never read by
  * {@link IndexQueryBuilderImpl}.</p>
+ *
+ * <p>Since CLIENT-5523 {@code executeAsync} plans on a virtual thread, so it returns before the
+ * server has answered and a planning failure reaches the caller through the stream rather than from
+ * the call. {@code execute} still plans inline and throws from the call.</p>
  *
  * <p>The chunked-pagination tests guard CLIENT-5352, where {@code execute(ErrorHandler)} truncated
  * a chunked result set to the first chunk.</p>
@@ -136,10 +136,17 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
     }
 
+    /**
+     * Planning moved off the calling thread (CLIENT-5523), so an unrecoverable hint violation no
+     * longer throws from {@code executeAsync} itself. The stream comes back immediately and the
+     * failure arrives on the first read - the same {@link AerospikeException} {@code execute}
+     * raises inline, carrying the same result code.
+     */
     @Test
-    void executeAsyncInStreamStrategyStillThrowsOnHardHint() {
-        AerospikeException ae = assertThrows(AerospikeException.class,
-            () -> failingQuery().executeAsync(ErrorStrategy.IN_STREAM));
+    void executeAsyncInStreamStrategySurfacesHardHintFailureOnRead() {
+        RecordStream rs = failingQuery().executeAsync(ErrorStrategy.IN_STREAM);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> collectAges(rs, AGE_BIN));
 
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
     }
@@ -154,14 +161,17 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
         assertEquals(0, handled.get(), "handler must not run when planning fails");
     }
 
+    /** @see #executeAsyncInStreamStrategySurfacesHardHintFailureOnRead() */
     @Test
-    void executeAsyncErrorHandlerStillThrowsOnHardHint() {
+    void executeAsyncErrorHandlerSurfacesHardHintFailureOnRead() {
         AtomicInteger handled = new AtomicInteger();
-        AerospikeException ae = assertThrows(AerospikeException.class, () ->
-            failingQuery().executeAsync((key, index, ex) -> handled.incrementAndGet()));
+        RecordStream rs = failingQuery().executeAsync((key, index, ex) -> handled.incrementAndGet());
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> collectAges(rs, AGE_BIN));
 
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
-        assertEquals(0, handled.get(), "handler must not run when planning fails");
+        assertEquals(0, handled.get(),
+            "a failure to plan the query is not a per-record error, so the handler must not run");
     }
 
     // ---------------------------------------------------------------- happy-path handler + async
@@ -199,12 +209,6 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
      * active transaction on the session (no explicit {@code inTransaction} call required).
      */
     @Test
-    @Tag(KnownDefect.TAG)
-    @Disabled("Known defect: committing a transaction whose only activity was a query fails. The server has"
-        + " no MRT support on the query path (as_transaction_has_mrt_id is never consulted under"
-        + " as/src/query, and records are read with is_mrt hardcoded false), so the client correctly does"
-        + " not forward the transaction. But that also means Txn.setNamespace is never called, and TxnRoll"
-        + " then does partitionMap.get(null) and throws InvalidNamespace at commit.")
     void executeAsyncInsideTransactionCompletes() {
         assumeTrue(args.scMode, "transactions require strong consistency");
 
@@ -226,9 +230,6 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
      * forwards it to the wire command.
      */
     @Test
-    @Tag(KnownDefect.TAG)
-    @Disabled("Known defect: this transaction runs no command at all, so Txn.namespace stays null and"
-        + " TxnRoll throws InvalidNamespace at commit. Committing an empty transaction should be a no-op.")
     void explicitInTransactionSetsTxnOnBuilder() {
         assumeTrue(args.scMode, "transactions require strong consistency");
 
@@ -339,9 +340,6 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
     }
 
     @Test
-    @Tag(KnownDefect.TAG)
-    @Disabled("Known defect: the assertion under test passes, but the enclosing doInTransaction block runs"
-        + " no command, so Txn.namespace stays null and TxnRoll throws InvalidNamespace at commit.")
     void notInAnyTransactionThenInTransactionThrows() {
         assumeTrue(args.scMode, "transactions require strong consistency");
 

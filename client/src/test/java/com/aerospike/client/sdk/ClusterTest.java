@@ -203,6 +203,25 @@ public class ClusterTest {
         d.execute();
     }
 
+    /**
+     * A session whose queries may fall back to a primary-index scan when no secondary index can
+     * serve the where clause.
+     *
+     * <p>A textual where clause (a string or a {@code PreparedAel}) is planned by the server, which
+     * answers {@code INDEX_NOTFOUND} when no index can serve it and the behavior forbids scanning -
+     * and {@code allowScansWithWhere} is false by default. Tests whose subject is something other
+     * than index selection query through this session, so their where clauses stay exactly as an
+     * application would write them, with no per-query hint.</p>
+     *
+     * <p>Derived from the suite's own session behavior, so auth, TLS and SC settings carry over and
+     * only the scan policy changes. Not cached: the suite replaces {@link #session} between runs.</p>
+     */
+    public static Session sessionAllowingScansWithWhere() {
+        return cluster.createSession(session.getBehavior().deriveWithChanges(
+            "allowScansWithWhere",
+            b -> b.on(Selectors.reads().query(), ops -> ops.allowScansWithWhere(true))));
+    }
+
     /** Return a key with no prior record state in the namespace set. */
     protected Key freshKey(String id) {
         Key key = args.set.id(id);

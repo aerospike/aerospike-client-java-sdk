@@ -17,6 +17,8 @@
 package com.aerospike.client.sdk.query;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,41 +69,28 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     @Override
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeInternal(null);
+        return executeAsyncInternal(null);
     }
 
     @Override
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return executeInternal(handler);
+        return executeAsyncInternal(handler);
     }
 
     private RecordStream executeInternal(ErrorHandler handler) {
         Session session = getSession();
-        Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
-        warnQueryDoesNotParticipateInTransaction(qb);
-
-        // Check for operations - not supported on servers < 8.1.2
-        if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
-            !qb.getOperations().isEmpty()) {
-            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
-                "Index query with read operations requires server version 8.1.2+. Server version is " +
-                cluster.getVersion());
-        }
+        validate(session, qb);
 
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
-        WhereClauseProcessor where = getQueryBuilder().getAel();
-        QueryCommand cmd;
+        WhereClauseProcessor where = qb.getAel();
 
-        cmd = IndexProbePlanner.buildCommand(
+        QueryCommand cmd = IndexProbePlanner.buildCommand(
             session, dataSet, where, qb.getQueryHint(), policy, qb);
 
-        AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
-        if (handler != null) {
-            stream.withErrorHandler(handler);
-        }
+        AsyncRecordStream stream = newStream(policy, handler);
         cmd.execute(stream);
 
         if (qb.getChunkSize() == 0) {
@@ -112,6 +101,108 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         else {
             // Paginated query
             return new RecordStream(stream, cmd, qb.getLimit(), policy.getRecordQueueSize(), handler);
+        }
+    }
+
+    /**
+     * Asynchronous sibling of {@link #executeInternal(ErrorHandler)}: returns a stream immediately and
+     * does the work on a virtual thread.
+     *
+     * <p>Planning an index query is a server round-trip (the explain probe), so leaving it in the calling
+     * thread made {@code executeAsync} block for as long as the server took to answer - CLIENT-5523. Only
+     * the argument checks stay here, because a caller that passed nonsense should hear about it from the
+     * call rather than from the stream. Everything after that, planning included, happens on the virtual
+     * thread, and a planning failure reaches the caller through the stream like any other query error.</p>
+     */
+    private RecordStream executeAsyncInternal(ErrorHandler handler) {
+        Session session = getSession();
+        Cluster cluster = session.getCluster();
+        QueryBuilder qb = getQueryBuilder();
+
+        validate(session, qb);
+
+        ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        WhereClauseProcessor where = qb.getAel();
+
+        AsyncRecordStream stream = newStream(policy, handler);
+        CompletableFuture<QueryCommand> planned = new CompletableFuture<>();
+
+        cluster.startVirtualThread(() -> {
+            QueryCommand cmd;
+
+            try {
+                cmd = IndexProbePlanner.buildCommand(
+                    session, dataSet, where, qb.getQueryHint(), policy, qb);
+            }
+            catch (Throwable t) {
+                planned.completeExceptionally(t);
+                stream.error(t);
+                return;
+            }
+
+            planned.complete(cmd);
+
+            try {
+                cmd.execute(stream);
+            }
+            catch (Throwable t) {
+                stream.error(t);
+            }
+        });
+
+        if (qb.getChunkSize() == 0) {
+            // Normal query
+            return new RecordStream(stream);
+        }
+        else {
+            // Paginated query: the chunk loader needs the planned command, which is not ready yet.
+            return new RecordStream(stream, () -> awaitPlan(planned), qb.getLimit(),
+                policy.getRecordQueueSize(), handler);
+        }
+    }
+
+    /** Cheap, local checks that belong to the call itself rather than to the stream it returns. */
+    private void validate(Session session, QueryBuilder qb) {
+        Cluster cluster = session.getCluster();
+
+        warnQueryDoesNotParticipateInTransaction(qb);
+
+        // Check for operations - not supported on servers < 8.1.2
+        if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
+            !qb.getOperations().isEmpty()) {
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                "Index query with read operations requires server version 8.1.2+. Server version is " +
+                cluster.getVersion());
+        }
+    }
+
+    private static AsyncRecordStream newStream(ResolvedSettings policy, ErrorHandler handler) {
+        AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
+
+        if (handler != null) {
+            stream.withErrorHandler(handler);
+        }
+        return stream;
+    }
+
+    /**
+     * Waits for the plan produced on the virtual thread, unwrapping the completion wrapper so a planning
+     * failure surfaces as the {@link AerospikeException} the caller would have seen synchronously.
+     */
+    private static QueryCommand awaitPlan(CompletableFuture<QueryCommand> planned) {
+        try {
+            return planned.join();
+        }
+        catch (CompletionException e) {
+            Throwable cause = e.getCause();
+
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw e;
         }
     }
 
