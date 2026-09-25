@@ -51,9 +51,12 @@ import com.aerospike.client.sdk.query.QuerySelectionIntegSupport.Fixture;
  * Dataset {@link QueryBuilder} / {@link IndexQueryBuilderImpl} execute overload coverage.
  *
  * <p>Documents known gaps: {@code execute(ErrorStrategy)} and {@code executeAsync(ErrorStrategy)}
- * null-check the strategy then call {@code executeInternal(null)}; {@code executeAsync} is not
- * actually async on the dataset path; {@link QueryBuilder#getTxnToUse()} is never read by
+ * null-check the strategy and then discard it; {@link QueryBuilder#getTxnToUse()} is never read by
  * {@link IndexQueryBuilderImpl}.</p>
+ *
+ * <p>Since CLIENT-5523 {@code executeAsync} plans on a virtual thread, so it returns before the
+ * server has answered and a planning failure reaches the caller through the stream rather than from
+ * the call. {@code execute} still plans inline and throws from the call.</p>
  *
  * <p>The chunked-pagination tests guard CLIENT-5352, where {@code execute(ErrorHandler)} truncated
  * a chunked result set to the first chunk.</p>
@@ -133,10 +136,17 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
     }
 
+    /**
+     * Planning moved off the calling thread (CLIENT-5523), so an unrecoverable hint violation no
+     * longer throws from {@code executeAsync} itself. The stream comes back immediately and the
+     * failure arrives on the first read - the same {@link AerospikeException} {@code execute}
+     * raises inline, carrying the same result code.
+     */
     @Test
-    void executeAsyncInStreamStrategyStillThrowsOnHardHint() {
-        AerospikeException ae = assertThrows(AerospikeException.class,
-            () -> failingQuery().executeAsync(ErrorStrategy.IN_STREAM));
+    void executeAsyncInStreamStrategySurfacesHardHintFailureOnRead() {
+        RecordStream rs = failingQuery().executeAsync(ErrorStrategy.IN_STREAM);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> collectAges(rs, AGE_BIN));
 
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
     }
@@ -151,14 +161,17 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
         assertEquals(0, handled.get(), "handler must not run when planning fails");
     }
 
+    /** @see #executeAsyncInStreamStrategySurfacesHardHintFailureOnRead() */
     @Test
-    void executeAsyncErrorHandlerStillThrowsOnHardHint() {
+    void executeAsyncErrorHandlerSurfacesHardHintFailureOnRead() {
         AtomicInteger handled = new AtomicInteger();
-        AerospikeException ae = assertThrows(AerospikeException.class, () ->
-            failingQuery().executeAsync((key, index, ex) -> handled.incrementAndGet()));
+        RecordStream rs = failingQuery().executeAsync((key, index, ex) -> handled.incrementAndGet());
+
+        AerospikeException ae = assertThrows(AerospikeException.class, () -> collectAges(rs, AGE_BIN));
 
         assertEquals(ResultCode.INDEX_NOTFOUND, ae.getResultCode());
-        assertEquals(0, handled.get(), "handler must not run when planning fails");
+        assertEquals(0, handled.get(),
+            "a failure to plan the query is not a per-record error, so the handler must not run");
     }
 
     // ---------------------------------------------------------------- happy-path handler + async

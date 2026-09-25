@@ -39,7 +39,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -48,9 +47,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.aerospike.client.sdk.CdtGetOrRemoveBuilder.CdtOperation;
 import com.aerospike.client.sdk.CdtOperationCapture.CapturingOperationBuilder;
 import com.aerospike.client.sdk.cdt.MapOperation;
-import com.aerospike.client.sdk.cdt.path.CdtCollectOptions;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.cdt.MapWriteFlags;
+import com.aerospike.client.sdk.cdt.path.CdtCollectOptions;
 import com.aerospike.client.sdk.exp.Exp;
 
 /**

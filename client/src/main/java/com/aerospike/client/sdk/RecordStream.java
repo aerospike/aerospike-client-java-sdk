@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -204,11 +205,29 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public RecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize,
                         ErrorHandler errorHandler) {
+        this(stream, () -> cmd, limit, recordQueueSize, errorHandler);
+    }
+
+    /**
+     * Creates a chunked RecordStream whose query command is supplied on demand.
+     *
+     * <p>For asynchronous index queries: planning happens off the calling thread, so the command does
+     * not exist yet when the stream is handed back. The supplier waits for it, and is consulted only
+     * when a second chunk is requested - after the caller has drained the first.</p>
+     *
+     * @param stream first-chunk async buffer (see {@link ChunkedRecordStream})
+     * @param commandSupplier supplies the query command that loads each chunk
+     * @param limit maximum records to yield; non-positive values are treated as unbounded
+     * @param recordQueueSize async queue capacity per chunk
+     * @param errorHandler handler for per-record errors, or {@code null} to leave them in the stream
+     */
+    public RecordStream(AsyncRecordStream stream, Supplier<QueryCommand> commandSupplier, long limit,
+                        int recordQueueSize, ErrorHandler errorHandler) {
         if (limit <= 0) {
             limit = Long.MAX_VALUE;
         }
 
-        impl = new ChunkedRecordStream(stream, cmd, limit, recordQueueSize, errorHandler);
+        impl = new ChunkedRecordStream(stream, commandSupplier, limit, recordQueueSize, errorHandler);
     }
 
     /**
