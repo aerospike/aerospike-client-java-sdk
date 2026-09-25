@@ -30,8 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.command.CommitError;
@@ -115,11 +113,6 @@ public class TxnTest extends ClusterTest {
     }
 
     @Test
-    @Tag(KnownDefect.TAG)
-    @Disabled("Known defect, and a different one from the query/transaction cases: this test writes real"
-        + " keys, but it commits against a cluster it has only just connected. TxnRoll reads"
-        + " cluster.getPartitionMap() before tend has filled it and throws InvalidNamespace with"
-        + " 'Partition map empty'. Commit should wait for, or tolerate, an unpopulated partition map.")
     public void txnTransactionLevelRetryRunsLambdaOncePerAttempt() throws Exception {
         Key key = args.set.id("txnTxnRetryLambdaCount");
         final int expectedTxnAttempts = 3;

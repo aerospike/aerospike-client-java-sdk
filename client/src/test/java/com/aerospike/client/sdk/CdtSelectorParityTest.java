@@ -252,7 +252,6 @@ class CdtSelectorParityTest {
      * <p>This pins current behaviour; it is a defect, not the intended contract.</p>
      */
     @Test
-    @Tag(KnownDefect.TAG)
     void navigatorKeepsValuesTheNewSelectionDoesNotUse() {
         CdtGetOrRemoveBuilder<CapturingOperationBuilder> nested =
             newOperateBuilder(new CapturingOperationBuilder());

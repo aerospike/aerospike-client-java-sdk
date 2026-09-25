@@ -111,7 +111,8 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()));
 
-        assertEquals(0, countRecords(session.query(dataSet)
+        // The plan above is PRIMARY_INDEX, so the read needs the same fallback permitted.
+        assertEquals(0, countRecords(sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(COUNTRY_BIN)
             .where(where)
             .execute()));
@@ -151,7 +152,8 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()));
 
-        assertEquals(0, countRecords(session.query(dataSet)
+        // The plan above is PRIMARY_INDEX, so the read needs the same fallback permitted.
+        assertEquals(0, countRecords(sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(AGE_BIN)
             .where(where)
             .execute()));
@@ -282,7 +284,9 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     void executePrimaryIndexPredicateReturnsMatchingRecords() {
         String where = "$.country == 'US'";
 
-        RecordStream rs = session.query(dataSet)
+        // Primary-index by construction: country carries no index, so this query exists precisely
+        // to exercise the scan fallback.
+        RecordStream rs = sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(COUNTRY_BIN)
             .where(where)
             .execute();

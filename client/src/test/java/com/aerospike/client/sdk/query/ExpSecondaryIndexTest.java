@@ -122,7 +122,17 @@ public class ExpSecondaryIndexTest extends ClusterTest {
 
     @AfterAll
     public static void destroy() {
-        session.dropIndex(dataSet, indexName);
+        dropIndexQuietly(indexName);
+        dropIndexQuietly(indexNameAel);
+    }
+
+    /** Neither index is created by every test, so a missing one is not a teardown failure. */
+    private static void dropIndexQuietly(String name) {
+        try {
+            session.dropIndex(dataSet, name);
+        }
+        catch (AerospikeException ignored) {
+        }
     }
 
     @Test
@@ -149,12 +159,22 @@ public class ExpSecondaryIndexTest extends ClusterTest {
         if (!sincdices.contains("indexname=" + indexName)) {
             addExpSI();
         }
+        // The AEL index is the one built from this predicate, so give the planner the chance to
+        // select it. Test order is not guaranteed, so createAelSI() may not have run yet.
+        if (!sincdices.contains("indexname=" + indexNameAel)) {
+            addAelSI();
+        }
 
         insertTestRecords();
 
         String where = "$.age >= 18 and ($.country == 'Australia' or $.country == 'Canada' or $.country == 'USA')";
 
-        RecordStream rs = session.query(dataSet)
+        // Both indexes here store the value of an expression, not the bins the predicate names, so
+        // the server may answer that nothing can serve this clause. That is a planning outcome, not
+        // the subject of this test - the assertions below are about which records come back - so
+        // the primary-index fallback is permitted. Plan selection is covered by the
+        // QuerySelection* suites.
+        RecordStream rs = sessionAllowingScansWithWhere().query(dataSet)
             .where(where)
             .execute();
 
