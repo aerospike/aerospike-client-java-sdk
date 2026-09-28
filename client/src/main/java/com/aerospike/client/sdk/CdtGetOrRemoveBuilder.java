@@ -81,7 +81,12 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         /** Iterate all children at the current path ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}). */
         ALL_CHILDREN,
         /** Iterate children matching a filter ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter}). */
-        ALL_CHILDREN_WITH_FILTER
+        ALL_CHILDREN_WITH_FILTER,
+        /**
+         * Filter the preceding selection with an expression ({@link com.aerospike.client.sdk.cdt.CTX#andFilter}).
+         * Only valid as a path segment, not as the target of a classic get/remove terminal.
+         */
+        AND_FILTER
     }
 
     /**
@@ -493,6 +498,17 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     public CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams) {
         CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
         throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#andFilter(Exp)
+     */
+    @Override
+    public CdtContextNonInvertableBuilder<T> andFilter(Exp filter) {
+        params.pushCurrentToContextAndReplaceWithAndFilter(filter);
+        return this;
     }
 
     /**
@@ -2516,6 +2532,12 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     /**
      * Navigate to map items by a list of keys.
      * Server selects map items identified by keys.
+     *
+     * <p>In a path expression — followed by {@code onEachChild}, {@code andFilter}, or a {@code collect*},
+     * {@code modifyBy}, or {@code removeMatches} terminal — this step becomes a
+     * {@link com.aerospike.client.sdk.cdt.CTX#mapKeysIn(Value...)} context (server 8.1.2+). Each key is
+     * converted with {@link Value#get(Object)}, so {@code byte[]} keys are sent as blobs and key types may
+     * be mixed.</p>
      *
      * @param keys the list of keys to match
      * @return builder for continued chaining (invertable for list operations)
