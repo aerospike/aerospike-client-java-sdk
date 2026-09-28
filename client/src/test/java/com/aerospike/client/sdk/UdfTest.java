@@ -141,8 +141,8 @@ public class UdfTest extends ClusterTest {
 
         -- Busy-wait
         local function sleep(sec)
-            local deadline = os.time() + sec
-            while os.time() <= deadline do
+            local deadline = aerospike:get_current_time() + (sec * 1000)
+            while aerospike:get_current_time() <= deadline do
             end
         end
 

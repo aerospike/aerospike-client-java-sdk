@@ -65,6 +65,6 @@ public class TxnCommandTest {
             txn.verifyCommand();
         });
 
-        assertEquals(ResultCode.TXN_FAILED, ae.getResultCode());
+        assertEquals(ResultCode.CLIENT_ERROR, ae.getResultCode());
     }
 }

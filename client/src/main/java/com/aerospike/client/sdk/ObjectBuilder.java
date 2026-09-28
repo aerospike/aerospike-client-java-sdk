@@ -926,7 +926,7 @@ public class ObjectBuilder<T> {
 
                 RecordResult result = AbstractFilterableBuilder.createRecordResultFromBatchRecord(br, settings, i);
 
-                if (AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                if (AbstractFilterableBuilder.isActionableError(br.resultCode, br.hasWrite)) {
                     switch (disposition) {
                         case ErrorDisposition.Throw ignored -> {
                             throw result.toException();

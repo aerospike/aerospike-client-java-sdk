@@ -790,16 +790,20 @@ RecordStream rs = session.query(users)
 
 ## Error Handling
 
-By default, all operations throw exceptions on failure. Two alternative
-modes are available that embed errors into the `RecordStream` instead of
-throwing, making per-key error handling straightforward in batch
-scenarios.
+Failures fall into three channels. Details: [error-handling.md](error-handling.md).
 
-| Mode | How errors are delivered |
-|---|---|
-| **Throw** (default) | Unchecked `AerospikeException` thrown immediately |
-| `ErrorStrategy.IN_STREAM` | Errors appear as `RecordResult` entries — check `result.isOk()` |
-| `ErrorHandler` (callback) | Errors dispatched to a callback; stream contains only successes |
+| Kind | Sync | Async |
+|---|---|---|
+| Programming error (null strategy, empty builder) | Throw from the call | Throw from the call |
+| Terminal (planning, cluster down, txn namespace mismatch) | Throw from `execute()` | Stream / CF / publisher fails; not an error row; handler not called |
+| Per-key (batch item, `KEY_EXISTS`, `INVALID_NAMESPACE` outside a txn) | `IN_STREAM` / handler / single-key throw | Same, on the returned stream |
+
+`ErrorStrategy.IN_STREAM` and `ErrorHandler` are **per-record** only. They do not cover
+query planning or a transaction that rejects mixed namespaces before any key is sent.
+
+`KEY_NOT_FOUND` on reads is omitted unless `includeMissingKeys()`, in which case it is
+a stream row (not a throw or handler event); see
+[error-filtering-behavior.md](error-filtering-behavior.md).
 
 `ErrorStrategy` and `ErrorHandler` work on both synchronous `execute()`
 and asynchronous `executeAsync()`:
@@ -824,8 +828,9 @@ RecordStream rs = session.query(users.ids("alice", "bob"))
     .execute(err -> System.err.println("Failed: " + err.getKey()));
 ```
 
-For async usage, the same strategies are passed to `executeAsync()` — see
-[Async Operations](#async-operations).
+For async usage, the same **per-record** strategies are passed to `executeAsync()` — see
+[Async Operations](#async-operations). Terminal failures still fail the stream / future;
+they are not converted into `RecordResult` rows.
 
 ---
 
@@ -837,8 +842,9 @@ thread as results arrive from the server.
 
 ### Async error handling
 
-`executeAsync()` accepts the same `ErrorStrategy` / `ErrorHandler` as
-`execute()`:
+`executeAsync()` accepts the same **per-record** `ErrorStrategy` / `ErrorHandler` as
+`execute()`. Terminal failures (planning, txn namespace mismatch) terminate the stream
+instead; see [error-handling.md](error-handling.md).
 
 ```java
 // Errors embedded in the stream — caller checks each result

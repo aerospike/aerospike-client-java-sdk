@@ -19,7 +19,11 @@ package com.aerospike.client.sdk;
 /**
  * Strategy for handling per-record errors during asynchronous or explicitly overridden execution.
  *
- * <p>Pass to {@code executeAsync()} or {@code execute()} to control how errors are surfaced:</p>
+ * <p>This does not replace Java exceptions for programming errors or terminal failures of the
+ * whole operation (planning, cluster down, transaction namespace mismatch). Those throw from
+ * sync {@code execute()} and terminate the async stream via {@link AsyncRecordStream#error}.</p>
+ *
+ * <p>Pass to {@code executeAsync()} or {@code execute()} to control how per-record errors are surfaced:</p>
  * <pre>{@code
  * // Errors embedded in the RecordStream as failed RecordResult entries
  * RecordStream rs = session.update(set.id(1)).bin("age").add(1)
