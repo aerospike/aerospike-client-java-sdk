@@ -91,7 +91,7 @@ public abstract class AbstractFilterableBuilder {
         Session readMappingSession,
         Class<?> readMappingClass
     ) {
-        if (isActionableError(br.resultCode)) {
+        if (br.resultCode != ResultCode.OK) {
             return RecordResult.batchError(br, index, readMappingSession, readMappingClass);
         }
         return RecordResult.batchSuccess(br, index, readMappingSession, readMappingClass);
@@ -123,18 +123,35 @@ public abstract class AbstractFilterableBuilder {
     }
 
     /**
-     * Returns true if the result code represents an actionable error that should
-     * be subject to error disposition (THROW / HANDLER). Codes like
-     * {@link ResultCode#KEY_NOT_FOUND_ERROR} are informational and should always
-     * flow through the stream regardless of disposition.
+     * Returns true if the result code should be subject to error disposition (THROW / HANDLER).
+     *
+     * <p>{@link ResultCode#KEY_NOT_FOUND_ERROR} on a <em>read</em> is informational: omitted unless
+     * {@code includeMissingKeys()}, then always a stream row (never a throw or handler call).
+     * On a <em>write</em> it is an actionable per-key error because every write reports a
+     * per-key outcome.</p>
      */
     static boolean isActionableError(int resultCode) {
-        return resultCode != ResultCode.OK;
+        return isActionableError(resultCode, false);
+    }
+
+    /**
+     * @param keyNotFoundIsError true for writes (always report per-key status); false for reads
+     */
+    static boolean isActionableError(int resultCode, boolean keyNotFoundIsError) {
+        if (resultCode == ResultCode.OK) {
+            return false;
+        }
+        if (resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
+            return keyNotFoundIsError;
+        }
+        return true;
     }
 
     /**
      * Dispatch an async result: if a handler is present and the result is an error,
      * route to the handler; otherwise publish to the stream.
+     *
+     * <p>Read {@code KEY_NOT_FOUND} rows stay in the stream even when a handler is present.</p>
      */
     static void dispatchResult(RecordResult result, AsyncRecordStream stream, ErrorHandler handler) {
         if (handler != null && isActionableError(result.getResultCode())) {
@@ -160,8 +177,9 @@ public abstract class AbstractFilterableBuilder {
      * @param stream     the target stream for publishable results
      */
     static void routeBatchResult(RecordResult result, int resultCode,
-                                 ErrorDisposition disposition, AsyncRecordStream stream) {
-        if (isActionableError(resultCode)) {
+                                 ErrorDisposition disposition, AsyncRecordStream stream,
+                                 boolean hasWrite) {
+        if (isActionableError(resultCode, hasWrite)) {
             switch (disposition) {
                 case ErrorDisposition.Throw ignored -> {
                      throw result.toException();

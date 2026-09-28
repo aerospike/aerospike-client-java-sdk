@@ -360,7 +360,7 @@ class OperationSpecExecutor {
                     br, settings, i, mappingSession, readHint);
 
                 AbstractFilterableBuilder.routeBatchResult(
-                    result, br.resultCode, disposition, recordStream);
+                    result, br.resultCode, disposition, recordStream, br.hasWrite);
             }
 
             RecordStream rs = new RecordStream(recordStream);
@@ -392,7 +392,7 @@ class OperationSpecExecutor {
 
                 if (includeResult) {
                     RecordResult result;
-                    if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                    if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode, spec.isIncludeMissingKeys())) {
                         result = new RecordResult(
                             br,
                             AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
@@ -471,7 +471,7 @@ class OperationSpecExecutor {
         try {
             if (spec.isQuery()) {
                 return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key,
-                    filterExp, txn, scMode, includeMissingKeys, failOnFilteredOut);
+                    filterExp, txn, scMode, includeMissingKeys, failOnFilteredOut, disposition);
             }
             else if (spec.getOpType() == OpType.EXISTS) {
                 return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key,
@@ -488,12 +488,12 @@ class OperationSpecExecutor {
             else if (spec.getOpType() == OpType.UDF) {
                 return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key,
                     filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut,
-                    durableDeleteDefault);
+                    durableDeleteDefault, disposition);
             }
             else {
                 return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key,
                     filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut,
-                    durableDeleteDefault);
+                    durableDeleteDefault, disposition);
             }
         }
         catch (AerospikeException ae) {
@@ -504,6 +504,10 @@ class OperationSpecExecutor {
     private static RecordStream handleSingleKeyError(
         Key key, AerospikeException ae, OperationSpec spec, ErrorDisposition disposition
     ) {
+        if (ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR && spec.isQuery()) {
+            return spec.isIncludeMissingKeys() ? streamNotFound(key) : new RecordStream();
+        }
+
         boolean hasWrite = spec.getOpType() != null;
         if (!shouldIncludeResult(ae.getResultCode(), spec.isIncludeMissingKeys(), spec.isFailOnFilteredOut(), hasWrite, false)) {
             return new RecordStream();
@@ -525,7 +529,8 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyRead(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
+        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
+        ErrorDisposition disposition
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
         ReadAttr attr = new ReadAttr(partitions, settings);
@@ -554,6 +559,9 @@ class OperationSpecExecutor {
             ReadExecutor exec = new ReadExecutor(cluster, cmd);
             exec.execute();
             rec = exec.getRecord();
+            if (rec == null && exec.getResultCode() == ResultCode.FILTERED_OUT) {
+                return new RecordStream();
+            }
         }
 
         return createRecordStream(session, key, rec, includeMissingKeys, spec.getReadMappingClass());
@@ -566,7 +574,7 @@ class OperationSpecExecutor {
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
-        Boolean durableDeleteDefault
+        Boolean durableDeleteDefault, ErrorDisposition disposition
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -679,7 +687,7 @@ class OperationSpecExecutor {
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression where, long ttl, Txn txn,
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
-        Boolean durableDeleteDefault
+        Boolean durableDeleteDefault, ErrorDisposition disposition
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
 

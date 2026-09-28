@@ -205,7 +205,9 @@ public class CdtBuilderPermutationTest extends ClusterTest {
         List.of(30L, 40L, 50L), // onMapKeyRange("c", INFINITY)
         List.of(10L), // onMapKeyRange(NULL, "b")
         List.of(10L, 20L), // onMapRankRange(0, 2)
-        List.of(), // onMapRankRange(3)
+        // TODO: BN: onMapRangRange(3) on {a:10, b:20, c:30, d:40, e:50} should not be empty list?
+        // List.of(), // onMapRankRange(3)
+        List.of(40L, 50L),
         List.of(20L, 30L, 40L), // onMapValueRange(15, 45)
         List.of(30L, 40L, 50L), // onMapValueRange(30, INFINITY)
         List.of(30L, 40L, 50L), // onMapKeyRelativeIndexRange("c", 0)
