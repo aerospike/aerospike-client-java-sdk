@@ -62,11 +62,9 @@ public class TxnCommandTest {
         txn.setState(Txn.State.COMMIT_FAILED);
 
         AerospikeException ae = assertThrows(AerospikeException.class, () -> {
-            // TODO: BN: I don't see how this should give TXN_FAILED, not -1. VerfiyCommand always throws -1 if state != OPEN
             txn.verifyCommand();
         });
 
-//        assertEquals(ResultCode.TXN_FAILED, ae.getResultCode());
         assertEquals(ResultCode.CLIENT_ERROR, ae.getResultCode());
     }
 }
