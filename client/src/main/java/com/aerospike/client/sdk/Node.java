@@ -1087,6 +1087,7 @@ public class Node implements Closeable {
 
     /**
      * Add elapsed time in nanoseconds to latency buckets corresponding to latency type.
+     * For internal use only.
      */
     public final void addLatency(String namespace, LatencyType type, long elapsed) {
         if (cluster.isMetricsOperationalEnabled()) {
