@@ -463,7 +463,7 @@ public final class Batch {
                     exec.commandSentCounter = commandSentCounter;
                     exec.deadline = deadline;
 
-                    cluster.addRetry();
+                    cluster.addRetryCount();
                     es.execute(exec);
                 }
             }

@@ -615,7 +615,7 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment single key command count when usage metrics are enabled.
+     * Increment single key command count when usage metrics are enabled. For internal use only.
      */
     public final void addSingleCount() {
         if (metricsUsageEnabled) {
@@ -631,7 +631,7 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment batch command count when usage metrics are enabled.
+     * Increment batch command count when usage metrics are enabled. For internal use only.
      */
     public final void addBatchCount() {
         if (metricsUsageEnabled) {
@@ -647,7 +647,7 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment query command count when usage metrics are enabled.
+     * Increment query command count when usage metrics are enabled. For internal use only.
      */
     public final void addQueryCount() {
         if (metricsUsageEnabled) {
@@ -663,7 +663,7 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment sync command count when usage metrics are enabled.
+     * Increment sync command count when usage metrics are enabled. For internal use only.
      */
     public final void addBlockingCount() {
         if (metricsUsageEnabled) {
@@ -679,7 +679,7 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment async command count when usage metrics are enabled.
+     * Increment async command count when usage metrics are enabled. For internal use only.
      */
     public final void addDeferredCount() {
         if (metricsUsageEnabled) {
@@ -695,7 +695,7 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment background command count when usage metrics are enabled.
+     * Increment background command count when usage metrics are enabled. For internal use only.
      */
     public final void addBackgroundCount() {
         if (metricsUsageEnabled) {
@@ -712,16 +712,10 @@ public class Cluster implements Closeable {
 
     /**
      * Increment command retry count. There can be multiple retries for a single command.
+     *For internal use only.
      */
-    public final void addRetry() {
+    public final void addRetryCount() {
         retryCount.increment();
-    }
-
-    /**
-     * Add command retry count. There can be multiple retries for a single command.
-     */
-    public final void addRetries(int count) {
-        retryCount.add(count);
     }
 
     /**

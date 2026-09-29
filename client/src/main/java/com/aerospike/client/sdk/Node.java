@@ -991,7 +991,7 @@ public class Node implements Closeable {
 
     /**
      * Increment transaction error count. If the error is retryable, multiple errors per
-     * transaction may occur.
+     * transaction may occur. For internal use only.
      */
     public void addError(String namespace) {
         errorCounter.increment(namespace);
@@ -1013,7 +1013,7 @@ public class Node implements Closeable {
 
     /**
      * Increment transaction timeout count. If the timeout is retryable (ie socketTimeout),
-     * multiple timeouts per transaction may occur.
+     * multiple timeouts per transaction may occur. For internal use only.
      */
     public void addTimeout(String namespace) {
         timeoutCounter.increment(namespace);
@@ -1034,7 +1034,7 @@ public class Node implements Closeable {
     }
 
     /**
-     * Increment the key busy counter.
+     * Increment the key busy counter. For internal use only.
      */
     public void addKeyBusy(String namespace) {
         keyBusyCounter.increment(namespace);
@@ -1055,7 +1055,7 @@ public class Node implements Closeable {
     }
 
     /**
-     * Add to the count of bytes sent to the node.
+     * Add to the count of bytes sent to the node. For internal use only.
      */
     public void addBytesOut(String namespace, long count) {
         if (cluster.isMetricsOperationalEnabled()) {
@@ -1070,7 +1070,7 @@ public class Node implements Closeable {
         return (metrics != null)? metrics.bytesOutCounter.getCountByNS(namespace) : 0;
     }
     /**
-     * Add to the count of bytes received from the node.
+     * Add to the count of bytes received from the node. For internal use only.
      */
     public void addBytesIn(String namespace, long count) {
         if (cluster.isMetricsOperationalEnabled()) {
