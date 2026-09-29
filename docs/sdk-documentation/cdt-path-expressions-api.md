@@ -4,7 +4,7 @@
 
 **Audience:** SDK / client engineering  
 **Status:** Shipped for **`Exp`** filters and modify bodies. **`String` (AEL)** and **`PreparedAel`** overloads compile but throw **`UnsupportedOperationException`** until AEL compilation supports path-scoped fragments (`com.aerospike.client.sdk.cdt.path.CdtPathExpressionAel`).  
-**Depends on:** Aerospike server **≥ 8.1.1** path expression support (`CTX.allChildren`, `CTX.allChildrenWithFilter`, `CdtOperation.selectByPath` / `modifyByPath`, loop-variable `Exp` APIs, etc.)
+**Depends on:** Aerospike server **≥ 8.1.1** path expression support (`CTX.allChildren`, `CTX.allChildrenWithFilter`, `CdtOperation.selectByPath` / `modifyByPath`, loop-variable `Exp` APIs, etc.). The key-list and and-filter steps (`CTX.mapKeysIn`, `CTX.andFilter`) need server **≥ 8.1.2**.
 
 **Entry points:** `BinBuilder` / `QueryBinBuilder` / `QueryBuilderBinBuilder` expose `onEachChild()` at the bin root; nested navigation continues on `CdtGetOrRemoveBuilder` (writes) or `CdtReadOnlyBuilder` (reads). Options types: `com.aerospike.client.sdk.cdt.path.CdtCollectOptions`, `CdtModifyOptions`.
 
@@ -32,6 +32,8 @@ Navigation methods accumulate an internal **context list** (implementation maps 
 | **`onEachChild()`** | Iterate **all** children of the current map or list | **`CTX.allChildren()`** |
 | **`onEachChild(Exp filter)`** | Iterate children matching predicate | **`CTX.allChildrenWithFilter(filter)`** |
 | **`onEachChild(String aelFilter)`** | Same as `onEachChild(Exp)`; **throws `UnsupportedOperationException` today** | **`CTX.allChildrenWithFilter(compiledExp)`** |
+| *(existing)* **`onMapKeyList(List<?> keys)`** | Select the map entries whose keys are in `keys` (server 8.1.2+). Inside a path — followed by another step or a path terminal — it becomes a key-list context. Keys go through `Value.get(Object)`, so `byte[]` is a blob key and key types may be mixed. Its classic `get*` / `remove*` terminals are unchanged. | **`CTX.mapKeysIn(Value...)`** |
+| **`andFilter(Exp filter)`** | Keep only the entries selected by the previous step for which `filter` is true (server 8.1.2+). One per level (combine with `Exp.and`); not allowed directly after `onEachChild` (use `onEachChild(Exp)`); classic `get*` / `remove*` terminals are rejected after it. | **`CTX.andFilter(filter)`** |
 
 **Design decision:** Use **`onEachChild`** only (not `onEachListElement` / `onEachMapEntry`) because **`allChildren()`** is identical at the wire level for maps and lists; type-specific helpers belong **inside** the predicate (`MapExp` / `ListExp` / small SDK facades), not as separate iteration entry points.
 
@@ -41,7 +43,7 @@ Navigation methods accumulate an internal **context list** (implementation maps 
 
 ### 2.2 Terminals (multi-match operations)
 
-These apply only when the accumulated context includes at least one **`onEachChild`** segment (implementation may enforce this; invalid combinations should fail fast with a clear error).
+These apply only when the accumulated context includes at least one path-expression segment — **`onEachChild`**, **`onMapKeyList`**, or **`andFilter`**. Otherwise they throw `IllegalStateException`.
 
 | Method | Semantics | Legacy mapping |
 |--------|-------------|----------------|
@@ -94,6 +96,8 @@ Exact flag names should match **`Exp.SELECT_*`** / **`Exp.MODIFY_*`** (or the cl
 | `onEachChild()` | `CTX.allChildren()` |
 | `onEachChild(Exp)` | `CTX.allChildrenWithFilter(Exp)` |
 | `onEachChild(String)` | `CTX.allChildrenWithFilter(parseAelToExp(...))` — throws today |
+| `onMapKeyList(keys)` (in a path) | `CTX.mapKeysIn(Value...)` |
+| `andFilter(Exp)` | `CTX.andFilter(Exp)` |
 | `collectValues()` / `collectKeys()` / … | `CdtOperation.selectByPath(bin, flags, ctx…)` |
 | `modifyBy(Exp)` | `CdtOperation.modifyByPath(bin, modifyFlags, Exp, ctx…)` |
 | `removeMatches()` | `CdtOperation.modifyByPath(bin, modifyFlags, Exp.build(Exp.removeResult()), ctx…)` |
@@ -246,6 +250,33 @@ session.update(customerDataSet.id(500))
     .bin("inventory").mapUpsertItems(Map.of("figs", 12))
     .bin("nested").onMapKey("team2").onMapKey("members").listAppend("Quinn")
     .bin("nested").onMapKey("team1").onMapKey("members").listSize()
+    .execute();
+```
+
+### 4.7 Key list and and-filter (server 8.1.2+): bookings by id, current and not deleted
+
+Legacy form:
+
+```java
+session.query(key)
+    .appendOperations(CdtOperation.selectByPath("doc",
+        SelectFlags.MATCHING_TREE | SelectFlags.NO_FAIL,
+        CTX.mapKeysIn(10001L, 10003L),
+        CTX.andFilter(Exp.and(timeFilter, deletedFilter)),
+        CTX.allChildren(),
+        CTX.allChildrenWithFilter(rateFilter)))
+    .execute();
+```
+
+Fluent form (same wire operation):
+
+```java
+session.query(key)
+    .bin("doc").onMapKeyList(List.of(10001L, 10003L))
+    .andFilter(Exp.and(timeFilter, deletedFilter))
+    .onEachChild()
+    .onEachChild(rateFilter)
+    .collectTree(o -> o.noFail(true))
     .execute();
 ```
 

@@ -113,8 +113,8 @@ public class SystemSettings {
         )
         .transactions(ops -> ops
             .implicitBatchWriteTransactions(true)
-            .sleepBetweenAttempts(Duration.ofMillis(1000))
-            .numberOfAttempts(5)
+            .sleepBetweenAttempts(Duration.ofMillis(20))
+            .numberOfAttempts(10)
         )
         .metrics(ops -> ops
             .labels(new HashMap<>())

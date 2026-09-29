@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnRoll;
@@ -159,8 +160,7 @@ public class TransactionalSession extends Session{
                     catch (AerospikeException ae) {
                         abortTxn();
 
-                        if (retryCommit(ae) && attempt < maxAttempts) {
-                            sleepBetweenRetries(sleepBetweenAttempts);
+                        if (attempt < maxAttempts && retryCommit(ae, sleepBetweenAttempts)) {
                             txn = new Txn();
                             continue;
                         }
@@ -246,8 +246,7 @@ public class TransactionalSession extends Session{
                     catch (AerospikeException ae) {
                         abortTxn();
 
-                        if (retryCommit(ae) && attempt < maxAttempts) {
-                            sleepBetweenRetries(sleepBetweenAttempts);
+                        if (attempt < maxAttempts && retryCommit(ae, sleepBetweenAttempts)) {
                             txn = new Txn();
                             continue;
                         }
@@ -306,12 +305,16 @@ public class TransactionalSession extends Session{
         throw new AbortException();
     }
 
-    private boolean retryCommit(AerospikeException ae) {
+    private boolean retryCommit(AerospikeException ae, Duration sleepBetweenAttempts) {
         switch (ae.getResultCode()) {
-            case ResultCode.MRT_BLOCKED:
             case ResultCode.MRT_VERSION_MISMATCH:
+                // Retry immediately.
+                return true;
+
+            case ResultCode.MRT_BLOCKED:
             case ResultCode.TXN_FAILED:
-                // These can be retried from the beginning
+                // Sleep, then retry.
+                sleepBetweenRetries(sleepBetweenAttempts);
                 return true;
 
             default:
@@ -320,15 +323,44 @@ public class TransactionalSession extends Session{
         }
     }
 
+    /**
+     * Sleeps for {@code sleepBetweenAttempts} with +/-50% jitter so that concurrent transactions
+     * that collided do not retry in lockstep. The jitter is {@code floor(ms / 2)} and the actual
+     * sleep is uniformly distributed in {@code [ms - jitter, ms + jitter]} (inclusive), so the mean
+     * sleep is unchanged. For example, 5ms sleeps between 3ms and 7ms. A null or non-positive
+     * duration does not sleep.
+     */
     private static void sleepBetweenRetries(Duration sleepBetweenAttempts) {
         if (sleepBetweenAttempts != null && sleepBetweenAttempts.isPositive()) {
+            long sleepMillis = jitteredSleepMillis(sleepBetweenAttempts.toMillis());
+
+            if (sleepMillis <= 0) {
+                return;
+            }
+
             try {
-                Thread.sleep(sleepBetweenAttempts.toMillis());
+                Thread.sleep(sleepMillis);
             }
             catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    /**
+     * Returns {@code millis} adjusted by a uniformly random amount in
+     * {@code [-floor(millis / 2), +floor(millis / 2)]}. Package-private for testing.
+     */
+    static long jitteredSleepMillis(long millis) {
+        if (millis <= 0) {
+            return 0;
+        }
+        long jitter = millis / 2;
+
+        if (jitter == 0) {
+            return millis;
+        }
+        return millis + ThreadLocalRandom.current().nextLong(-jitter, jitter + 1);
     }
 
     private TxnStatus commitTxn() {

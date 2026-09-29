@@ -39,8 +39,18 @@ public class CdtOperationParams {
     private boolean pad;
     private boolean hasInt2;
 
-    /** Filter expression for {@link CdtOperation#ALL_CHILDREN_WITH_FILTER}; cleared after push. */
+    /**
+     * Filter expression for {@link CdtOperation#ALL_CHILDREN_WITH_FILTER} and {@link CdtOperation#AND_FILTER};
+     * cleared after push.
+     */
     private Exp pathChildFilterExp;
+
+    /**
+     * {@code true} once a context that only path expressions ({@code selectByPath} / {@code modifyByPath}) accept
+     * has been pushed: {@link CTX#allChildren()}, {@link CTX#allChildrenWithFilter(Exp)},
+     * {@link CTX#mapKeysIn(Value...)} or {@link CTX#andFilter(Exp)}.
+     */
+    private boolean hasPathExpressionContext;
 
     /**
      * Number of {@code onEachChild} segments along this path (including an initial segment at the bin root when
@@ -202,15 +212,45 @@ public class CdtOperationParams {
     }
 
     /**
-     * Flushes the final path segment and returns the full {@link CTX} array for {@code selectByPath} /
-     * {@code modifyByPath}. Requires at least one {@code onEachChild} segment ({@link #getEachChildSegmentCount()}).
+     * Pushes the current selection, then sets {@link CdtOperation#AND_FILTER} for the next path segment, so the
+     * selection just pushed is narrowed to the entries for which {@code filter} is true.
+     *
+     * <p>The server accepts one and-filter per context level, and not directly after an
+     * {@code allChildren} context, so this rejects the current selection being {@code onEachChild()} (use
+     * {@code onEachChild(Exp)} instead) or another {@code andFilter}.</p>
      */
-    public CTX[] finishContextPathForPathExpression() {
-        if (eachChildSegmentCount < 1) {
+    public void pushCurrentToContextAndReplaceWithAndFilter(Exp filter) {
+        if (filter == null) {
+            throw new NullPointerException("filter");
+        }
+        switch (operation) {
+        case ALL_CHILDREN:
+        case ALL_CHILDREN_WITH_FILTER:
             throw new IllegalStateException(
-                    "Path selection (collect*), modifyBy, or removeMatches requires at least one onEachChild() in the path.");
+                    "andFilter() cannot follow onEachChild(); pass the filter to onEachChild(Exp) instead.");
+        case AND_FILTER:
+            throw new IllegalStateException(
+                    "Only one andFilter() is allowed per path level; combine conditions with Exp.and(...).");
+        default:
+            break;
         }
         pushCurrentToContext();
+        this.operation = CdtOperation.AND_FILTER;
+        this.pathChildFilterExp = filter;
+    }
+
+    /**
+     * Flushes the final path segment and returns the full {@link CTX} array for {@code selectByPath} /
+     * {@code modifyByPath}. Requires the path to contain at least one path-expression segment:
+     * {@code onEachChild}, {@code onMapKeyList} or {@code andFilter}.
+     */
+    public CTX[] finishContextPathForPathExpression() {
+        pushCurrentToContext();
+        if (!hasPathExpressionContext) {
+            throw new IllegalStateException(
+                    "Path selection (collect*), modifyBy, or removeMatches requires at least one onEachChild(), "
+                    + "onMapKeyList() or andFilter() in the path.");
+        }
         CTX[] out = context();
         return out != null ? out : new CTX[0];
     }
@@ -224,6 +264,14 @@ public class CdtOperationParams {
                 throw new IllegalStateException("ALL_CHILDREN_WITH_FILTER requires a filter expression");
             }
             return CTX.allChildrenWithFilter(pathChildFilterExp);
+        case AND_FILTER:
+            if (pathChildFilterExp == null) {
+                throw new IllegalStateException("AND_FILTER requires a filter expression");
+            }
+            return CTX.andFilter(pathChildFilterExp);
+        case MAP_BY_KEY_LIST:
+            // Only path expressions accept a key-list context; classic CDT operations reject it server-side.
+            return CTX.mapKeysIn(values.toArray(Value[]::new));
         case MAP_BY_INDEX:
             return CTX.mapIndex(int1);
         case MAP_BY_KEY:
@@ -390,8 +438,18 @@ public class CdtOperationParams {
             ctx = new ArrayList<>();
         }
         ctx.add(currentToCtx());
-        if (operation == CdtOperation.ALL_CHILDREN_WITH_FILTER) {
+        switch (operation) {
+        case ALL_CHILDREN_WITH_FILTER:
+        case AND_FILTER:
             pathChildFilterExp = null;
+            hasPathExpressionContext = true;
+            break;
+        case ALL_CHILDREN:
+        case MAP_BY_KEY_LIST:
+            hasPathExpressionContext = true;
+            break;
+        default:
+            break;
         }
         mapCreateType = null;
         listCreateType = null;

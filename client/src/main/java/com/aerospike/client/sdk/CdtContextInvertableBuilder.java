@@ -218,8 +218,8 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     /**
      * Descend into every child at the current path using {@link com.aerospike.client.sdk.cdt.CTX#allChildren()}.
      *
-     * <p>At least one {@code onEachChild()} (or filtered variant) is required before {@code collect*},
-     * {@code modifyBy}, or {@code removeMatches}; it records the path used by
+     * <p>At least one {@code onEachChild()} (or filtered variant), {@code onMapKeyList}, or {@code andFilter}
+     * is required before {@code collect*}, {@code modifyBy}, or {@code removeMatches}; it records the path used by
      * {@link com.aerospike.client.sdk.cdt.CdtOperation#selectByPath} /
      * {@link com.aerospike.client.sdk.cdt.CdtOperation#modifyByPath}.</p>
      *
@@ -280,11 +280,22 @@ public interface CdtContextInvertableBuilder<T extends AbstractOperationBuilder<
     CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams);
 
     /**
+     * Narrow the current selection with a filter expression
+     * ({@link com.aerospike.client.sdk.cdt.CTX#andFilter(com.aerospike.client.sdk.exp.Exp)}). Server 8.1.2+.
+     *
+     * @param filter server-side {@link Exp} predicate; entries where it is false are dropped
+     * @return this path builder for further navigation or a path terminal
+     * @throws IllegalStateException if the current step is {@code onEachChild} or another {@code andFilter}
+     * @see CdtContextNonInvertableBuilder#andFilter(Exp)
+     */
+    CdtContextNonInvertableBuilder<T> andFilter(Exp filter);
+
+    /**
      * Terminal read: return matched leaf <strong>values</strong> as a flat list via CDT
      * {@code selectByPath} with {@link com.aerospike.client.sdk.cdt.SelectFlags#VALUE}.
      *
-     * <p>Requires at least one {@link #onEachChild()} segment on the path. Does not use the expression
-     * read opcode; see {@link #collectValuesAsExpressionRead} for {@code EXP_READ}.</p>
+     * <p>Requires at least one {@link #onEachChild()}, {@code onMapKeyList}, or {@code andFilter} segment on the
+     * path. Does not use the expression read opcode; see {@link #collectValuesAsExpressionRead} for {@code EXP_READ}.</p>
      *
      * <p><b>Example</b>:</p>
      * <pre>{@code

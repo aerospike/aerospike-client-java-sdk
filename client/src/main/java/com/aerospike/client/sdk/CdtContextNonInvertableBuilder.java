@@ -217,8 +217,8 @@ public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuild
     /**
      * Descend into every child at the current path using {@link com.aerospike.client.sdk.cdt.CTX#allChildren()}.
      *
-     * <p>At least one {@code onEachChild()} (or filtered variant) is required before {@code collect*},
-     * {@code modifyBy}, or {@code removeMatches}; it records the path used by
+     * <p>At least one {@code onEachChild()} (or filtered variant), {@code onMapKeyList}, or {@code andFilter}
+     * is required before {@code collect*}, {@code modifyBy}, or {@code removeMatches}; it records the path used by
      * {@link com.aerospike.client.sdk.cdt.CdtOperation#selectByPath} /
      * {@link com.aerospike.client.sdk.cdt.CdtOperation#modifyByPath}.</p>
      *
@@ -277,11 +277,44 @@ public interface CdtContextNonInvertableBuilder<T extends AbstractOperationBuild
     CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams);
 
     /**
+     * Narrow the current selection with a filter expression
+     * ({@link com.aerospike.client.sdk.cdt.CTX#andFilter(com.aerospike.client.sdk.exp.Exp)}): only entries
+     * that match the preceding step <em>and</em> satisfy {@code filter} stay on the path. Server 8.1.2+.
+     *
+     * <p>Typically follows {@link #onMapKeyList(List)}, which becomes a
+     * {@link com.aerospike.client.sdk.cdt.CTX#mapKeysIn(com.aerospike.client.sdk.Value...)} context when it is
+     * part of a path. Follow it with {@code onEachChild}, {@code onMapKey} and similar navigation, or directly
+     * with a {@code collect*}, {@code modifyBy}, or {@code removeMatches} terminal. The classic
+     * {@code get*} / {@code remove*} terminals are rejected after an and-filter.</p>
+     *
+     * <p>The filter is evaluated in the server's path-expression context: loop variables such as
+     * {@link com.aerospike.client.sdk.exp.LoopVarPart#VALUE} refer to each selected entry.</p>
+     *
+     * <p><b>Example</b> — two bookings by id, kept only if they are current and not deleted, then every
+     * rate inside them that passes {@code rateFilter}:</p>
+     * <pre>{@code
+     * session.query(key)
+     *     .bin("doc").onMapKeyList(List.of(10001L, 10003L))
+     *     .andFilter(Exp.and(timeFilter, deletedFilter))
+     *     .onEachChild()
+     *     .onEachChild(rateFilter)
+     *     .collectTree(o -> o.noFail(true))
+     *     .execute();
+     * }</pre>
+     *
+     * @param filter server-side {@link Exp} predicate; entries where it is false are dropped
+     * @return this path builder for further navigation or a path terminal
+     * @throws IllegalStateException if the current step is {@code onEachChild} (pass the filter to
+     *         {@code onEachChild(Exp)} instead) or another {@code andFilter} (combine with {@link Exp#and})
+     */
+    CdtContextNonInvertableBuilder<T> andFilter(Exp filter);
+
+    /**
      * Terminal read: return matched leaf <strong>values</strong> as a flat list via CDT
      * {@code selectByPath} with {@link com.aerospike.client.sdk.cdt.SelectFlags#VALUE}.
      *
-     * <p>Requires at least one {@link #onEachChild()} segment on the path. Does not use the expression
-     * read opcode; see {@link #collectValuesAsExpressionRead} for {@code EXP_READ}.</p>
+     * <p>Requires at least one {@link #onEachChild()}, {@code onMapKeyList}, or {@code andFilter} segment on the
+     * path. Does not use the expression read opcode; see {@link #collectValuesAsExpressionRead} for {@code EXP_READ}.</p>
      *
      * <p><b>Example</b>:</p>
      * <pre>{@code

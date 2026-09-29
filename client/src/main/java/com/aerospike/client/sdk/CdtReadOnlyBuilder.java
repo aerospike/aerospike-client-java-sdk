@@ -1035,6 +1035,17 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
     /**
      * {@inheritDoc}
      *
+     * @see CdtReadContextBuilder#andFilter(Exp)
+     */
+    @Override
+    public CdtReadContextBuilder<T> andFilter(Exp filter) {
+        params.pushCurrentToContextAndReplaceWithAndFilter(filter);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
      * @see CdtReadContextBuilder#collectValues()
      */
     @Override
