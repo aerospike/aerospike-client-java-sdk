@@ -143,7 +143,10 @@ public class TransactionalSession extends Session{
             }
             else {
                 // Outermost transaction, commit when complete.
-                SystemSettings settings = getCluster().getSystemSettings();
+                Cluster cluster = getCluster();
+                cluster.addTranCount();
+
+                SystemSettings settings = cluster.getSystemSettings();
                 int maxAttempts = settings.getNumberOfAttempts();
                 Duration sleepBetweenAttempts = settings.getSleepBetweenAttempts();
 
@@ -232,7 +235,10 @@ public class TransactionalSession extends Session{
             }
             else {
                 // Outermost transaction, commit when complete.
-                SystemSettings settings = getCluster().getSystemSettings();
+                Cluster cluster = getCluster();
+                cluster.addTranCount();
+
+                SystemSettings settings = cluster.getSystemSettings();
                 int maxAttempts = settings.getNumberOfAttempts();
                 Duration sleepBetweenAttempts = settings.getSleepBetweenAttempts();
 

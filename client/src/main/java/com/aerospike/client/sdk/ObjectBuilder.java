@@ -902,6 +902,9 @@ public class ObjectBuilder<T> {
             }
         }
 
+        cluster.addBatchCount();
+        cluster.addBlockingCount();
+
         if (txnToUse != null) {
             TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
             BatchExecutor.execute(cluster, commands, status);

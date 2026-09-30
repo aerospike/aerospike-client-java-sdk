@@ -73,6 +73,7 @@ public class Cluster implements Closeable {
     private final LongAdder blockingCount;   // feature.api.blocking
     private final LongAdder deferredCount;   // feature.api.deferred
     private final LongAdder backgroundCount; // feature.api.background
+    private final LongAdder tranCount;       // feature.api.transaction
     private final LongAdder retryCount;
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
@@ -101,6 +102,7 @@ public class Cluster implements Closeable {
         blockingCount = new LongAdder();
         deferredCount = new LongAdder();
         backgroundCount = new LongAdder();
+        tranCount = new LongAdder();
         retryCount = new LongAdder();
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
@@ -719,6 +721,22 @@ public class Cluster implements Closeable {
      */
     public final long getBackgroundCount() {
         return backgroundCount.longValue();
+    }
+
+    /**
+     * Increment transaction count when usage metrics are enabled. For internal use only.
+     */
+    public final void addTranCount() {
+        if (metricsUsageEnabled) {
+            tranCount.increment();
+        }
+    }
+
+    /**
+     * Return transaction count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getTranCount() {
+        return tranCount.longValue();
     }
 
     /**

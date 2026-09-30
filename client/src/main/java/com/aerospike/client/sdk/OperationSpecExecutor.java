@@ -328,6 +328,9 @@ class OperationSpecExecutor {
             }
         }
 
+        cluster.addBatchCount();
+        cluster.addBlockingCount();
+
         if (txn != null) {
             TxnMonitor.addKeysBatchReadWrite(txn, session, records);
             BatchExecutor.execute(cluster, commands, status);

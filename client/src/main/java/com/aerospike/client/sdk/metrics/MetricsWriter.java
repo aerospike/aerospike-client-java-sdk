@@ -154,7 +154,7 @@ public final class MetricsWriter implements MetricsListener {
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
 		sb.append(" header(3)");
-		sb.append(" cluster[name,clientType,clientVersion,appId,label[],cpu,mem,recoverQueueSize,invalidNodeCount,singleCount,batchCount,queryCount,blockingCount,deferredCount,backgroundCount,retryCount,node[]]");
+		sb.append(" cluster[name,clientType,clientVersion,appId,label[],cpu,mem,recoverQueueSize,invalidNodeCount,singleCount,batchCount,queryCount,blockingCount,deferredCount,backgroundCount,tranCount,retryCount,node[]]");
 		sb.append(" label[name,value]");
 		sb.append(" node[name,address,port,conn,namespace[]]");
 		sb.append(" conn[inUse,inPool,opened,closed]");
@@ -234,6 +234,8 @@ public final class MetricsWriter implements MetricsListener {
         sb.append(cluster.getDeferredCount());  // Cumulative. Not reset on each interval.
         sb.append(',');
         sb.append(cluster.getBackgroundCount());  // Cumulative. Not reset on each interval.
+        sb.append(',');
+        sb.append(cluster.getTranCount());  // Cumulative. Not reset on each interval.
 		sb.append(',');
 		sb.append(cluster.getRetryCount()); // Cumulative. Not reset on each interval.
 		sb.append(",[");

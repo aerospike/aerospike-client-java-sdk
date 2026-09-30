@@ -24,9 +24,6 @@ import com.aerospike.client.sdk.Cluster;
 public final class BatchExecutor {
 
     public static void execute(Cluster cluster, IBatchCommand[] commands, BatchStatus status) {
-        cluster.addBatchCount();
-        cluster.addBlockingCount();
-
         if (commands.length <= 1) {
             // Run batch request in same thread.
             for (IBatchCommand command : commands) {
