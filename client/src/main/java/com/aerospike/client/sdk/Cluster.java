@@ -79,6 +79,7 @@ public class Cluster implements Closeable {
     private final AtomicBoolean closed;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
+    private MetricsSettings metricsSettings;
     private final Object metricsLock = new Object();
     private MetricsListener metricsListener;
     private Version version;
@@ -317,12 +318,12 @@ public class Cluster implements Closeable {
         if (settings.getMetrics() != null) {
             MetricsSettings metrics = settings.getMetrics();
 
-            if (metrics.getEnabled() && !metricsEnabled) {
+            if (metrics.getEnabled()) {
                 synchronized(metricsLock) {
                     enableMetricsInternal(metrics);
                 }
             }
-            else if (!metrics.getEnabled() && metricsEnabled) {
+            else if (metricsEnabled) {
                 synchronized(metricsLock) {
                     disableMetricsInternal();
                 }
@@ -370,12 +371,25 @@ public class Cluster implements Closeable {
                 "Metrics can not be enabled via enableMetrics() when they are disabled by dynamic config.");
         }
 
+        if (! settings.getEnabled()) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Can't enable metrics when MetricsSettings.enabled is false");
+        }
+
         synchronized(metricsLock) {
             enableMetricsInternal(settings);
         }
     }
 
     private void enableMetricsInternal(MetricsSettings settings) {
+        if (metricsSettings != null && metricsSettings.equals(settings)) {
+            return; // Metrics already enabled with the same settings.
+        }
+
+        if (metricsEnabled && metricsListener != null) {
+            metricsListener.onDisable(this);
+        }
+
         MetricsListener listener = settings.getListener();
 
         if (listener == null) {
@@ -383,10 +397,7 @@ public class Cluster implements Closeable {
         }
 
         this.metricsListener = listener;
-
-        if (metricsEnabled) {
-            this.metricsListener.onDisable(this);
-        }
+        this.metricsSettings = settings;
 
         MetricsExtended me = settings.getExtended();
 
