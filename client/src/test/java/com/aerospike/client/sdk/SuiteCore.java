@@ -32,6 +32,7 @@ import com.aerospike.client.sdk.query.AelPlaceholderBinderTest;
 import com.aerospike.client.sdk.query.FilterOverrideTest;
 import com.aerospike.client.sdk.query.FilterWireRangeTest;
 import com.aerospike.client.sdk.query.IndexProbePlannerRoutingTest;
+import com.aerospike.client.sdk.query.QueryIndexFilterWireTest;
 import com.aerospike.client.sdk.query.QueryHintTest;
 import com.aerospike.client.sdk.query.SortPropertiesValidationTest;
 import com.aerospike.client.sdk.query.plan.IndexRangeWireTest;
@@ -65,6 +66,7 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     IndexProbeCommandTest.class,
     IndexProbePlannerRoutingTest.class,
     IndexRangeWireTest.class,
+    QueryIndexFilterWireTest.class,
     QueryHintTest.class,
     QueryPlanExecuteWireTest.class,
     QueryPlanTest.class,

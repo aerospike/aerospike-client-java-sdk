@@ -97,6 +97,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private java.util.List<com.aerospike.client.sdk.Operation> operations = null;
     private boolean withNoBins = false;
     private boolean transactionSet;
+    private Filter filter;
 
     /**
      * Creates a QueryBuilder for querying an entire dataset.
@@ -397,6 +398,33 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
+     * Attaches an explicit secondary-index filter to this dataset query.
+     *
+     * <p>The filter is authoritative: it bypasses server index selection and is sent unchanged.
+     * Any {@code where(...)} clause becomes a residual filter expression beside it. Textual
+     * {@code where(String)} and {@link PreparedAel} residuals require server-side AEL support
+     * ({@code 8.2+}).</p>
+     *
+     * @param filter the secondary-index filter to attach
+     * @return this QueryBuilder for method chaining
+     * @throws NullPointerException if filter is null
+     * @throws IllegalArgumentException if called more than once
+     */
+    @Override
+    public QueryBuilder filter(Filter filter) {
+        Objects.requireNonNull(filter, "filter must not be null");
+        if (this.filter != null) {
+            throw new IllegalArgumentException("filter() can only be called once per query");
+        }
+        this.filter = filter;
+        return this;
+    }
+
+    Filter getFilter() {
+        return filter;
+    }
+
+    /**
      * Returns the effective query duration from the hint, or {@link QueryDuration#LONG}
      * if no hint or no duration was specified.
      */
@@ -437,6 +465,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(BooleanExpression)} will throw an exception.</p>
      *
+     * <p>When {@link #filter(Filter)} is also attached, this AEL is sent as a residual filter
+     * expression and requires server-side AEL support ({@code 8.2+}); it is not used for automatic
+     * index selection.</p>
+     *
      * @param ael the AEL filter expression
      * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)}
      * @return this QueryBuilder for method chaining
@@ -467,6 +499,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
+     * <p>When {@link #filter(Filter)} is also attached, this expression is sent as a residual
+     * filter expression beside the explicit index filter.</p>
+     *
      * @param ael the BooleanExpression filter
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
@@ -484,6 +519,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
+     * <p>When {@link #filter(Filter)} is also attached, this expression is sent as a residual
+     * filter expression beside the explicit index filter.</p>
+     *
      * @param expression filter expression
      * @return
      */
@@ -500,6 +538,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      *
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
+     *
+     * <p>When {@link #filter(Filter)} is also attached, this expression is sent as a residual
+     * filter expression beside the explicit index filter.</p>
      *
      * @param exp - The expression to validate the records against.
      * @return
@@ -526,6 +567,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      *
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or other {@code where()} methods will throw an exception.</p>
+     *
+     * <p>When {@link #filter(Filter)} is also attached, this prepared AEL is sent as a residual
+     * filter expression and requires server-side AEL support ({@code 8.2+}); it is not used for
+     * automatic index selection.</p>
      *
      * @param ael the prepared AEL expression
      * @param params the parameters to bind to the prepared expression

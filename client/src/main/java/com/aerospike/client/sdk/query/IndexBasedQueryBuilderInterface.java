@@ -25,6 +25,31 @@ import java.util.function.Function;
 public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilderInterface<T>> extends BaseQueryBuilder<T> {
 
     /**
+     * Attach an explicit secondary-index filter to this dataset query.
+     *
+     * <p>An attached filter is the query access path. Any {@code where(...)} clause is sent as a
+     * residual filter expression beside it; textual {@code where(String)} and {@link PreparedAel}
+     * residuals require server-side AEL support ({@code 8.2+}). Query-selection hints such as
+     * {@code forIndex}, {@code forBin}, and scan policy hints do not rewrite an explicit filter,
+     * although {@code queryDuration} still applies.</p>
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * session.query(dataSet)
+     *     .filter(Filter.containsByIndex(
+     *         "idx_vehicle_license", IndexCollectionType.LIST, "7XYZ789"))
+     *     .where("$.status == 'active'")
+     *     .execute();
+     * }</pre>
+     *
+     * @param filter the secondary-index filter to attach
+     * @return this QueryBuilder for method chaining
+     * @throws NullPointerException if filter is null
+     * @throws IllegalArgumentException if called more than once
+     */
+    T filter(Filter filter);
+
+    /**
      * Rate limit the records per second returned from the server. Note that this will force
      * this to be a "long" query, allowing it to be tracked on the server.
      *  
@@ -46,6 +71,9 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      *
      * <p>{@code forIndex} and {@code forBin} are mutually exclusive; attempting to call both
      * will not compile.</p>
+     *
+     * <p>When {@link #filter(Filter)} is present, index-selection hints do not rewrite or re-plan
+     * that filter. {@code queryDuration} still controls the query duration header.</p>
      *
      * <p>Example:</p>
      * <pre>{@code
