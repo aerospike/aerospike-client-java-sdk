@@ -65,6 +65,8 @@ public class PutGetTest extends ClusterTest {
 
     @Test
     public void getWithIncludeMissingKeys() {
+        assumeSupportsAel();
+
         session.replace(args.set.ids(1,2,3))
             .bin("name").setTo("Tim")
             .bin("age").setTo(312)
