@@ -117,11 +117,15 @@ representation of a number. Returns PARAM_ERROR if the string is not numeric.
 
 **Regex replace:**
 ```
-$.str.regexReplace(pattern: /\d+/, replace: '')
+$.str.regexReplace(pattern: /\d+/, replace: '')       first match
+$.str.regexReplace(pattern: /\d+/g, replace: '')      all matches
 $.str.regexReplace(pattern: /(\w+),\s*(\w+)/, replace: '$2 $1')
 ```
 
-Uses ICU regex syntax. The replacement string supports `$n` capture group references.
+Uses ICU regex syntax. Regex replacement is first-match by default; add the
+`g` flag to the regex literal for global replacement. Flags compose, for example
+`/foo/ig` means global and case-insensitive. The replacement string supports
+`$n` capture group references.
 
 **Prefix/suffix tests:**
 ```

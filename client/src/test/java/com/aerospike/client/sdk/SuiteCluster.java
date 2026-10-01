@@ -82,6 +82,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     DeleteBinTest.class,
     DurableDeleteTests.class,
     ErrorDetailVerbosityTest.class,
+    ExecuteCompletableFutureTest.class,
     AelBitHllTest.class,
     AelErrorDetailVerbosityTest.class,
     AelLiteralTest.class,

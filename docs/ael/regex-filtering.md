@@ -35,6 +35,8 @@ $.a + $.b =~ /^\d+$/                     →  PARSE ERROR: =~ requires STRING on
 
 Flags compose by concatenation: `/pattern/im` means case-insensitive + multiline.
 No flags means defaults (case-sensitive, single-line `^`/`$`, `.` does not match `\n`).
+The `g` flag is not valid for the `=~` operator; it is only valid for
+`regexReplace` to request global replacement.
 
 > **Note — change from POSIX to ICU:** Earlier versions of Aerospike used POSIX regex
 > with flags `EXTENDED`, `ICASE`, `NOSUB`, and `NEWLINE`. The ICU engine replaces these:
