@@ -13,7 +13,8 @@ expression =~ /regex_pattern/
 expression =~ /regex_pattern/flags
 ```
 
-The left hand expression must evaluate to a String type. The result is always BOOLEAN.
+The left hand expression must evaluate to a String type. The result is `TRILEAN`
+(`true`, `false`, or `unknown`).
 
 **Precedence:** `=~` has the same precedence as the other comparison operators (`==`,
 `!=`, `>`, `<`, `in`) — it binds tighter than `and`/`or` but looser than arithmetic:
@@ -30,13 +31,12 @@ $.a + $.b =~ /^\d+$/                     →  PARSE ERROR: =~ requires STRING on
 | `i` | `UREGEX_CASE_INSENSITIVE` | Case-insensitive matching (full Unicode case folding) |
 | `m` | `UREGEX_MULTILINE` | `^` and `$` match at line boundaries, not just start/end of string |
 | `s` | `UREGEX_DOTALL` | `.` matches line terminators (by default `.` does not match `\n`) |
-| `x` | `UREGEX_COMMENTS` | Free-format mode: unescaped whitespace is ignored, `#` starts a comment to end-of-line |
-| `w` | `UREGEX_UWORD` | Unicode-aware word boundaries for `\b` (uses UAX #29 instead of simple `\w`/`\W` classification) |
 
 Flags compose by concatenation: `/pattern/im` means case-insensitive + multiline.
 No flags means defaults (case-sensitive, single-line `^`/`$`, `.` does not match `\n`).
 The `g` flag is not valid for the `=~` operator; it is only valid for
 `regexReplace` to request global replacement.
+The ICU `x` and `w` flags are not exposed by AEL regex literals.
 
 > **Note — change from POSIX to ICU:** Earlier versions of Aerospike used POSIX regex
 > with flags `EXTENDED`, `ICASE`, `NOSUB`, and `NEWLINE`. The ICU engine replaces these:
@@ -59,7 +59,7 @@ $.store.book.*[?(@.title =~ /Lord.*/)]                title matches "Lord..."
 $.store.book.*[?(@.author =~ /j\.r\.r\./i)]          case-insensitive match
 $.store.stationery.*[?(@key =~ /pen.*/)]              keys starting with "pen"
 $.store.book.*[?(@.title =~ /^the/im)]                case-insensitive, multiline
-$.desc =~ /hello\s+world/x                            free-format: whitespace in pattern ignored
+$.desc =~ /hello.world/s                              dot matches line terminators
 $.name =~ /\p{Script=Greek}/                           match Greek characters (ICU Unicode property)
 $.text =~ /foo(?=bar)/                                 lookahead: "foo" only if followed by "bar"
 ```
