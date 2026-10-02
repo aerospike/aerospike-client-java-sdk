@@ -139,8 +139,9 @@ ExecuteTask task = session.backgroundTask()
 
 Notes:
 - Only one explicit `Filter` can be attached; subsequent `filter(...)` calls throw.
-- Index-selection and scan-policy hints (`forIndex`, `forBin`, `hardHint`, scan flags) do not rewrite an explicit filter. 
-`queryDuration` still applies.
+- Index-selection and scan-policy hints (`forIndex`, `forBin`, `hardHint`, scan flags)
+  do not rewrite an explicit filter. Even `forIndex("other").hardHint()` is accepted
+  and ignored when the explicit filter names a different index. `queryDuration` still applies.
 - String and `PreparedAel` residual `where(...)` clauses require server 8.2+ AEL support.
   Programmatic `Exp` and `Expression` residuals keep their existing server requirements.
 - Background tasks send the residual predicate as `FILTER_EXP`; they do not send server-planned

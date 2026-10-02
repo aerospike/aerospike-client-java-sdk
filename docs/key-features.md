@@ -734,6 +734,9 @@ for (RecordResult result : rs) {
 Attach `filter(Filter)` when you want to name the secondary-index access path
 explicitly. The filter selects index candidates; any `where(...)` chained beside it
 is sent as a residual expression that decides which candidate records are returned.
+Because the explicit filter is authoritative, `forIndex`, `forBin`, `hardHint`, and
+scan-policy hints do not rewrite it; a hard hint naming another index is accepted and
+ignored. `queryDuration` still applies.
 
 ```java
 RecordStream rs = session.query(users)
