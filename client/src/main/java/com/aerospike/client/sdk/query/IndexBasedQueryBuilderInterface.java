@@ -30,8 +30,9 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      * <p>An attached filter is the query access path. Any {@code where(...)} clause is sent as a
      * residual filter expression beside it; textual {@code where(String)} and {@link PreparedAel}
      * residuals require server-side AEL support ({@code 8.2+}). Query-selection hints such as
-     * {@code forIndex}, {@code forBin}, and scan policy hints do not rewrite an explicit filter,
-     * although {@code queryDuration} still applies.</p>
+     * {@code forIndex}, {@code forBin}, {@code hardHint}, and scan policy hints do not rewrite an
+     * explicit filter. Even a hard hint naming another index is accepted and ignored, although
+     * {@code queryDuration} still applies.</p>
      *
      * <p>Example:</p>
      * <pre>{@code
@@ -72,8 +73,10 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      * <p>{@code forIndex} and {@code forBin} are mutually exclusive; attempting to call both
      * will not compile.</p>
      *
-     * <p>When {@link #filter(Filter)} is present, index-selection hints do not rewrite or re-plan
-     * that filter. {@code queryDuration} still controls the query duration header.</p>
+     * <p>When {@link #filter(Filter)} is present, that explicit filter is authoritative and
+     * bypasses server query selection. Index-selection hints do not rewrite or re-plan it; even a
+     * hard hint naming another index is accepted and ignored. {@code queryDuration} still controls
+     * the query duration header.</p>
      *
      * <p>Example:</p>
      * <pre>{@code

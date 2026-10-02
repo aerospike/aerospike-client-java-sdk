@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk;
 
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 
@@ -29,6 +30,7 @@ import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.task.ExecuteTask;
@@ -54,6 +56,7 @@ import com.aerospike.client.sdk.task.ExecuteTask;
  * <pre>{@code
  * ExecuteTask task = session.backgroundTask()
  *     .update(customerDataSet)
+ *     .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
  *     .where("$.age > 30")
  *     .bin("category").setTo("senior")
  *     .expireRecordAfter(Duration.ofDays(90))
@@ -64,12 +67,17 @@ import com.aerospike.client.sdk.task.ExecuteTask;
  * System.out.println("Records processed: " + task.getRecordsRead());
  * }</pre>
  *
+ * <p>String and {@link com.aerospike.client.sdk.query.PreparedAel} {@code where(...)}
+ * residuals require server 8.2+ AEL support. Use programmatic {@link Exp} or
+ * {@link Expression} residuals for baseline-compatible filtering.</p>
+ *
  * @see BackgroundTaskSession
  * @see Session#backgroundTask()
  */
 public class BackgroundOperationBuilder extends AbstractOperationBuilder<BackgroundOperationBuilder> implements FilterableOperation<BackgroundOperationBuilder> {
     private final DataSet dataset;
     private int recordsPerSecond = 0;
+    private Filter filter;
 
     /**
      * Constructs a background operation builder.
@@ -99,8 +107,37 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     }
 
     /**
+     * Adds an explicit secondary-index filter that selects candidate records for the background
+     * operation.
+     *
+     * <p>The filter is sent as the index access path. Any {@code where(...)} clause is sent beside
+     * it as a residual filter expression that decides which candidate records are actually written,
+     * deleted, or touched. Only one explicit filter can be attached.</p>
+     *
+     * @param filter the secondary-index filter to use as the access path
+     * @return This builder for method chaining
+     * @throws NullPointerException if {@code filter} is null
+     * @throws IllegalArgumentException if an explicit filter is already attached
+     */
+    public BackgroundOperationBuilder filter(Filter filter) {
+        Objects.requireNonNull(filter, "filter");
+        if (this.filter != null) {
+            throw new IllegalArgumentException("Only one explicit filter can be specified");
+        }
+        this.filter = filter;
+        return this;
+    }
+
+    Filter getFilter() {
+        return filter;
+    }
+
+    /**
      * Adds a where clause filter to the background operation using a AEL string.
      * The filter determines which records in the set will be affected.
+     *
+     * <p>When {@link #filter(Filter)} is also attached, the explicit filter selects secondary-index
+     * candidates and this {@code where} clause is sent as the residual filter expression.</p>
      *
      * @param ael The AEL filter expression (e.g., "$.age > 30")
      * @param params The parameters to substitute into the AEL expression
@@ -116,6 +153,9 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * Adds a where clause filter to the background operation using a BooleanExpression.
      * The filter determines which records in the set will be affected.
      *
+     * <p>When {@link #filter(Filter)} is also attached, the explicit filter selects secondary-index
+     * candidates and this {@code where} clause is sent as the residual filter expression.</p>
+     *
      * @param ael The BooleanExpression filter
      * @return This builder for method chaining
      */
@@ -128,6 +168,9 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     /**
      * Adds a where clause filter to the background operation using a PreparedAel.
      * The filter determines which records in the set will be affected.
+     *
+     * <p>When {@link #filter(Filter)} is also attached, the explicit filter selects secondary-index
+     * candidates and this {@code where} clause is sent as the residual filter expression.</p>
      *
      * @param ael The PreparedAel filter
      * @param params Parameters to bind to the prepared AEL
@@ -143,6 +186,9 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      * Adds a where clause filter to the background operation using an Exp operation.
      * The filter determines which records in the set will be affected.
      *
+     * <p>When {@link #filter(Filter)} is also attached, the explicit filter selects secondary-index
+     * candidates and this {@code where} clause is sent as the residual filter expression.</p>
+     *
      * @param exp The expression to validate the records against
      * @return This builder for method chaining
      */
@@ -155,6 +201,9 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     /**
      * Adds a where clause filter to the background operation using an Expression operation.
      * The filter determines which records in the set will be affected.
+     *
+     * <p>When {@link #filter(Filter)} is also attached, the explicit filter selects secondary-index
+     * candidates and this {@code where} clause is sent as the residual filter expression.</p>
      *
      * @param e The expression to validate the records against
      * @return This builder for method chaining
@@ -229,8 +278,6 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
             Mode.ANY
         );
 
-        Expression filterExp = null;
-
         // Set the ops to be valid based on the opType
         if (ops.isEmpty()) {
             switch (opType) {
@@ -246,19 +293,8 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
             }
         }
 
-        if (ael != null) {
-            filterExp = ael.toFilterExpression(session);
-
-            //Exp exp = pr.getExp();
-            //System.out.println("BACKGROUND FILTEREXP: " + exp.toString());
-        }
-
-        // Add filter expression if where clause is present
-        int ttl = getExpirationAsInt();
         long taskId = new Random().nextLong();
-
-        BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-            ops, ttl, null, filterExp, settings, recordsPerSecond, durableDeleteDefault);
+        BackgroundQueryCommand cmd = buildCommand(cluster, settings, taskId);
 
         final NodeStatus status = new NodeStatus();
 
@@ -282,6 +318,15 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         status.checkException();
 
         return new ExecuteTask(cluster, taskId, cmd.socketTimeout);
+    }
+
+    BackgroundQueryCommand buildCommand(Cluster cluster, ResolvedSettings settings, long taskId) {
+        Expression filterExp = ael != null
+            ? ael.toFilterExpression(session)
+            : null;
+
+        return new BackgroundQueryCommand(cluster, dataset, taskId, opType,
+            ops, getExpirationAsInt(), filter, filterExp, settings, recordsPerSecond, durableDeleteDefault);
     }
 
     // Note: areOperationsRetryable() is inherited from AbstractOperationBuilder

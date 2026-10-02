@@ -48,6 +48,8 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     BehaviorYamlTest.class,
     BinBuilderOptionsTest.class,
     BinBuilderValueTest.class,
+    BackgroundIndexFilterWireTest.class,
+    BackgroundOperationBuilderValidationTest.class,
     CdtGetOrRemoveBuilderDispatchTest.class,
     CdtGetOrRemoveBuilderPathTest.class,
     CdtGetOrRemoveBuilderWriteTest.class,
