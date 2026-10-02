@@ -16,31 +16,17 @@
  */
 package com.aerospike.client.sdk.metrics;
 
-import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.MetricsSettings;
-import com.aerospike.client.sdk.Node;
-
 /**
- * Client metrics listener.
+ * Client metrics exporter interface.
  */
-public interface MetricsListener {
+public interface IMetricsExporter {
 	/**
-	 * Periodic extended metrics has been enabled for the given cluster.
+	 * Export a batch of metrics. Called periodically based on the configured interval.
 	 */
-	public void onEnable(Cluster cluster, MetricsSettings settings);
-
-	/**
-	 * A metrics snapshot has been requested for the given cluster.
-	 */
-	public void onSnapshot(Cluster cluster);
-
-	/**
-	 * A node is being dropped from the cluster.
-	 */
-	public void onNodeClose(Node node);
+	public void export(MetricsSnapshot snapshot);
 
 	/**
 	 * Periodic extended metrics has been disabled for the given cluster.
 	 */
-	public void onDisable(Cluster cluster);
+	public void onDisable();
 }

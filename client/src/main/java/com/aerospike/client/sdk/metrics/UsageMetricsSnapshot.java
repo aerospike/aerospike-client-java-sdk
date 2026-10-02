@@ -14,15 +14,32 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.examples;
+package com.aerospike.client.sdk.metrics;
+
+import com.aerospike.client.sdk.Cluster;
 
 /**
- * Signals that an example is not applicable to the current server/configuration.
+ * Usage snapshot.
  */
-public class ExampleSkipException extends Exception {
-    private static final long serialVersionUID = 1L;
+public final class UsageMetricsSnapshot {
+    public final long blocking;
+    public final long deferred;
+    public final long background;
+    public final long transactions;
 
-    public ExampleSkipException(String message) {
-        super(message);
+	public UsageMetricsSnapshot(Cluster cluster) {
+		this.blocking = cluster.getBlockingCount();
+		this.deferred = cluster.getDeferredCount();
+		this.background = cluster.getBackgroundCount();
+		this.transactions = cluster.getTranCount();
+	}
+
+    @Override
+    public String toString() {
+        return "UsageMetricsSnapshot{"
+            + "blocking=" + blocking
+            + ", deferred=" + deferred
+            + ", background=" + background
+            + '}';
     }
 }

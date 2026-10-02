@@ -21,13 +21,13 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import com.aerospike.client.sdk.MetricsExtended.MetricsExtendedTweaks;
-import com.aerospike.client.sdk.metrics.MetricsListener;
+import com.aerospike.client.sdk.metrics.IMetricsExporter;
 
 /**
  * Metrics settings that apply to an entire Cluster instance.
  */
 public class MetricsSettings {
-    private final MetricsListener listener;
+    private final IMetricsExporter exporter;
     private final Map<String,String> labels;
     private final String reportDir;
     private final Long reportSizeLimit;
@@ -37,7 +37,7 @@ public class MetricsSettings {
     private final MetricsExtended extended;
 
     MetricsSettings(Builder builder) {
-        this.listener = builder.listener;
+        this.exporter = builder.exporter;
         this.labels = builder.labels;
         this.reportDir = builder.reportDir;
         this.reportSizeLimit = builder.reportSizeLimit;
@@ -64,8 +64,8 @@ public class MetricsSettings {
     Builder mergeWith(MetricsSettings base) {
         Builder merged = builder();
 
-        merged.listener = this.listener != null
-            ? this.listener : base.listener;
+        merged.exporter = this.exporter != null
+            ? this.exporter : base.exporter;
         merged.labels = this.labels != null
             ? this.labels : base.labels;
         merged.reportDir = this.reportDir != null
@@ -85,7 +85,7 @@ public class MetricsSettings {
     }
 
     // Getters
-    public MetricsListener getListener() { return listener; }
+    public IMetricsExporter getExporter() { return exporter; }
     public Map<String,String> getLabels() { return labels; }
     public String getReportDir() { return reportDir; }
     public Long getReportSizeLimit() { return reportSizeLimit; }
@@ -104,7 +104,7 @@ public class MetricsSettings {
         }
         MetricsSettings that = (MetricsSettings) o;
         return
-            Objects.equals(listener, that.listener) &&
+            Objects.equals(exporter, that.exporter) &&
             Objects.equals(labels, that.labels) &&
             Objects.equals(reportDir, that.reportDir) &&
             Objects.equals(reportSizeLimit, that.reportSizeLimit) &&
@@ -116,14 +116,14 @@ public class MetricsSettings {
 
     @Override
     public int hashCode() {
-        return Objects.hash(listener, labels, reportDir, reportSizeLimit, exportSampleRate,
+        return Objects.hash(exporter, labels, reportDir, reportSizeLimit, exportSampleRate,
             exportInterval, enabled, extended);
     }
 
     @Override
     public String toString() {
         return "MetricsSettings{" +
-            "listener=" + ((listener != null)? listener.getClass().getName() : "null") +
+            "listener=" + ((exporter != null)? exporter.getClass().getName() : "null") +
             ", labels=" + labels +
             ", reportDir=" + reportDir +
             ", reportSizeLimit=" + reportSizeLimit +
@@ -138,7 +138,7 @@ public class MetricsSettings {
      * Builder for metrics settings with lambda-based configuration.
      */
     public static class Builder {
-        private MetricsListener listener;
+        private IMetricsExporter exporter;
         private Map<String,String> labels;
         private String reportDir;
         private Long reportSizeLimit;
@@ -163,7 +163,7 @@ public class MetricsSettings {
      * Interface for configuring metrics signal related settings.
      */
     public interface MetricsTweaks {
-        MetricsTweaks listener(MetricsListener listener);
+        MetricsTweaks exporter(IMetricsExporter exporter);
         MetricsTweaks labels(Map<String,String> labels);
         MetricsTweaks reportDir(String dir);
         MetricsTweaks reportSizeLimit(Long limit);
@@ -185,8 +185,8 @@ public class MetricsSettings {
         }
 
         @Override
-        public MetricsTweaks listener(MetricsListener listener) {
-            builder.listener = listener;
+        public MetricsTweaks exporter(IMetricsExporter exporter) {
+            builder.exporter = exporter;
             return this;
         }
 

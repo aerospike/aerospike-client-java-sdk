@@ -542,11 +542,13 @@ public class ClusterTend implements Runnable {
         // have already been set to inactive. Further connection requests will result
         // in an exception and a different node will be tried.
 
+        // Flush node metrics.
+        cluster.metricsNodeClose(nodesToRemove);
+
         // Cleanup node resources.
         for (Node node : nodesToRemove) {
             // Remove node from map.
             nodesMap.remove(node.getName());
-            cluster.metricsNodeClose(node);
             node.close();
         }
 

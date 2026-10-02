@@ -34,7 +34,6 @@ import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.command.Pool;
 import com.aerospike.client.sdk.command.SyncExecutor;
-import com.aerospike.client.sdk.metrics.ConnectionStats;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.metrics.NodeMetrics;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
@@ -885,22 +884,16 @@ public class Node implements Closeable {
         }
     }
 
-    public final ConnectionStats getConnectionStats() {
-        int inUse = 0;
-        int inPool = 0;
+    public final Pool[] getConnectionPools() {
+        return connectionPools;
+    }
 
-        for (Pool pool : connectionPools) {
-            int tmp = pool.size();
-            inPool += tmp;
-            tmp = pool.getTotal() - tmp;
+    public final int getConnectionsOpened() {
+        return connsOpened.get();
+    }
 
-            // Timing issues may cause values to go negative. Adjust.
-            if (tmp < 0) {
-                tmp = 0;
-            }
-            inUse += tmp;
-        }
-        return new ConnectionStats(inUse, inPool, connsOpened.get(), connsClosed.get());
+    public final int getConnectionsClosed() {
+        return connsClosed.get();
     }
 
     /**

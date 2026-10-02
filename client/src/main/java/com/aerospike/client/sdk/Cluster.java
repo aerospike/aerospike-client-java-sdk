@@ -17,8 +17,12 @@
 package com.aerospike.client.sdk;
 
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -29,8 +33,10 @@ import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aerospike.client.sdk.metrics.MetricsListener;
+import com.aerospike.client.sdk.metrics.IMetricsExporter;
+import com.aerospike.client.sdk.metrics.MetricsSnapshot;
 import com.aerospike.client.sdk.metrics.MetricsWriter;
+import com.aerospike.client.sdk.metrics.NodeMetricsSnapshot;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
@@ -66,6 +72,7 @@ public class Cluster implements Closeable {
     ClusterTend tend;
     volatile Node[] nodes;
     volatile HashMap<String,Partitions> partitionMap;
+    private final CopyOnWriteArrayList<NodeMetricsSnapshot> nodesDeparted;
     private final ThreadFactory threadFactory;
     private final LongAdder singleCount;     // feature.shape.point
     private final LongAdder batchCount;      // feature.shape.batch
@@ -82,7 +89,7 @@ public class Cluster implements Closeable {
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private MetricsSettings metricsSettings;
     private final Object metricsLock = new Object();
-    private MetricsListener metricsListener;
+    private IMetricsExporter metricsExporter;
     private Version version;
     private boolean versionGE8;
     private boolean versionGE812;
@@ -95,6 +102,7 @@ public class Cluster implements Closeable {
         this.def = def;
         nodes = new Node[0];
         partitionMap = new HashMap<String,Partitions>();
+        nodesDeparted = new CopyOnWriteArrayList<>();
         threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
         singleCount = new LongAdder();
         batchCount = new LongAdder();
@@ -388,17 +396,17 @@ public class Cluster implements Closeable {
             return; // Metrics already enabled with the same settings.
         }
 
-        if (metricsEnabled && metricsListener != null) {
-            metricsListener.onDisable(this);
+        if (metricsEnabled && metricsExporter != null) {
+            metricsExporter.onDisable();
         }
 
-        MetricsListener listener = settings.getListener();
+        IMetricsExporter exporter = settings.getExporter();
 
-        if (listener == null) {
-            listener = new MetricsWriter();
+        if (exporter == null) {
+            exporter = new MetricsWriter(this, settings);
         }
 
-        this.metricsListener = listener;
+        this.metricsExporter = exporter;
         this.metricsSettings = settings;
 
         MetricsExtended me = settings.getExtended();
@@ -411,7 +419,6 @@ public class Cluster implements Closeable {
             }
         }
 
-        this.metricsListener.onEnable(this, settings);
         this.metricsEnabled = true;
         this.metricsOperationalEnabled = me.getOperational().getEnabled();
         this.metricsUsageEnabled = me.getUsage().getEnabled();
@@ -437,7 +444,7 @@ public class Cluster implements Closeable {
             metricsEnabled = false;
             metricsOperationalEnabled = false;
             metricsUsageEnabled = false;
-            metricsListener.onDisable(this);
+            metricsExporter.onDisable();
 
             if (log.isInfoEnabled()) {
                 log.atInfo()
@@ -944,34 +951,46 @@ public class Cluster implements Closeable {
      * Log metrics snapshot at periodic interval. For internal use only.
      */
     public void metricsSnapshot(int tendCount) {
-        MetricsSettings ms = effectiveSystemSettings.getMetrics();
-
         synchronized(metricsLock) {
-            if (metricsEnabled && (tendCount % ms.getExportInterval()) == 0) {
-                metricsListener.onSnapshot(this);
+            if (metricsEnabled && (tendCount % metricsSettings.getExportInterval()) == 0) {
+                metricsExport();
             }
         }
     }
 
+    private void metricsExport() {
+        MetricsSnapshot snapshot = new MetricsSnapshot(this, metricsSettings);
+        nodesDeparted.clear();
+        metricsExporter.export(snapshot);
+    }
+
     /**
-     * Flush metrics for closing node. For internal use only.
+     * Flush metrics for closing nodes. For internal use only.
      */
-    public void metricsNodeClose(Node node) {
+    public void metricsNodeClose(HashSet<Node> nodesToRemove) {
         synchronized(metricsLock) {
             if (metricsEnabled) {
-                // Flush node metrics before removal.
                 try {
-                    metricsListener.onNodeClose(node);
+                    ArrayList<NodeMetricsSnapshot> list = new ArrayList<>(nodesToRemove.size());
+
+                    for (Node node : nodesToRemove) {
+                        list.add(new NodeMetricsSnapshot(node));
+                    }
+                    nodesDeparted.addAll(list);
                 }
                 catch (Throwable e) {
                     if (log.isWarnEnabled()) {
                         log.atWarn()
                             .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                            .log("Write metrics failed on " + node + ": " + Util.getErrorMessage(e));
+                            .log("Failed to add nodesDeparted: " + Util.getErrorMessage(e));
                     }
                 }
             }
         }
+    }
+
+    public List<NodeMetricsSnapshot> getNodesDeparted() {
+        return nodesDeparted;
     }
 
     /**
@@ -998,13 +1017,17 @@ public class Cluster implements Closeable {
 
         synchronized(metricsLock) {
             try {
-                disableMetricsInternal();
+                if (metricsEnabled) {
+                    // Flush final metrics.
+                    metricsExport();
+                    disableMetricsInternal();
+                }
             }
             catch (Throwable e) {
                 if (log.isWarnEnabled()) {
                     log.atWarn()
                         .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                        .log("DisableMetrics failed: " + Util.getErrorMessage(e));
+                        .log("Metrics close failed: " + Util.getErrorMessage(e));
                 }
             }
         }
