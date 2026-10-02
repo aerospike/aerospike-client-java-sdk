@@ -97,41 +97,37 @@ The AEL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
 - Workaround: Use `Exp.and(Exp.ge(...), Exp.le(...))` instead of AEL strings with `&&`
 - Affected Tests: QueryIntegerTest, QueryKeyTest
 
-2. Missing Public `where(Filter)` API
+2. Public `filter(Filter)` API for Explicit Secondary-Index Queries
 
-`QueryBuilder` lacks a public method to accept `Filter` objects directly, even though:
-- `Filter` class exists with methods like `Filter.range()`, `Filter.contains()`, `Filter.equal()`
-- These filters support secondary indexes and CDT contexts (e.g., `CTX.listRank()`, `IndexCollectionType.MAPKEYS`)
-- Internal `setWhereClause(WhereClauseProcessor)` method exists but is protected
+`QueryBuilder` now exposes `filter(Filter)` for dataset queries that need an explicit
+secondary-index access path. This is the replacement for the old reflection workaround
+around `setWhereClause(WhereClauseProcessor)`.
 
-Issue: Cannot use secondary index queries with collections or CDT contexts through public API
-- `where(String ael)` - Doesn't support all Filter features
-- `where(Exp exp)` - Explicitly disables secondary index usage (see QueryBuilder line 403)
-- `where(Filter filter)` - Method doesn't exist publicly
+Use it when the desired index cannot be selected reliably from an AEL `where(...)`
+clause, such as collection indexes, CDT-context indexes, blob indexes, or expression
+indexes.
 
-Workaround: Use Java reflection to invoke protected `setWhereClause()` method
 ```java
-Filter filter = Filter.contains(binName, IndexCollectionType.MAPKEYS, key);
-WhereClauseProcessor processor = new WhereClauseProcessor(true) {
-    @Override
-    public ParseResult process(String namespace, Session session) {
-        return new ParseResult(filter, null);
-    }
-};
-var setWhereMethod = queryBuilder.getClass().getSuperclass()
-    .getDeclaredMethod("setWhereClause", WhereClauseProcessor.class);
-setWhereMethod.setAccessible(true);
-setWhereMethod.invoke(queryBuilder, processor);
+RecordStream rs = session.query(dataSet)
+    .filter(Filter.contains("map_bin", IndexCollectionType.MAPKEYS, "mkey2"))
+    .execute();
 ```
 
-Affected Tests: QueryContextTest, QueryCollectionTest, QueryBlobTest
+An explicit filter is authoritative: it is sent as the index-range filter and bypasses
+server query selection. Any `where(...)` clause chained after it is sent as a residual
+filter expression:
 
-Why These Tests Need It:
-- QueryContextTest: Uses `Filter.range()` with `CTX.listRank(-1)` for CDT context queries
-- QueryCollectionTest: Uses `Filter.contains()` with `IndexCollectionType.MAPKEYS` for map key queries
-- QueryBlobTest: Uses `Filter.equal()` and `Filter.contains()` with `IndexType.BLOB` for byte array queries
+```java
+RecordStream rs = session.query(dataSet)
+    .filter(Filter.containsByIndex("idx_vehicle_license", IndexCollectionType.LIST, "7XYZ789"))
+    .where("$.status == 'active'")
+    .execute();
+```
 
-Recommendation: Add public `where(Filter filter)` method to QueryBuilder to support secondary index queries with CDT contexts and collection types without requiring reflection.
+Notes:
+- Only one explicit `Filter` can be attached to a query; subsequent `filter(...)` calls throw.
+- Index-selection and scan-policy hints (`forIndex`, `forBin`, `hardHint`, scan flags) do not rewrite an explicit filter. 
+`queryDuration` still applies.
 
 3. Multi-Operation Commands Not Supported on Single Key
 

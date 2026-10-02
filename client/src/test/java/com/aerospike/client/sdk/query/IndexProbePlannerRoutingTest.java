@@ -39,11 +39,12 @@ import com.aerospike.client.sdk.util.Version;
 
 /**
  * Routing for {@link IndexProbePlanner#useServerQuerySelection(
- * com.aerospike.client.sdk.Cluster, WhereClauseProcessor, QueryHint.Result)}.
+ * com.aerospike.client.sdk.Cluster, WhereClauseProcessor, QueryHint.Result, Filter)}.
  *
  * <p>Only query-selection cluster support, {@link WhereClauseProcessor#hasStringAel()}, and
- * {@code hint.getBinName()} are consulted — AEL text shape (range, blob, map keys, etc.) is not.
- * Blank AEL is validated later in {@link IndexProbePlanner#plan}.</p>
+ * {@code hint.getBinName()} are consulted when no explicit filter is attached — AEL text shape
+ * (range, blob, map keys, etc.) is not. Blank AEL is validated later in
+ * {@link IndexProbePlanner#plan}.</p>
  */
 public class IndexProbePlannerRoutingTest {
 
@@ -56,7 +57,7 @@ public class IndexProbePlannerRoutingTest {
         WhereClauseProcessor where = WhereClauseProcessor.from("$.age > 30");
 
         try (Cluster cluster = clusterWithQuerySelection()) {
-            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
+            assertTrue(IndexProbePlanner.useServerQuerySelection(cluster, where, null, null));
         }
     }
 
@@ -75,7 +76,7 @@ public class IndexProbePlannerRoutingTest {
         assertThrows(IllegalStateException.class, where::getAelString);
 
         try (Cluster cluster = clusterWithQuerySelection()) {
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null, null));
         }
     }
 
@@ -85,7 +86,17 @@ public class IndexProbePlannerRoutingTest {
         QueryHint.Result hint = QueryHint.create().forBin("age");
 
         try (Cluster cluster = clusterWithQuerySelection()) {
-            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, hint));
+            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, hint, null));
+        }
+    }
+
+    @Test
+    void useServerQuerySelection_explicitFilterStaysLegacyEvenWithStringAel() {
+        WhereClauseProcessor where = WhereClauseProcessor.from("$.status == 'active'");
+        Filter filter = Filter.containsByIndex("licenses_idx", IndexCollectionType.LIST, "7XYZ789");
+
+        try (Cluster cluster = clusterWithQuerySelection()) {
+            assertFalse(IndexProbePlanner.useServerQuerySelection(cluster, where, null, filter));
         }
     }
 

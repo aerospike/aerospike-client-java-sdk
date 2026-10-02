@@ -47,6 +47,7 @@ import com.aerospike.client.sdk.query.QueryFilterExpTest;
 import com.aerospike.client.sdk.query.QueryFilterSetTest;
 import com.aerospike.client.sdk.query.QueryGeoTest;
 import com.aerospike.client.sdk.query.QueryHintBuilderTest;
+import com.aerospike.client.sdk.query.QueryExpressionCollectionIndexFilterTest;
 import com.aerospike.client.sdk.query.QueryInTransactionVisibilityTest;
 import com.aerospike.client.sdk.query.QueryIndexTest;
 import com.aerospike.client.sdk.query.QueryIntegerTest;
@@ -81,6 +82,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     DeleteBinTest.class,
     DurableDeleteTests.class,
     ErrorDetailVerbosityTest.class,
+    ExecuteCompletableFutureTest.class,
     AelBitHllTest.class,
     AelErrorDetailVerbosityTest.class,
     AelLiteralTest.class,
@@ -126,6 +128,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     QueryCollectionTest.class,
     QueryContextTest.class,
     QueryExecuteTest.class,
+    QueryExpressionCollectionIndexFilterTest.class,
     QueryFilterExpTest.class,
     QueryFilterSetTest.class,
     QueryGeoTest.class,

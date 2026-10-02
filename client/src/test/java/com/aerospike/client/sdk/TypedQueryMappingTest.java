@@ -38,6 +38,7 @@ import com.aerospike.client.sdk.mapper.Address;
 import com.aerospike.client.sdk.mapper.Customer;
 import com.aerospike.client.sdk.mapper.CustomerMapper;
 import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.TypedQueryBuilder;
 import com.aerospike.client.sdk.tend.Partition;
@@ -99,6 +100,13 @@ public class TypedQueryMappingTest extends ClusterTest {
             assertEquals(42, customer.getAge());
             assertEquals(null, customer.getAddress());
         }
+    }
+
+    @Test
+    public void typedDatasetQueryFilterDelegatesFluently() {
+        TypedQueryBuilder<Customer> qb = session.query(customerDataSet());
+
+        assertEquals(qb, qb.filter(Filter.equal("id", 1)));
     }
 
     @Test

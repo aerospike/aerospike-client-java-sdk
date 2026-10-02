@@ -297,13 +297,19 @@ public class AelStringTest extends ClusterTest {
     @Test
     public void regexReplaceUsesRegexLiteral() {
         assertEquals("Hell0 W0rld",
+            selectString("$.s:STRING.regexReplace(pattern: /o/g, replace: '0')"));
+    }
+
+    @Test
+    public void regexReplaceDefaultsToFirstMatchOnly() {
+        assertEquals("Hell0 World",
             selectString("$.s:STRING.regexReplace(pattern: /o/, replace: '0')"));
     }
 
     @Test
     public void regexReplaceHonoursCaseInsensitiveFlag() {
         assertEquals("He__o Wor_d",
-            selectString("$.s:STRING.regexReplace(pattern: /L/i, replace: '_')"));
+            selectString("$.s:STRING.regexReplace(pattern: /L/ig, replace: '_')"));
     }
 
     // --- regex match operator ---

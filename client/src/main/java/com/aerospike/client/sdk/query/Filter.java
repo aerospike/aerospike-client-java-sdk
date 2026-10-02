@@ -28,7 +28,8 @@ import com.aerospike.client.sdk.util.Pack;
 
 /**
  * Query filter definition.
- * Currently, only one filter is allowed in a Statement, and must be on bin which has a secondary index defined.
+ * Currently, only one explicit filter can be attached with {@link QueryBuilder#filter(Filter)},
+ * and it must target a secondary index.
  */
 public final class Filter {
     /**
@@ -626,7 +627,8 @@ public final class Filter {
 
     /**
      * Create a copy of the given filter with the bin name and/or index name overridden.
-     * Used by query hints to redirect which secondary index is used.
+     * Used internally when constructing filters from server-selected query plans or legacy callers
+     * that opt into historical hint override behavior.
      *
      * @param source    the filter to copy
      * @param name      the bin name override (may be null to keep the original)

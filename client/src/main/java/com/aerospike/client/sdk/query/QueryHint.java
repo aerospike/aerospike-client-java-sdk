@@ -35,6 +35,9 @@ import com.aerospike.client.sdk.policy.QueryDuration;
  * These constraints are enforced at <em>compile time</em> via a type-state pattern: each method
  * returns a different interface that exposes only the methods still valid at that point.</p>
  *
+ * <p>When a query attaches an explicit {@link QueryBuilder#filter(Filter)}, index-selection and
+ * scan-policy hints do not rewrite or re-plan that filter. {@code queryDuration} still applies.</p>
+ *
  * <p>Example usage:</p>
  * <pre>{@code
  * session.query(dataSet)

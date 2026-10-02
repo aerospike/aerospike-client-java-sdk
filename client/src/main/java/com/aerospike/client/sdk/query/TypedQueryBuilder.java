@@ -106,6 +106,11 @@ public final class TypedQueryBuilder<T> {
         return this;
     }
 
+    public TypedQueryBuilder<T> filter(Filter filter) {
+        delegate.filter(filter);
+        return this;
+    }
+
     public TypedQueryBuilder<T> where(String ael, Object... params) {
         delegate.where(ael, params);
         return this;
