@@ -731,6 +731,20 @@ for (RecordResult result : rs) {
 }
 ```
 
+Attach `filter(Filter)` when you want to name the secondary-index access path
+explicitly. The filter selects index candidates; any `where(...)` chained beside it
+is sent as a residual expression that decides which candidate records are returned.
+Because the explicit filter is authoritative, `forIndex`, `forBin`, `hardHint`, and
+scan-policy hints do not rewrite it; a hard hint naming another index is accepted and
+ignored. `queryDuration` still applies.
+
+```java
+RecordStream rs = session.query(users)
+    .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
+    .where("$.status == 'active'")
+    .execute();
+```
+
 ### Pagination and sorting
 
 Use `NavigatableRecordStream` for page-based iteration with client-side
@@ -1034,6 +1048,7 @@ updates, deletes, or UDF execution across an entire set.
 // Bulk update
 ExecuteTask task = session.backgroundTask()
     .update(users)
+    .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
     .where("$.age > 30")
     .bin("category").setTo("senior")
     .execute();
@@ -1043,12 +1058,14 @@ task.waitTillComplete();
 // Bulk delete
 session.backgroundTask()
     .delete(users)
+    .filter(Filter.rangeByIndex("idx_last_login", 0, 1609459200000L))
     .where("$.lastLogin < 1609459200000")
     .execute();
 
 // Extend TTL for active users
 session.backgroundTask()
     .touch(users)
+    .filter(Filter.equalByIndex("idx_status", "active"))
     .where("$.status == 'active'")
     .expireRecordAfter(Duration.ofDays(30))
     .execute();
@@ -1061,6 +1078,14 @@ session.backgroundTask()
     .where("$.stock > 250")
     .execute();
 ```
+
+For background update, delete, and touch, `filter(Filter)` selects the indexed
+candidates and `where(...)` decides which of those candidates are written, deleted,
+or touched. The SDK still sends this residual predicate as `FILTER_EXP`, not a
+server-planned `WHERE`. Background UDFs intentionally remain limited to `where(...)`
+in this release. String and `PreparedAel` `where(...)` residuals require server
+8.2+ AEL support; use programmatic `Exp` or `Expression` residuals for
+baseline-compatible filtering.
 
 ---
 

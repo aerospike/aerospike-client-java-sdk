@@ -1821,6 +1821,7 @@ public class Session {
      * // Update all customers over 30
      * ExecuteTask task = session.backgroundTask()
      *     .update(customerDataSet)
+     *     .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
      *     .where("$.age > 30")
      *     .bin("category").setTo("senior")
      *     .execute();
@@ -1830,12 +1831,14 @@ public class Session {
      * // Delete old inactive records
      * ExecuteTask deleteTask = session.backgroundTask()
      *     .delete(customerDataSet)
+     *     .filter(Filter.rangeByIndex("idx_last_login", 0, 1609459200000L))
      *     .where("$.lastLogin < 1609459200000")
      *     .execute();
      *
      * // Touch active users to extend TTL
      * ExecuteTask touchTask = session.backgroundTask()
      *     .touch(activeUsers)
+     *     .filter(Filter.equalByIndex("idx_status", "active"))
      *     .where("$.status == 'active'")
      *     .expireRecordAfter(Duration.ofDays(30))
      *     .execute();
@@ -1848,6 +1851,11 @@ public class Session {
      *     .where("$.stock > 250")
      *     .execute();
      * }</pre>
+     *
+     * <p>String and {@link com.aerospike.client.sdk.query.PreparedAel} {@code where(...)}
+     * residuals require server 8.2+ AEL support. Use programmatic
+     * {@link com.aerospike.client.sdk.exp.Exp} or {@link com.aerospike.client.sdk.exp.Expression}
+     * residuals for baseline-compatible filtering.</p>
      *
      * @return BackgroundTaskSession for creating background operations
      * @see BackgroundTaskSession

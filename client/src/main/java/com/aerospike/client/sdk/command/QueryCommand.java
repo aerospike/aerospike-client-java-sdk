@@ -52,7 +52,22 @@ public final class QueryCommand extends Command {
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
         ResolvedSettings settings, QueryBuilder qb
     ) {
-        this(cluster, set, filter, filterExp, settings, qb, null);
+        this(cluster, set, filter, filterExp, settings, qb, null, false);
+    }
+
+    /**
+     * Build a legacy execute command around a caller-supplied index filter.
+     * The filter is preserved verbatim; query hints do not rewrite its bin or index selector.
+     */
+    public static QueryCommand forExplicitFilter(
+        Cluster cluster,
+        DataSet set,
+        Filter filter,
+        Expression filterExp,
+        ResolvedSettings settings,
+        QueryBuilder qb
+    ) {
+        return new QueryCommand(cluster, set, filter, filterExp, settings, qb, null, true);
     }
 
     /**
@@ -79,18 +94,18 @@ public final class QueryCommand extends Command {
             byte[] executeRange = IndexRangeWire.forExecuteWithIndexName(plan.getIndexRangeBytes());
             filter = Filter.fromWireRange(plan.getIndexName(), executeRange, plan.getIndexType());
         }
-        return new QueryCommand(cluster, set, filter, null, settings, qb, plan);
+        return new QueryCommand(cluster, set, filter, null, settings, qb, plan, false);
     }
 
     private QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
-        ResolvedSettings settings, QueryBuilder qb, QueryPlan plan
+        ResolvedSettings settings, QueryBuilder qb, QueryPlan plan, boolean explicitFilter
     ) {
         super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
         this.set = set.getSet();
         this.planDriven = plan != null;
         this.executeWhereBytes = plan != null ? plan.getExecuteWhereBytes() : null;
-        this.filter = planDriven ? filter : applyHintToFilter(filter, qb.getQueryHint());
+        this.filter = (planDriven || explicitFilter) ? filter : applyHintToFilter(filter, qb.getQueryHint());
 
         this.pf = PartitionFilter.range(qb.getStartPartition(),
             qb.getEndPartition() - qb.getStartPartition());

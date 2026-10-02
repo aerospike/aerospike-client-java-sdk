@@ -14,7 +14,7 @@ in Unicode code points, not bytes.
 
 **Length:**
 ```
-$.name.length()                                    number of characters → INT
+$.name.strlen()                                    number of characters → INT
 ```
 
 **Substrings:**
@@ -34,10 +34,10 @@ If the range is invalid (backwards), returns empty string.
 
 **Case conversion:**
 ```
-$.name.uppercase()                                 → STRING
-$.name.lowercase()                                 → STRING
-$.name.casefold()                                  Unicode case fold for comparison
-$.name.normalize()                                 NFC normalization
+$.name.upper()                                     → STRING
+$.name.lower()                                     → STRING
+$.name.caseFold()                                  Unicode case fold for comparison
+$.name.normalizeNFC()                              NFC normalization
 ```
 
 **Trimming:**
@@ -47,15 +47,15 @@ $.str.trimStart()                                  remove leading whitespace
 $.str.trimEnd()                                    remove trailing whitespace
 ```
 
-**Search (`indexOf` / substring find):**
+**Search (`find` / substring find):**
 
 Optional `occurrence` may be omitted — it defaults to **1** (first match).
 
 ```
-$.str.indexOf(needle: ':')                         first ':' → INT position (default occurrence)
-$.str.indexOf(needle: ':', occurrence: 1)          first ':' → INT position
-$.str.indexOf(needle: ':', occurrence: 2)          second ':' → INT position
-$.str.indexOf(needle: ':', occurrence: -1)         last ':' → INT position
+$.str.find(needle: ':')                            first ':' → INT position (default occurrence)
+$.str.find(needle: ':', occurrence: 1)             first ':' → INT position
+$.str.find(needle: ':', occurrence: 2)             second ':' → INT position
+$.str.find(needle: ':', occurrence: -1)            last ':' → INT position
 ```
 
 Returns -1 if not found. `occurrence` of 0 returns PARAM_ERROR.
@@ -72,9 +72,9 @@ $.str.padEnd(length: 6, pad: ' ')                  "abc" → "abc   "
 
 ### String modify operations (P1)
 
-**Insert and overwrite:**
+**Splice and overwrite:**
 ```
-$.str.insert(offset: 1, value: 'loh')             "aa" → "aloha"
+$.str.splice(offset: 1, value: 'loh')             "aa" → "aloha"
 $.str.overwrite(offset: 4, value: 'bleh')          "the best song" → "the bleh song"
 ```
 
@@ -111,22 +111,27 @@ $.str.toInt()                                      parse numeric string → INT
 $.str.toFloat()                                    parse numeric string → FLOAT
 ```
 
-These are distinct from `asInt()` / `asFloat()` which perform numeric type casts
-(float→int, int→float). The `toInt()` / `toFloat()` functions parse a string
-representation of a number. Returns PARAM_ERROR if the string is not numeric.
+In AEL, `toInt()` / `toFloat()` can parse string text or act as path read terminals
+for numeric casts. Pin an unresolved receiver with `:STRING`, for example
+`$.amount:STRING.toFloat()`, when the intent is to parse string text. Returns
+PARAM_ERROR if the string is not numeric.
 
 **Regex replace:**
 ```
-$.str.regexReplace(pattern: /\d+/, replace: '')
+$.str.regexReplace(pattern: /\d+/, replace: '')       first match
+$.str.regexReplace(pattern: /\d+/g, replace: '')      all matches
 $.str.regexReplace(pattern: /(\w+),\s*(\w+)/, replace: '$2 $1')
 ```
 
-Uses ICU regex syntax. The replacement string supports `$n` capture group references.
+Uses ICU regex syntax. Regex replacement is first-match by default; add the
+`g` flag to the regex literal for global replacement. Flags compose, for example
+`/foo/ig` means global and case-insensitive. The replacement string supports
+`$n` capture group references.
 
 **Prefix/suffix tests:**
 ```
-$.str.startsWith('prefix')                         → BOOLEAN
-$.str.endsWith('.json')                            → BOOLEAN
+$.str.startsWith('prefix')                         → TRILEAN
+$.str.endsWith('.json')                            → TRILEAN
 ```
 
 **Split and repeat:**
@@ -143,37 +148,38 @@ $.str.repeat(3)                                    "abc" → "abcabcabc"
 
 **Character tests:**
 ```
-$.str.isUpper()                                    → BOOLEAN
-$.str.isLower()                                    → BOOLEAN
-$.str.isNumeric()                                  → BOOLEAN
+$.str.isUpper()                                    → TRILEAN
+$.str.isLower()                                    → TRILEAN
+$.str.isNumeric()                                  → TRILEAN
 ```
 
-**Byte-level:**
+**Byte-level and base64:**
 ```
 $.str.bytesLength()                                length in bytes (not chars) → INT
 $.str.toBlob()                                     string → BLOB
+$.str.b64Decode()                                  Base64 STRING → BLOB
 ```
 
 ### Cross-type string conversions
 
 These operate on non-string types and therefore use method-style on their respective
-bin types:
+bin types. `toString()` on a `STRING` receiver is an identity conversion.
 
 ```
 $.intBin.toString()                                INT → STRING
 $.floatBin.toString()                              FLOAT → STRING
 $.blobBin.toString()                               BLOB → STRING (Unicode)
-$.blobBin.toBase64()                               BLOB → STRING (Base64)
-$.str.fromBase64()                                 Base64 STRING → BLOB
+$.boolBin.toString()                               BOOL → STRING
+$.str.toString()                                   STRING → STRING
 ```
 
-### Standalone string functions
+### String concatenation
 
-Functions that take multiple string arguments with no natural receiver are standalone:
+Use the `+` operator to concatenate strings:
 
 ```
-concat($.first, ' ', $.last)                       concatenate strings → STRING
-concat($.a, $.b, $.c)                              varargs
+$.first + ' ' + $.last                             concatenate strings → STRING
+$.a + $.b + $.c                                    concatenate multiple strings
 ```
 
 `join` operates on a LIST and is a list path function:
@@ -185,9 +191,9 @@ $.listBin.join('-')                                ["a","b","c"] → "a-b-c" →
 ### Usage examples
 
 ```
-$.name.length() > 0 and $.name.length() <= 50         length bounds check
-$.name.lowercase() == 'alice'                          case-insensitive comparison
-$.email.indexOf(needle: '@') > 0                       has @ sign (occurrence omitted → first)
+$.name.strlen() > 0 and $.name.strlen() <= 50          length bounds check
+$.name.lower() == 'alice'                              case-insensitive comparison
+$.email.find(needle: '@') > 0                          has @ sign (occurrence omitted → first)
 $.key.padStart(length: 10, pad: '0')                   normalize key width
 $.desc.replaceAll(find: '  ', replace: ' ')            collapse double spaces
 $.csv.split(',').count() > 3                           at least 4 fields
@@ -202,16 +208,18 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 | AEL | Parameters | Return type |
 |---|---|---|
-| `$.s.length()` | — | INT |
+| `$.s.strlen()` | — | INT |
 | `$.s.substr(from: [, to:])` | INT [, INT] | STRING |
-| `$.s.uppercase()` | — | STRING |
-| `$.s.lowercase()` | — | STRING |
-| `$.s.normalize()` | — | STRING |
-| `$.s.casefold()` | — | STRING |
+| `$.s.charAt(index:)` | INT | STRING |
+| `$.s.upper()` | — | STRING |
+| `$.s.lower()` | — | STRING |
+| `$.s.normalizeNFC()` | — | STRING |
+| `$.s.caseFold()` | — | STRING |
 | `$.s.trim()` | — | STRING |
 | `$.s.trimStart()` | — | STRING |
 | `$.s.trimEnd()` | — | STRING |
-| `$.s.indexOf(needle: [, occurrence:])` | STRING [, INT] | INT |
+| `$.s.find(needle: [, occurrence:])` | STRING [, INT] | INT |
+| `$.s.contains(needle:)` | STRING | TRILEAN |
 | `$.s.padStart(length:, pad:)` | INT, STRING | STRING |
 | `$.s.padEnd(length:, pad:)` | INT, STRING | STRING |
 
@@ -219,7 +227,7 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 | AEL | Parameters | Return type |
 |---|---|---|
-| `$.s.insert(offset:, value:)` | INT, STRING | STRING |
+| `$.s.splice(offset:, value:)` | INT, STRING | STRING |
 | `$.s.overwrite(offset:, value:)` | INT, STRING | STRING |
 | `$.s.snip(from: [, to:])` | INT [, INT] | STRING |
 | `$.s.replace(find:, replace:)` | STRING, STRING | STRING |
@@ -232,8 +240,8 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 | `$.s.toInt()` | — | INT |
 | `$.s.toFloat()` | — | FLOAT |
 | `$.s.regexReplace(pattern:, replace:)` | REGEX, STRING | STRING |
-| `$.s.startsWith(prefix)` | STRING | BOOLEAN |
-| `$.s.endsWith(suffix)` | STRING | BOOLEAN |
+| `$.s.startsWith(prefix)` | STRING | TRILEAN |
+| `$.s.endsWith(suffix)` | STRING | TRILEAN |
 | `$.s.split([separator])` | [STRING] | LIST |
 | `$.s.repeat(count)` | INT | STRING |
 
@@ -241,11 +249,12 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 
 | AEL | Parameters | Return type |
 |---|---|---|
-| `$.s.isUpper()` | — | BOOLEAN |
-| `$.s.isLower()` | — | BOOLEAN |
-| `$.s.isNumeric()` | — | BOOLEAN |
+| `$.s.isUpper()` | — | TRILEAN |
+| `$.s.isLower()` | — | TRILEAN |
+| `$.s.isNumeric()` | — | TRILEAN |
 | `$.s.bytesLength()` | — | INT |
 | `$.s.toBlob()` | — | BLOB |
+| `$.s.b64Decode()` | — | BLOB |
 
 **Cross-type:**
 
@@ -253,10 +262,9 @@ $.name.startsWith('Dr.') or $.name.startsWith('Prof.') title check
 |---|---|---|
 | `$.i.toString()` | INT | STRING |
 | `$.f.toString()` | FLOAT | STRING |
+| `$.v.toString()` | BOOL | STRING |
+| `$.s.toString()` | STRING | STRING |
 | `$.b.toString()` | BLOB | STRING |
-| `$.b.toBase64()` | BLOB | STRING |
-| `$.s.fromBase64()` | STRING | BLOB |
-| `concat(s1, s2, ...)` | STRING (varargs) | STRING |
 | `$.l.join(separator)` | LIST | STRING |
 
 ### Design principle: method-style for type-specific functions
@@ -266,9 +274,9 @@ The AEL follows a consistent pattern for function style:
 | Category | Style | Why |
 |---|---|---|
 | Arithmetic (1-2 obvious args) | Standalone function | `abs($.val)`, `max(a, b, c)` — universally understood math notation |
-| Varargs with no receiver | Standalone function | `concat(a, b, c)`, `min(a, b)`, `geoCompare(a, b)` |
+| Varargs with no receiver | Standalone function | `min(a, b)`, `max(a, b)`, `geoCompare(a, b)` |
 | CDT operations | Method on path | `$.m.key.setTo(value)` — operates on specific bin/path |
-| String operations | Method on path | `$.str.length()` — operates on string bin |
+| String operations | Method on path | `$.str.strlen()` — operates on string bin |
 | Bit operations | Method on path | `$.blob.bitGet(offset:, size:)` — operates on blob bin |
 | HLL operations | Method on path | `$.hbin.hllCount()` — operates on HLL bin |
 | Path modifiers | Named path function | `$.m.key.get(return: VALUE, type: INT)` — optional, unordered params |

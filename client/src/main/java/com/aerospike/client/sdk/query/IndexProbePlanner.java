@@ -74,7 +74,7 @@ final class IndexProbePlanner {
         QueryBuilder qb
     ) {
         Cluster cluster = session.getCluster();
-        if (!useServerQuerySelection(cluster, where, hint)) {
+        if (!useServerQuerySelection(cluster, where, hint, qb.getFilter())) {
             return legacyCommand(cluster, dataSet, where, policy, qb);
         }
         QueryPlan plan = plan(session, dataSet, where, hint);
@@ -92,8 +92,12 @@ final class IndexProbePlanner {
     static boolean useServerQuerySelection(
         Cluster cluster,
         WhereClauseProcessor where,
-        QueryHint.Result hint
+        QueryHint.Result hint,
+        Filter filter
     ) {
+        if (filter != null) {
+            return false;
+        }
         if (!cluster.supportsQuerySelection()) {
             return false;
         }
@@ -151,6 +155,9 @@ final class IndexProbePlanner {
         Expression filterExp = null;
         if (where != null) {
             filterExp = where.toFilterExpression(cluster);
+        }
+        if (qb.getFilter() != null) {
+            return QueryCommand.forExplicitFilter(cluster, dataSet, qb.getFilter(), filterExp, policy, qb);
         }
         return new QueryCommand(cluster, dataSet, null, filterExp, policy, qb);
     }

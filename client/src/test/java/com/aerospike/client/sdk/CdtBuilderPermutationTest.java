@@ -70,6 +70,10 @@ public class CdtBuilderPermutationTest extends ClusterTest {
 
     @BeforeAll
     public static void seed() {
+        Assumptions.assumeTrue(
+            cluster.getVersion().isGreaterOrEqual(8, 1, 1, 0),
+            "CDT builder permutation coverage requires server 8.1.1+");
+
         key = args.set.id("cdt-perm-seed");
         session.delete(key).execute();
 

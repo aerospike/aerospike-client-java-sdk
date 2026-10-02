@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk.query;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -95,6 +97,40 @@ public class QueryBuilderValidationTest extends ClusterTest {
 
         assertThrows(IllegalArgumentException.class,
             () -> qb.withHint(hint -> hint.forBin("age")));
+    }
+
+    @Test
+    void filterRejectsNull() {
+        assertThrows(NullPointerException.class, () -> qb.filter(null));
+    }
+
+    @Test
+    void filterRejectsSecondCall() {
+        qb.filter(Filter.equal("age", 30));
+
+        assertThrows(IllegalArgumentException.class,
+            () -> qb.filter(Filter.equal("age", 31)));
+    }
+
+    @Test
+    void filterReturnsSameBuilderAndStoresIdentity() {
+        Filter filter = Filter.equal("age", 30);
+
+        assertSame(qb, qb.filter(filter));
+        assertSame(filter, qb.getFilter());
+    }
+
+    @Test
+    void filterStartsUnset() {
+        assertNull(qb.getFilter());
+    }
+
+    @Test
+    void filterIsAvailableOnIndexBasedInterfaceStaticType() {
+        IndexBasedQueryBuilderInterface<QueryBuilder> builder = session.query(dataSet);
+        Filter filter = Filter.equal("age", 30);
+
+        assertSame(builder, builder.filter(filter));
     }
 
     @Test

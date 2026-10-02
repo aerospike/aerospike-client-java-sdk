@@ -137,7 +137,7 @@ public class ExecuteCompletableFutureTest extends ClusterTest {
     }
 
     @Test
-    public void executeCompletableFutureWithErrorHandler() {
+    public void executeCompletableFutureWithErrorHandlerLeavesReadMissesInStream() {
         AtomicInteger errorCount = new AtomicInteger();
 
         List<RecordResult> results = session.query(args.set.ids(KEY_PREFIX + "0", KEY_PREFIX + "missing"))
@@ -146,8 +146,41 @@ public class ExecuteCompletableFutureTest extends ClusterTest {
             .asCompletableFuture()
             .join();
 
-        assertEquals(1, results.size());
-        assertEquals(1, errorCount.get());
+        assertEquals(2, results.size());
+        assertEquals(1L, results.stream().filter(RecordResult::isOk).count());
+        assertEquals(1L, results.stream()
+            .filter(result -> result.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR)
+            .count());
+        assertEquals(0, errorCount.get());
+    }
+
+    @Test
+    public void executeCompletableFutureWithErrorHandlerOmitsActionableErrors() {
+        Key existingKey = args.set.id(KEY_PREFIX + "0");
+        Key successKey = args.set.id(KEY_PREFIX + "handler_success");
+        AtomicInteger errorCount = new AtomicInteger();
+        AtomicInteger errorCode = new AtomicInteger(ResultCode.OK);
+
+        session.delete(successKey).execute();
+        try {
+            List<RecordResult> results = session.insert(List.of(existingKey, successKey))
+                .bin("name").setTo("handler_success")
+                .executeAsync((key, index, err) -> {
+                    errorCount.incrementAndGet();
+                    errorCode.set(err.getResultCode());
+                })
+                .asCompletableFuture()
+                .join();
+
+            assertEquals(1, results.size());
+            assertTrue(results.get(0).isOk());
+            assertEquals(successKey, results.get(0).getKey());
+            assertEquals(1, errorCount.get());
+            assertEquals(ResultCode.KEY_EXISTS_ERROR, errorCode.get());
+        }
+        finally {
+            session.delete(successKey).execute();
+        }
     }
 
     @Test
