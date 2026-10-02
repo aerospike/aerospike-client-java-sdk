@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.query;
 
 import java.util.Arrays;
 
+import com.aerospike.client.sdk.BackgroundOperationBuilder;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.Buffer;
@@ -28,8 +29,8 @@ import com.aerospike.client.sdk.util.Pack;
 
 /**
  * Query filter definition.
- * Currently, only one explicit filter can be attached with {@link QueryBuilder#filter(Filter)},
- * and it must target a secondary index.
+ * Currently, only one explicit filter can be attached with {@link QueryBuilder#filter(Filter)}
+ * or {@link BackgroundOperationBuilder#filter(Filter)}, and it must target a secondary index.
  */
 public final class Filter {
     /**

@@ -70,6 +70,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     // Base
     AddTest.class,
     AppendTest.class,
+    BackgroundIndexFilterTest.class,
     BackgroundTaskTest.class,
     BatchTest.class,
     BitExpTest.class,

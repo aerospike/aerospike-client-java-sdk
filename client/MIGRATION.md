@@ -97,11 +97,12 @@ The AEL parser treats `&&` as bitwise AND (`&`) instead of logical AND.
 - Workaround: Use `Exp.and(Exp.ge(...), Exp.le(...))` instead of AEL strings with `&&`
 - Affected Tests: QueryIntegerTest, QueryKeyTest
 
-2. Public `filter(Filter)` API for Explicit Secondary-Index Queries
+2. Public `filter(Filter)` API for Explicit Secondary-Index Queries and Background Tasks
 
-`QueryBuilder` now exposes `filter(Filter)` for dataset queries that need an explicit
-secondary-index access path. This is the replacement for the old reflection workaround
-around `setWhereClause(WhereClauseProcessor)`.
+`QueryBuilder` and background update/delete/touch builders now expose `filter(Filter)`
+for operations that need an explicit secondary-index access path. This is the
+replacement for the old reflection workaround around
+`setWhereClause(WhereClauseProcessor)`.
 
 Use it when the desired index cannot be selected reliably from an AEL `where(...)`
 clause, such as collection indexes, CDT-context indexes, blob indexes, or expression
@@ -114,8 +115,8 @@ RecordStream rs = session.query(dataSet)
 ```
 
 An explicit filter is authoritative: it is sent as the index-range filter and bypasses
-server query selection. Any `where(...)` clause chained after it is sent as a residual
-filter expression:
+server query selection. Any `where(...)` clause chained beside it is sent as a residual
+filter expression. Declaration order does not matter.
 
 ```java
 RecordStream rs = session.query(dataSet)
@@ -124,10 +125,30 @@ RecordStream rs = session.query(dataSet)
     .execute();
 ```
 
+Background update/delete/touch use the same split: the index filter selects candidates,
+and `where(...)` decides which candidates are written, deleted, or touched.
+
+```java
+ExecuteTask task = session.backgroundTask()
+    .update(dataSet)
+    .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
+    .where("$.status == 'active'")
+    .bin("campaign").setTo("renewal")
+    .execute();
+```
+
 Notes:
-- Only one explicit `Filter` can be attached to a query; subsequent `filter(...)` calls throw.
+- Only one explicit `Filter` can be attached; subsequent `filter(...)` calls throw.
 - Index-selection and scan-policy hints (`forIndex`, `forBin`, `hardHint`, scan flags) do not rewrite an explicit filter. 
 `queryDuration` still applies.
+- String and `PreparedAel` residual `where(...)` clauses require server 8.2+ AEL support.
+  Programmatic `Exp` and `Expression` residuals keep their existing server requirements.
+- Background tasks send the residual predicate as `FILTER_EXP`; they do not send server-planned
+  `WHERE` for this release.
+- Background UDF builders intentionally do not expose `filter(Filter)` yet, even though update,
+  delete, and touch do.
+- Python uses plural `index_filters(...)`; this Java SDK follows its singular foreground
+  query API and accepts one explicit filter.
 
 3. Multi-Operation Commands Not Supported on Single Key
 
