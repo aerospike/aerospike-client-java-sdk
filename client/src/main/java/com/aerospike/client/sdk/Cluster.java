@@ -89,7 +89,7 @@ public class Cluster implements Closeable {
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private MetricsSettings metricsSettings;
     private final Object metricsLock = new Object();
-    private IMetricsExporter metricsExporter;
+    private List<IMetricsExporter> metricsExporters;
     private Version version;
     private boolean versionGE8;
     private boolean versionGE812;
@@ -396,17 +396,22 @@ public class Cluster implements Closeable {
             return; // Metrics already enabled with the same settings.
         }
 
-        if (metricsEnabled && metricsExporter != null) {
-            metricsExporter.onDisable();
+        if (metricsEnabled && metricsExporters != null) {
+            for (IMetricsExporter exporter : metricsExporters) {
+                exporter.onDisable();
+            }
         }
 
-        IMetricsExporter exporter = settings.getExporter();
+        List<IMetricsExporter> exporters = settings.getExporters();
 
-        if (exporter == null) {
-            exporter = new MetricsWriter(this, settings);
+        if (exporters == null) {
+            IMetricsExporter exporter = new MetricsWriter(this, settings);
+
+            exporters = new ArrayList<IMetricsExporter>(1);
+            exporters.add(exporter);
         }
 
-        this.metricsExporter = exporter;
+        this.metricsExporters = exporters;
         this.metricsSettings = settings;
 
         MetricsExtended me = settings.getExtended();
@@ -444,7 +449,10 @@ public class Cluster implements Closeable {
             metricsEnabled = false;
             metricsOperationalEnabled = false;
             metricsUsageEnabled = false;
-            metricsExporter.onDisable();
+
+            for (IMetricsExporter exporter : metricsExporters) {
+                exporter.onDisable();
+            }
 
             if (log.isInfoEnabled()) {
                 log.atInfo()
@@ -961,7 +969,10 @@ public class Cluster implements Closeable {
     private void metricsExport() {
         MetricsSnapshot snapshot = new MetricsSnapshot(this, metricsSettings);
         nodesDeparted.clear();
-        metricsExporter.export(snapshot);
+
+        for (IMetricsExporter exporter : metricsExporters) {
+            exporter.export(snapshot);
+        }
     }
 
     /**

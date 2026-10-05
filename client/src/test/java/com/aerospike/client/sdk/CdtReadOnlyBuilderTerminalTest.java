@@ -49,7 +49,6 @@ import com.aerospike.client.sdk.cdt.MapReturnType;
  * <p>{@code getValues()} is deliberately absent: {@link CdtReadOnlyBuilderSelectorTest} already drives
  * it across the full selector surface. Server-side behaviour belongs in the integration suites.</p>
  */
-@SuppressWarnings("deprecation")
 class CdtReadOnlyBuilderTerminalTest {
 
     /** Marks a terminal that has no list form, so a list selector must be rejected. */

@@ -53,7 +53,6 @@ import com.aerospike.client.sdk.cdt.MapReturnType;
  * </ul>
  */
 // getAsMap and getAsOrderedMap are deprecated but still shipped, so they are still covered here.
-@SuppressWarnings("deprecation")
 class CdtGetOrRemoveBuilderDispatchTest {
 
     private static final Value KEY_A = Value.get("a");

@@ -16,9 +16,12 @@
  */
 package com.aerospike.client.sdk;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.aerospike.client.sdk.MetricsExtended.MetricsExtendedTweaks;
 import com.aerospike.client.sdk.metrics.IMetricsExporter;
@@ -27,7 +30,7 @@ import com.aerospike.client.sdk.metrics.IMetricsExporter;
  * Metrics settings that apply to an entire Cluster instance.
  */
 public class MetricsSettings {
-    private final IMetricsExporter exporter;
+    private final List<IMetricsExporter> exporters;
     private final Map<String,String> labels;
     private final String reportDir;
     private final Long reportSizeLimit;
@@ -37,7 +40,7 @@ public class MetricsSettings {
     private final MetricsExtended extended;
 
     MetricsSettings(Builder builder) {
-        this.exporter = builder.exporter;
+        this.exporters = builder.exporters;
         this.labels = builder.labels;
         this.reportDir = builder.reportDir;
         this.reportSizeLimit = builder.reportSizeLimit;
@@ -64,8 +67,8 @@ public class MetricsSettings {
     Builder mergeWith(MetricsSettings base) {
         Builder merged = builder();
 
-        merged.exporter = this.exporter != null
-            ? this.exporter : base.exporter;
+        merged.exporters = this.exporters != null
+            ? this.exporters : base.exporters;
         merged.labels = this.labels != null
             ? this.labels : base.labels;
         merged.reportDir = this.reportDir != null
@@ -85,7 +88,7 @@ public class MetricsSettings {
     }
 
     // Getters
-    public IMetricsExporter getExporter() { return exporter; }
+    public List<IMetricsExporter> getExporters() { return exporters; }
     public Map<String,String> getLabels() { return labels; }
     public String getReportDir() { return reportDir; }
     public Long getReportSizeLimit() { return reportSizeLimit; }
@@ -104,7 +107,7 @@ public class MetricsSettings {
         }
         MetricsSettings that = (MetricsSettings) o;
         return
-            Objects.equals(exporter, that.exporter) &&
+            Objects.equals(exporters, that.exporters) &&
             Objects.equals(labels, that.labels) &&
             Objects.equals(reportDir, that.reportDir) &&
             Objects.equals(reportSizeLimit, that.reportSizeLimit) &&
@@ -116,14 +119,18 @@ public class MetricsSettings {
 
     @Override
     public int hashCode() {
-        return Objects.hash(exporter, labels, reportDir, reportSizeLimit, exportSampleRate,
+        return Objects.hash(exporters, labels, reportDir, reportSizeLimit, exportSampleRate,
             exportInterval, enabled, extended);
     }
 
     @Override
     public String toString() {
         return "MetricsSettings{" +
-            "listener=" + ((exporter != null)? exporter.getClass().getName() : "null") +
+            "exporters=" + ((exporters != null)
+                ? exporters.stream()
+                    .map(e -> (e != null)? e.getClass().getName() : "null")
+                    .collect(Collectors.joining(", ", "[", "]"))
+                : "null") +
             ", labels=" + labels +
             ", reportDir=" + reportDir +
             ", reportSizeLimit=" + reportSizeLimit +
@@ -138,7 +145,7 @@ public class MetricsSettings {
      * Builder for metrics settings with lambda-based configuration.
      */
     public static class Builder {
-        private IMetricsExporter exporter;
+        private List<IMetricsExporter> exporters;
         private Map<String,String> labels;
         private String reportDir;
         private Long reportSizeLimit;
@@ -163,7 +170,7 @@ public class MetricsSettings {
      * Interface for configuring metrics signal related settings.
      */
     public interface MetricsTweaks {
-        MetricsTweaks exporter(IMetricsExporter exporter);
+        MetricsTweaks addExporter(IMetricsExporter exporter);
         MetricsTweaks labels(Map<String,String> labels);
         MetricsTweaks reportDir(String dir);
         MetricsTweaks reportSizeLimit(Long limit);
@@ -185,8 +192,11 @@ public class MetricsSettings {
         }
 
         @Override
-        public MetricsTweaks exporter(IMetricsExporter exporter) {
-            builder.exporter = exporter;
+        public MetricsTweaks addExporter(IMetricsExporter exporter) {
+            if (builder.exporters == null) {
+                builder.exporters = new ArrayList<>();
+            }
+            builder.exporters.add(exporter);
             return this;
         }
 
