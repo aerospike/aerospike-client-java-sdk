@@ -22,7 +22,8 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import com.aerospike.client.sdk.MetricsSettings.MetricsTweaks;
+import com.aerospike.client.sdk.metrics.MetricsSettings;
+import com.aerospike.client.sdk.metrics.MetricsSettings.MetricsTweaks;
 
 /**
  * System-level settings that apply to an entire Cluster instance.

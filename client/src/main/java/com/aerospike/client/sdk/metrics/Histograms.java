@@ -20,8 +20,6 @@ package com.aerospike.client.sdk.metrics;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import com.aerospike.client.sdk.MetricsOperational;
-
 public class Histograms {
 	private final ConcurrentHashMap<String, LatencyBuckets[]> histoMap = new ConcurrentHashMap<>();
     private final TimeUnit latencyUnit;

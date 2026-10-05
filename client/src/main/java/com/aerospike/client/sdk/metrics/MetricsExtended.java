@@ -14,20 +14,24 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.metrics;
 
 import java.util.Objects;
+import java.util.function.Consumer;
+
+import com.aerospike.client.sdk.metrics.MetricsOperational.MetricsOperationalTweaks;
+import com.aerospike.client.sdk.metrics.MetricsUsage.MetricsUsageTweaks;
 
 /**
- * Metrics extended operational settings.
+ * Metrics extended settings.
  */
-public class MetricsSampler {
-    private final Integer range;
-    private final Integer threshold;
+public class MetricsExtended {
+    private final MetricsOperational operational;
+    private final MetricsUsage usage;
 
-    MetricsSampler(Builder builder) {
-        this.range = builder.range;
-        this.threshold = builder.threshold;
+    MetricsExtended(Builder builder) {
+        this.operational = new MetricsOperational(builder.operational);
+        this.usage = new MetricsUsage(builder.usage);
     }
 
     /**
@@ -41,20 +45,23 @@ public class MetricsSampler {
      * Merges this settings instance with a base, using base values for any null fields.
      * This enables the 4-level priority hierarchy.
      */
-    Builder mergeWith(MetricsSampler base) {
+    Builder mergeWith(MetricsExtended base) {
         Builder merged = builder();
 
-        merged.range = this.range != null
-            ? this.range : base.range;
-        merged.threshold = this.threshold != null
-            ? this.threshold : base.threshold;
+        merged.operational = this.operational.mergeWith(base.operational);
+        merged.usage = this.usage.mergeWith(base.usage);
 
         return merged;
     }
 
     // Getters
-    public Integer getRange() { return range; }
-    public Integer getThreshold() { return threshold; }
+    public MetricsOperational getOperational() {
+        return operational;
+    }
+
+    public MetricsUsage getUsage() {
+        return usage;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -64,22 +71,22 @@ public class MetricsSampler {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        MetricsSampler that = (MetricsSampler) o;
+        MetricsExtended that = (MetricsExtended) o;
         return
-            Objects.equals(range, that.range) &&
-            Objects.equals(threshold, that.threshold);
+            Objects.equals(operational, that.operational) &&
+            Objects.equals(usage, that.usage);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(range, threshold);
+        return Objects.hash(operational, usage);
     }
 
     @Override
     public String toString() {
-        return "MetricsSampler{" +
-            "range=" + range +
-            ", threshold=" + threshold +
+        return "MetricsExtended{" +
+            "operational=" + operational+
+            ", usage=" + usage +
             '}';
     }
 
@@ -87,11 +94,11 @@ public class MetricsSampler {
      * Builder for metrics settings with lambda-based configuration.
      */
     public static class Builder {
-        private Integer range;
-        private Integer threshold;
+        private MetricsOperational.Builder operational = MetricsOperational.builder();
+        private MetricsUsage.Builder usage = MetricsUsage.builder();
 
-        public MetricsSampler build() {
-            return new MetricsSampler(this);
+        public MetricsExtended build() {
+            return new MetricsExtended(this);
         }
     }
 
@@ -102,31 +109,31 @@ public class MetricsSampler {
     /**
      * Interface for configuring metrics signal related settings.
      */
-    public interface MetricsSamplerTweaks {
-        MetricsSamplerTweaks range(Integer range);
-        MetricsSamplerTweaks threshold(Integer threshold);
+    public interface MetricsExtendedTweaks {
+        MetricsExtendedTweaks operational(Consumer<MetricsOperationalTweaks> configurator);
+        MetricsExtendedTweaks usage(Consumer<MetricsUsageTweaks> configurator);
     }
 
     // -----------------------------------------------------------------------------------
     // Internal implementations of tweaks interfaces
     // -----------------------------------------------------------------------------------
 
-    static class MetricsSamplerTweaksImpl implements MetricsSamplerTweaks {
+    static class MetricsExtendedTweaksImpl implements MetricsExtendedTweaks {
         private final Builder builder;
 
-        MetricsSamplerTweaksImpl(Builder builder) {
+        MetricsExtendedTweaksImpl(Builder builder) {
             this.builder = builder;
         }
 
         @Override
-        public MetricsSamplerTweaks range(Integer range) {
-            builder.range = range;
+        public MetricsExtendedTweaks operational(Consumer<MetricsOperationalTweaks> configurator) {
+            configurator.accept(new MetricsOperational.MetricsOperationalTweaksImpl(builder.operational));
             return this;
         }
 
         @Override
-        public MetricsSamplerTweaks threshold(Integer threshold) {
-            builder.threshold = threshold;
+        public MetricsExtendedTweaks usage(Consumer<MetricsUsageTweaks> configurator) {
+            configurator.accept(new MetricsUsage.MetricsUsageTweaksImpl(builder.usage));
             return this;
         }
     }

@@ -25,10 +25,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
-import com.aerospike.client.sdk.MetricsExtended;
-import com.aerospike.client.sdk.MetricsOperational;
-import com.aerospike.client.sdk.MetricsSettings;
-import com.aerospike.client.sdk.MetricsUsage;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.util.Util;

@@ -14,13 +14,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.metrics;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import com.aerospike.client.sdk.MetricsSampler.MetricsSamplerTweaks;
+import com.aerospike.client.sdk.metrics.MetricsSampler.MetricsSamplerTweaks;
 
 /**
  * Metrics extended operational settings.

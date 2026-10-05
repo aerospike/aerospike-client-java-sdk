@@ -35,6 +35,7 @@ import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.command.Pool;
 import com.aerospike.client.sdk.command.SyncExecutor;
 import com.aerospike.client.sdk.metrics.LatencyType;
+import com.aerospike.client.sdk.metrics.MetricsSettings;
 import com.aerospike.client.sdk.metrics.NodeMetrics;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.NodeValidator;

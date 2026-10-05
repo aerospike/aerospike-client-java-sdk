@@ -32,9 +32,6 @@ import org.slf4j.LoggerFactory;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Loggers;
-import com.aerospike.client.sdk.MetricsExtended;
-import com.aerospike.client.sdk.MetricsOperational;
-import com.aerospike.client.sdk.MetricsSettings;
 import com.aerospike.client.sdk.util.Util;
 
 /**

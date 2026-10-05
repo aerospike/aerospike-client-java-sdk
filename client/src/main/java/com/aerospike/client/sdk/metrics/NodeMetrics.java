@@ -16,8 +16,6 @@
  */
 package com.aerospike.client.sdk.metrics;
 
-import com.aerospike.client.sdk.MetricsSettings;
-
 /**
  * Optional extended node metrics. Used when extended metrics is enabled.
  */

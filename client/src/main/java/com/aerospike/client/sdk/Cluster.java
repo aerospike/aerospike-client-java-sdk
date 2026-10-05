@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.metrics.IMetricsExporter;
+import com.aerospike.client.sdk.metrics.MetricsExtended;
+import com.aerospike.client.sdk.metrics.MetricsSettings;
 import com.aerospike.client.sdk.metrics.MetricsSnapshot;
 import com.aerospike.client.sdk.metrics.MetricsWriter;
 import com.aerospike.client.sdk.metrics.NodeMetricsSnapshot;

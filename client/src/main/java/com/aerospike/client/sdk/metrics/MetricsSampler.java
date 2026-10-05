@@ -14,18 +14,20 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.metrics;
 
 import java.util.Objects;
 
 /**
- * Metrics extended usage settings.
+ * Metrics extended operational settings.
  */
-public class MetricsUsage {
-    private final Boolean enabled;
+public class MetricsSampler {
+    private final Integer range;
+    private final Integer threshold;
 
-    MetricsUsage(Builder builder) {
-        this.enabled = builder.enabled;
+    MetricsSampler(Builder builder) {
+        this.range = builder.range;
+        this.threshold = builder.threshold;
     }
 
     /**
@@ -39,17 +41,20 @@ public class MetricsUsage {
      * Merges this settings instance with a base, using base values for any null fields.
      * This enables the 4-level priority hierarchy.
      */
-    Builder mergeWith(MetricsUsage base) {
+    Builder mergeWith(MetricsSampler base) {
         Builder merged = builder();
 
-        merged.enabled = this.enabled != null
-            ? this.enabled : base.enabled;
+        merged.range = this.range != null
+            ? this.range : base.range;
+        merged.threshold = this.threshold != null
+            ? this.threshold : base.threshold;
 
         return merged;
     }
 
     // Getters
-    public Boolean getEnabled() { return enabled; }
+    public Integer getRange() { return range; }
+    public Integer getThreshold() { return threshold; }
 
     @Override
     public boolean equals(Object o) {
@@ -59,20 +64,22 @@ public class MetricsUsage {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        MetricsUsage that = (MetricsUsage) o;
+        MetricsSampler that = (MetricsSampler) o;
         return
-            Objects.equals(enabled, that.enabled);
+            Objects.equals(range, that.range) &&
+            Objects.equals(threshold, that.threshold);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(enabled);
+        return Objects.hash(range, threshold);
     }
 
     @Override
     public String toString() {
-        return "MetricsUsage{" +
-            "enabled=" + enabled +
+        return "MetricsSampler{" +
+            "range=" + range +
+            ", threshold=" + threshold +
             '}';
     }
 
@@ -80,10 +87,11 @@ public class MetricsUsage {
      * Builder for metrics settings with lambda-based configuration.
      */
     public static class Builder {
-        private Boolean enabled;
+        private Integer range;
+        private Integer threshold;
 
-        public MetricsUsage build() {
-            return new MetricsUsage(this);
+        public MetricsSampler build() {
+            return new MetricsSampler(this);
         }
     }
 
@@ -92,26 +100,33 @@ public class MetricsUsage {
     // -----------------------------------------------------------------------------------
 
     /**
-     * Interface for configuring metrics related settings.
+     * Interface for configuring metrics signal related settings.
      */
-    public interface MetricsUsageTweaks {
-        MetricsUsageTweaks enabled(Boolean b);
+    public interface MetricsSamplerTweaks {
+        MetricsSamplerTweaks range(Integer range);
+        MetricsSamplerTweaks threshold(Integer threshold);
     }
 
     // -----------------------------------------------------------------------------------
     // Internal implementations of tweaks interfaces
     // -----------------------------------------------------------------------------------
 
-    static class MetricsUsageTweaksImpl implements MetricsUsageTweaks {
+    static class MetricsSamplerTweaksImpl implements MetricsSamplerTweaks {
         private final Builder builder;
 
-        MetricsUsageTweaksImpl(Builder builder) {
+        MetricsSamplerTweaksImpl(Builder builder) {
             this.builder = builder;
         }
 
         @Override
-        public MetricsUsageTweaks enabled(Boolean b) {
-            builder.enabled = b;
+        public MetricsSamplerTweaks range(Integer range) {
+            builder.range = range;
+            return this;
+        }
+
+        @Override
+        public MetricsSamplerTweaks threshold(Integer threshold) {
+            builder.threshold = threshold;
             return this;
         }
     }

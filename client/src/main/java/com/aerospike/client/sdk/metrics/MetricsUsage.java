@@ -14,24 +14,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.metrics;
 
 import java.util.Objects;
-import java.util.function.Consumer;
-
-import com.aerospike.client.sdk.MetricsOperational.MetricsOperationalTweaks;
-import com.aerospike.client.sdk.MetricsUsage.MetricsUsageTweaks;
 
 /**
- * Metrics extended settings.
+ * Metrics extended usage settings.
  */
-public class MetricsExtended {
-    private final MetricsOperational operational;
-    private final MetricsUsage usage;
+public class MetricsUsage {
+    private final Boolean enabled;
 
-    MetricsExtended(Builder builder) {
-        this.operational = new MetricsOperational(builder.operational);
-        this.usage = new MetricsUsage(builder.usage);
+    MetricsUsage(Builder builder) {
+        this.enabled = builder.enabled;
     }
 
     /**
@@ -45,23 +39,17 @@ public class MetricsExtended {
      * Merges this settings instance with a base, using base values for any null fields.
      * This enables the 4-level priority hierarchy.
      */
-    Builder mergeWith(MetricsExtended base) {
+    Builder mergeWith(MetricsUsage base) {
         Builder merged = builder();
 
-        merged.operational = this.operational.mergeWith(base.operational);
-        merged.usage = this.usage.mergeWith(base.usage);
+        merged.enabled = this.enabled != null
+            ? this.enabled : base.enabled;
 
         return merged;
     }
 
     // Getters
-    public MetricsOperational getOperational() {
-        return operational;
-    }
-
-    public MetricsUsage getUsage() {
-        return usage;
-    }
+    public Boolean getEnabled() { return enabled; }
 
     @Override
     public boolean equals(Object o) {
@@ -71,22 +59,20 @@ public class MetricsExtended {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        MetricsExtended that = (MetricsExtended) o;
+        MetricsUsage that = (MetricsUsage) o;
         return
-            Objects.equals(operational, that.operational) &&
-            Objects.equals(usage, that.usage);
+            Objects.equals(enabled, that.enabled);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(operational, usage);
+        return Objects.hash(enabled);
     }
 
     @Override
     public String toString() {
-        return "MetricsExtended{" +
-            "operational=" + operational+
-            ", usage=" + usage +
+        return "MetricsUsage{" +
+            "enabled=" + enabled +
             '}';
     }
 
@@ -94,11 +80,10 @@ public class MetricsExtended {
      * Builder for metrics settings with lambda-based configuration.
      */
     public static class Builder {
-        private MetricsOperational.Builder operational = MetricsOperational.builder();
-        private MetricsUsage.Builder usage = MetricsUsage.builder();
+        private Boolean enabled;
 
-        public MetricsExtended build() {
-            return new MetricsExtended(this);
+        public MetricsUsage build() {
+            return new MetricsUsage(this);
         }
     }
 
@@ -107,33 +92,26 @@ public class MetricsExtended {
     // -----------------------------------------------------------------------------------
 
     /**
-     * Interface for configuring metrics signal related settings.
+     * Interface for configuring metrics related settings.
      */
-    public interface MetricsExtendedTweaks {
-        MetricsExtendedTweaks operational(Consumer<MetricsOperationalTweaks> configurator);
-        MetricsExtendedTweaks usage(Consumer<MetricsUsageTweaks> configurator);
+    public interface MetricsUsageTweaks {
+        MetricsUsageTweaks enabled(Boolean b);
     }
 
     // -----------------------------------------------------------------------------------
     // Internal implementations of tweaks interfaces
     // -----------------------------------------------------------------------------------
 
-    static class MetricsExtendedTweaksImpl implements MetricsExtendedTweaks {
+    static class MetricsUsageTweaksImpl implements MetricsUsageTweaks {
         private final Builder builder;
 
-        MetricsExtendedTweaksImpl(Builder builder) {
+        MetricsUsageTweaksImpl(Builder builder) {
             this.builder = builder;
         }
 
         @Override
-        public MetricsExtendedTweaks operational(Consumer<MetricsOperationalTweaks> configurator) {
-            configurator.accept(new MetricsOperational.MetricsOperationalTweaksImpl(builder.operational));
-            return this;
-        }
-
-        @Override
-        public MetricsExtendedTweaks usage(Consumer<MetricsUsageTweaks> configurator) {
-            configurator.accept(new MetricsUsage.MetricsUsageTweaksImpl(builder.usage));
+        public MetricsUsageTweaks enabled(Boolean b) {
+            builder.enabled = b;
             return this;
         }
     }

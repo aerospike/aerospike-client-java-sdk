@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.metrics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,8 +23,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import com.aerospike.client.sdk.MetricsExtended.MetricsExtendedTweaks;
-import com.aerospike.client.sdk.metrics.IMetricsExporter;
+import com.aerospike.client.sdk.metrics.MetricsExtended.MetricsExtendedTweaks;
 
 /**
  * Metrics settings that apply to an entire Cluster instance.
@@ -39,7 +38,7 @@ public class MetricsSettings {
     private final Boolean enabled;
     private final MetricsExtended extended;
 
-    MetricsSettings(Builder builder) {
+    public MetricsSettings(Builder builder) {
         this.exporters = builder.exporters;
         this.labels = builder.labels;
         this.reportDir = builder.reportDir;
@@ -64,7 +63,7 @@ public class MetricsSettings {
      * @param base the base settings to use for null fields
      * @return a new MetricsSettings with merged values
      */
-    Builder mergeWith(MetricsSettings base) {
+    public Builder mergeWith(MetricsSettings base) {
         Builder merged = builder();
 
         merged.exporters = this.exporters != null
@@ -184,10 +183,10 @@ public class MetricsSettings {
     // Internal implementations of tweaks interfaces
     // -----------------------------------------------------------------------------------
 
-    static class MetricsTweaksImpl implements MetricsTweaks {
+    public static class MetricsTweaksImpl implements MetricsTweaks {
         private final Builder builder;
 
-        MetricsTweaksImpl(Builder builder) {
+        public MetricsTweaksImpl(Builder builder) {
             this.builder = builder;
         }
 
