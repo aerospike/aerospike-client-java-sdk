@@ -18,7 +18,7 @@ package com.aerospike.client.sdk;
 
 /**
  * Read-only CDT action interface for query operations.
- * 
+ *
  * <p>This interface provides terminal read operations for CDT (Collection Data Type) paths.
  * Unlike {@link CdtActionNonInvertableBuilder}, this interface does not include any write
  * operations like {@code remove()}, making it safe for use in query contexts.</p>
@@ -83,7 +83,7 @@ public interface CdtReadActionBuilder<T> {
     T getReverseRanks();
 
     /**
-     * Get the key-value pairs at the current CDT path (map operations only).
+     * Get AerospikeMap containing the key-value pairs at the current CDT path (map operations only).
      * @return the parent builder for method chaining
      */
     T getKeysAndValues();
@@ -94,13 +94,15 @@ public interface CdtReadActionBuilder<T> {
      */
     T exists();
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
+    /**
+     * Get unordered AerospikeMap containing the key-value pairs at the current CDT path (map operations only).
+     * @return the parent builder for method chaining
+     */
     T getAsMap();
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
+    /**
+     * Get ordered AerospikeMap containing the key-value pairs at the current CDT path (map operations only).
+     * @return the parent builder for method chaining
+     */
     T getAsOrderedMap();
 }

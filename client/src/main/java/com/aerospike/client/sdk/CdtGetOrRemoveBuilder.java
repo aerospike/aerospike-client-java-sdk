@@ -443,7 +443,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     }
 
     /**
-     * Read key-value pairs for the current map selection (maps only).
+     * Read key-value pairs into an AerospikeMap for the current map selection (maps only).
      *
      * @return the parent operation builder for chaining
      */
@@ -3804,26 +3804,20 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // =================================
 
     /**
-     * @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering.
-     * Read results as an unordered map (map selections only).
+     * Read keys/values into unordered AerospikeMap.
      *
      * @return the parent operation builder for chaining
      */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
     public T getAsMap() {
         validateMapOnly("getAsMap");
         return dispatchGet(MapReturnType.UNORDERED_MAP, 0);
     }
 
     /**
-     * @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering.
-     * Read results as an ordered map (map selections only).
+     * Read keys/values into an ordered AerospikeMap.
      *
      * @return the parent operation builder for chaining
      */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
     public T getAsOrderedMap() {
         validateMapOnly("getAsOrderedMap");
         return dispatchGet(MapReturnType.ORDERED_MAP, 0);
