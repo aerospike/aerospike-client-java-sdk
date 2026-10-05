@@ -655,10 +655,8 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
-    // TODO: Replace with AerospikeMap
+    /** {@inheritDoc} */
     @Override
-    @Deprecated
     public T getAsMap() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:
@@ -714,10 +712,8 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
         }
     }
 
-    /** @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering. */
-    // TODO: Replace with AerospikeMap
+    /** {@inheritDoc} */
     @Override
-    @Deprecated
     public T getAsOrderedMap() {
         switch (params.getOperation()) {
         case MAP_BY_INDEX:

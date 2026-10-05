@@ -226,16 +226,6 @@ public final class Record {
     }
 
     /**
-     * This method is deprecated. Use {@link #getGeoJSONString(String)} instead.
-     *
-     * Get bin value as GeoJSON (backward compatibility).
-     */
-    @Deprecated
-    public String getGeoJSON(String name) {
-        return getGeoJSONString(name);
-    }
-
-    /**
      * Get bin value as GeoJSON String.
      */
     public String getGeoJSONString(String name) {
