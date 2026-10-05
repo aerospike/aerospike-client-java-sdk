@@ -125,11 +125,11 @@ public final class MetricsWriter implements IMetricsExporter {
 		// Must use separate StringBuilder instance to avoid conflicting with metrics detail write.
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
-		sb.append(" header(4)");
-		sb.append(" cluster[name,clientType,clientVersion,appId,label[],cpu,mem,recoverQueueSize,invalidNodeCount,commandCount,blockingCount,deferredCount,backgroundCount,tranCount,retryCount,node[]]");
-		sb.append(" label[name,value]");
-		sb.append(" node[name,address,port,connsInUse,connsInPool,connsOpened,connsClosed,namespace[]]");
-		sb.append(" namespace[name,errors,timeouts,keyBusy,bytesIn,bytesOut,latency[]]");
+		sb.append(" header(5)");
+		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,nodes[]]");
+		sb.append(" labels[name,value]");
+		sb.append(" nodes[name,address,port,conns_in_use,conns_in_pool,conns_opened,conns_closed,namespaces[]]");
+		sb.append(" namespaces[name,errors,timeouts,key_busy,bytes_in,bytes_out,latency[]]");
 		sb.append(" latency(");
         sb.append(latencyUnit);
         sb.append(',');
