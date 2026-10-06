@@ -136,7 +136,7 @@ public final class QueryCommand extends Command {
     public void execute(AsyncRecordStream stream) {
         Node[] nodes = cluster.validateNodes();
 
-        cluster.addQueryCount();
+        cluster.addCommandCount();
         cluster.addBlockingCount();
 
         PartitionTracker tracker = new PartitionTracker(this, nodes, pf);

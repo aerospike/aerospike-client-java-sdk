@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk.metrics;
 
+import com.aerospike.client.sdk.util.Counter;
+
 /**
  * Optional extended node metrics. Used when extended metrics is enabled.
  */
@@ -23,6 +25,9 @@ public final class NodeMetrics {
 	private final Histograms histograms;
 	public final Counter bytesInCounter;
 	public final Counter bytesOutCounter;
+	public final Counter errorCounter;
+	public final Counter timeoutCounter;
+    public final Counter keyBusyCounter;
 
 	/**
 	 * Initialize extended node metrics.
@@ -30,6 +35,9 @@ public final class NodeMetrics {
 	public NodeMetrics(MetricsSettings settings) {
 		this.bytesInCounter = new Counter();
 		this.bytesOutCounter = new Counter();
+        this.errorCounter = new Counter();
+        this.timeoutCounter = new Counter();
+        this.keyBusyCounter = new Counter();
 		histograms = new Histograms(settings.getExtended().getOperational());
 	}
 

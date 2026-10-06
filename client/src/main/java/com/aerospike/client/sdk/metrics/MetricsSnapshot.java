@@ -84,7 +84,7 @@ public final class MetricsSnapshot {
         this.labels = (settings.getLabels() != null)? settings.getLabels() : new HashMap<>();
         this.recoverQueueSize = cluster.getRecoverQueueSize();
         this.invalidNodeCount = cluster.getInvalidNodeCount();
-        this.commandCount = cluster.getBlockingCount() + cluster.getDeferredCount() + cluster.getBackgroundCount();
+        this.commandCount = cluster.getCommandCount();
         this.commandRetries = cluster.getRetryCount();
         this.cpuPercent = Util.getProcessCpuLoad();
         this.memoryBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();

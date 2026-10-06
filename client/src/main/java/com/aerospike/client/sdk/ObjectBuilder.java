@@ -902,7 +902,7 @@ public class ObjectBuilder<T> {
             }
         }
 
-        cluster.addBatchCount();
+        cluster.addCommandCount();
         cluster.addBlockingCount();
 
         if (txnToUse != null) {
@@ -1097,7 +1097,7 @@ public class ObjectBuilder<T> {
                 final T element = elements.get(i);
                 final int idx = i;
 
-                cluster.addSingleCount();
+                cluster.addCommandCount();
                 cluster.addBlockingCount();
 
                 es.submit(() -> {
@@ -1194,7 +1194,7 @@ public class ObjectBuilder<T> {
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
-        cluster.addSingleCount();
+        cluster.addCommandCount();
         cluster.addBlockingCount();
 
         try {
@@ -1267,7 +1267,7 @@ public class ObjectBuilder<T> {
         T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
         boolean isBatch
     ) {
-        cluster.addSingleCount();
+        cluster.addCommandCount();
         cluster.addDeferredCount();
 
         cluster.startVirtualThread(() -> {

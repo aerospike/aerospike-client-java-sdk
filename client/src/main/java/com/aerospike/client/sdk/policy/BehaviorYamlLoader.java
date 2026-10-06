@@ -40,6 +40,7 @@ import org.yaml.snakeyaml.nodes.Tag;
 
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Loads {@link Behavior} definitions and system settings from YAML.
@@ -83,8 +84,9 @@ public class BehaviorYamlLoader {
                 ScalarNode scalarNode = (ScalarNode) node;
                 String value = scalarNode.getValue();
 
-                // Try to detect if this is a Duration value based on format
-                if (isDurationValue(value)) {
+                // Try to detect if this is a Duration value based on format.
+                // Skip String properties (e.g. "10mb" sizes), which are parsed by the loader.
+                if (node.getType() != String.class && isDurationValue(value)) {
                     return DurationConstruct.parseDuration(value);
                 }
             }
@@ -591,7 +593,7 @@ public class BehaviorYamlLoader {
                     ops.reportDir(metricsConfig.getReportDir());
                 }
                 if (metricsConfig.getReportSizeLimit() != null) {
-                    ops.reportSizeLimit(metricsConfig.getReportSizeLimit());
+                    ops.reportSizeLimit(Util.parseSize(metricsConfig.getReportSizeLimit()));
                 }
                 if (metricsConfig.getExportSampleRate() != null) {
                     ops.exportSampleRate(metricsConfig.getExportSampleRate());

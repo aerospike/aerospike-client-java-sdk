@@ -44,7 +44,6 @@ import com.aerospike.client.sdk.tend.Peer;
 import com.aerospike.client.sdk.tend.PeerParser;
 import com.aerospike.client.sdk.tend.Peers;
 import com.aerospike.client.sdk.tend.RackParser;
-import com.aerospike.client.sdk.util.Counter;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
@@ -81,9 +80,6 @@ public class Node implements Closeable {
     final AtomicInteger connsClosed;
     private AtomicInteger errorRateCount;
     protected int maxErrorRate;
-    private Counter errorCounter;
-    private Counter timeoutCounter;
-    private Counter keyBusyCounter;
     protected int connectionIter;
     private int peersGeneration;
     int partitionGeneration;
@@ -120,9 +116,6 @@ public class Node implements Closeable {
         this.connsClosed = new AtomicInteger(0);
         this.errorRateCount = new AtomicInteger(0);
         this.maxErrorRate = def.maxErrorRate;
-        this.errorCounter = new Counter();
-        this.timeoutCounter = new Counter();
-        this.keyBusyCounter = new Counter();
         this.peersGeneration = -1;
         this.partitionGeneration = -1;
         this.rebalanceGeneration = -1;
@@ -988,21 +981,16 @@ public class Node implements Closeable {
      * transaction may occur. For internal use only.
      */
     public void addError(String namespace) {
-        errorCounter.increment(namespace);
-    }
-
-    /**
-     * Return error count. The value is cumulative and not reset per metrics interval.
-     */
-    public long getErrorCount() {
-        return errorCounter.getTotal();
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.errorCounter.increment(namespace);
+        }
     }
 
     /**
      * Return error count by namespace. The value is cumulative and not reset per metrics interval.
      */
     public long getErrorCount(String namespace) {
-        return errorCounter.getCountByNS(namespace);
+        return (metrics != null)? metrics.errorCounter.getCountByNS(namespace) : 0;
     }
 
     /**
@@ -1010,42 +998,32 @@ public class Node implements Closeable {
      * multiple timeouts per transaction may occur. For internal use only.
      */
     public void addTimeout(String namespace) {
-        timeoutCounter.increment(namespace);
-    }
-
-    /**
-     * Return timeout count. The value is cumulative and not reset per metrics interval.
-     */
-    public long getTimeoutCount() {
-        return timeoutCounter.getTotal();
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.timeoutCounter.increment(namespace);
+        }
     }
 
     /**
      * Return timeout count. The value is cumulative and not reset per metrics interval.
      */
     public long getTimeoutCount(String namespace) {
-        return timeoutCounter.getCountByNS(namespace);
+        return (metrics != null)? metrics.timeoutCounter.getCountByNS(namespace) : 0;
     }
 
     /**
      * Increment the key busy counter. For internal use only.
      */
     public void addKeyBusy(String namespace) {
-        keyBusyCounter.increment(namespace);
-    }
-
-    /**
-     * Return key busy count. The value is cumulative and not reset per metrics interval.
-     */
-    public long getKeyBusyCount() {
-        return keyBusyCounter.getTotal();
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.keyBusyCounter.increment(namespace);
+        }
     }
 
     /**
      * Return key busy count for a given namespace. The value is cumulative and not reset per metrics interval.
      */
     public long getKeyBusyCount(String namespace) {
-        return keyBusyCounter.getCountByNS(namespace);
+        return (metrics != null)? metrics.keyBusyCounter.getCountByNS(namespace) : 0;
     }
 
     /**

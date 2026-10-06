@@ -326,7 +326,7 @@ public class BehaviorYamlConfig {
     public static class SystemMetricsConfig {
         private Map<String,String> labels;
         private String reportDir;
-        private Long reportSizeLimit;
+        private String reportSizeLimit;
         private Double exportSampleRate;
         private Integer exportInterval;
         private Boolean enabled;
@@ -346,10 +346,10 @@ public class BehaviorYamlConfig {
             this.reportDir = reportDir;
         }
 
-        public Long getReportSizeLimit() {
+        public String getReportSizeLimit() {
             return reportSizeLimit;
         }
-        public void setReportSizeLimit(Long reportSizeLimit) {
+        public void setReportSizeLimit(String reportSizeLimit) {
             this.reportSizeLimit = reportSizeLimit;
         }
 

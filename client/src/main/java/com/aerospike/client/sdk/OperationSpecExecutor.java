@@ -328,7 +328,7 @@ class OperationSpecExecutor {
             }
         }
 
-        cluster.addBatchCount();
+        cluster.addCommandCount();
         cluster.addBlockingCount();
 
         if (txn != null) {
@@ -471,7 +471,7 @@ class OperationSpecExecutor {
         boolean failOnFilteredOut = spec.isFailOnFilteredOut();
         long ttl = resolveTtl(spec, defaultExpirationInSeconds);
 
-        cluster.addSingleCount();
+        cluster.addCommandCount();
         cluster.addBlockingCount();
 
         try {

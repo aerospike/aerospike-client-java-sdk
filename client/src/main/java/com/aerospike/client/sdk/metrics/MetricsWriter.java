@@ -58,7 +58,7 @@ public final class MetricsWriter implements IMetricsExporter {
 	 * Metrics writer constructor. Open timestamped metrics file in append mode and write header
 	 * indicating what metrics will be stored.
 	 */
-	public MetricsWriter(Cluster cluster, MetricsSettings settings) {
+	public MetricsWriter(MetricsSettings settings) {
         if (settings.getReportSizeLimit() != 0 && settings.getReportSizeLimit() < MinFileSize) {
             throw new AerospikeException("MetricsSettings.reportSizeLimit " + settings.getReportSizeLimit() +
                 " must be at least " + MinFileSize);
@@ -189,16 +189,24 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.append(ms.commandRetries);
 		sb.append(",[");
 
-		NodeMetricsSnapshot[] nodes = ms.nodes;
+		int count = 0;
 
-		for (int i = 0; i < nodes.length; i++) {
-			NodeMetricsSnapshot node = nodes[i];
+        for (NodeMetricsSnapshot node : ms.nodes) {
+            if (count > 0) {
+                sb.append(',');
+            }
+            writeNode(node);
+            count++;
+        }
 
-			if (i > 0) {
-				sb.append(',');
-			}
-			writeNode(node);
-		}
+        for (NodeMetricsSnapshot node : ms.nodesDeparted) {
+            if (count > 0) {
+                sb.append(',');
+            }
+            writeNode(node);
+            count++;
+        }
+
 		sb.append("]");
 		writeLine();
 	}

@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.aerospike.client.sdk.metrics.MetricsExtended.MetricsExtendedTweaks;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Metrics settings that apply to an entire Cluster instance.
@@ -173,6 +174,12 @@ public class MetricsSettings {
         MetricsTweaks labels(Map<String,String> labels);
         MetricsTweaks reportDir(String dir);
         MetricsTweaks reportSizeLimit(Long limit);
+
+        /**
+         * Set report size limit from a size string such as {@code "10mb"}.
+         * See {@link com.aerospike.client.sdk.util.Util#parseSize(String)} for the format.
+         */
+        MetricsTweaks reportSizeLimit(String limit);
         MetricsTweaks exportSampleRate(Double rate);
         MetricsTweaks exportInterval(Integer limit);
         MetricsTweaks enabled(Boolean b);
@@ -214,6 +221,12 @@ public class MetricsSettings {
         @Override
         public MetricsTweaks reportSizeLimit(Long limit) {
             builder.reportSizeLimit = limit;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks reportSizeLimit(String limit) {
+            builder.reportSizeLimit = Util.parseSize(limit);
             return this;
         }
 

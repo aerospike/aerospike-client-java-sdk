@@ -76,9 +76,7 @@ public class Cluster implements Closeable {
     volatile HashMap<String,Partitions> partitionMap;
     private final CopyOnWriteArrayList<NodeMetricsSnapshot> nodesDeparted;
     private final ThreadFactory threadFactory;
-    private final LongAdder singleCount;     // feature.shape.point
-    private final LongAdder batchCount;      // feature.shape.batch
-    private final LongAdder queryCount;      // feature.shape.query
+    private final LongAdder commandCount;
     private final LongAdder blockingCount;   // feature.api.blocking
     private final LongAdder deferredCount;   // feature.api.deferred
     private final LongAdder backgroundCount; // feature.api.background
@@ -106,9 +104,7 @@ public class Cluster implements Closeable {
         partitionMap = new HashMap<String,Partitions>();
         nodesDeparted = new CopyOnWriteArrayList<>();
         threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
-        singleCount = new LongAdder();
-        batchCount = new LongAdder();
-        queryCount = new LongAdder();
+        commandCount = new LongAdder();
         blockingCount = new LongAdder();
         deferredCount = new LongAdder();
         backgroundCount = new LongAdder();
@@ -407,7 +403,7 @@ public class Cluster implements Closeable {
         List<IMetricsExporter> exporters = settings.getExporters();
 
         if (exporters == null) {
-            IMetricsExporter exporter = new MetricsWriter(this, settings);
+            IMetricsExporter exporter = new MetricsWriter(settings);
 
             exporters = new ArrayList<IMetricsExporter>(1);
             exporters.add(exporter);
@@ -462,6 +458,13 @@ public class Cluster implements Closeable {
                     .log("Metrics disabled");
             }
         }
+    }
+
+    /**
+     * Return the current metrics snapshot.
+     */
+    public final MetricsSnapshot getMetricsSnapshot() {
+        return new MetricsSnapshot(this, metricsSettings);
     }
 
     /**
@@ -647,49 +650,34 @@ public class Cluster implements Closeable {
     /**
      * Increment single key command count when usage metrics are enabled. For internal use only.
      */
-    public final void addSingleCount() {
-        if (metricsUsageEnabled) {
-            singleCount.increment();
+    public final void addCommandCount() {
+        if (metricsOperationalEnabled) {
+            commandCount.increment();
         }
     }
 
     /**
-     * Return single key command count. The value is cumulative and not reset per metrics interval.
+     * Return command count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getSingleCount() {
-        return singleCount.longValue();
+    public final long getCommandCount() {
+        return commandCount.longValue();
     }
 
     /**
-     * Increment batch command count when usage metrics are enabled. For internal use only.
+     * Increment command retry count. There can be multiple retries for a single command.
+     * For internal use only.
      */
-    public final void addBatchCount() {
-        if (metricsUsageEnabled) {
-            batchCount.increment();
+    public final void addRetryCount() {
+        if (metricsOperationalEnabled) {
+            retryCount.increment();
         }
     }
 
     /**
-     * Return batch command count. The value is cumulative and not reset per metrics interval.
+     * Return command retry count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getBatchCount() {
-        return batchCount.longValue();
-    }
-
-    /**
-     * Increment query command count when usage metrics are enabled. For internal use only.
-     */
-    public final void addQueryCount() {
-        if (metricsUsageEnabled) {
-            queryCount.increment();
-        }
-    }
-
-    /**
-     * Return query command count. The value is cumulative and not reset per metrics interval.
-     */
-    public final long getQueryCount() {
-        return queryCount.longValue();
+    public final long getRetryCount() {
+        return retryCount.longValue();
     }
 
     /**
@@ -754,21 +742,6 @@ public class Cluster implements Closeable {
      */
     public final long getTranCount() {
         return tranCount.longValue();
-    }
-
-    /**
-     * Increment command retry count. There can be multiple retries for a single command.
-     *For internal use only.
-     */
-    public final void addRetryCount() {
-        retryCount.increment();
-    }
-
-    /**
-     * Return command retry count. The value is cumulative and not reset per metrics interval.
-     */
-    public final long getRetryCount() {
-        return retryCount.longValue();
     }
 
     /**

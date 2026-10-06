@@ -119,7 +119,7 @@ public class SystemSettings {
         )
         .metrics(ops -> ops
             .labels(new HashMap<>())
-            .reportDir(".")
+            .reportDir("")
             .reportSizeLimit(0L)
             .exportSampleRate(1.0)
             .exportInterval(30)

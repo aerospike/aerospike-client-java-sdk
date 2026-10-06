@@ -268,7 +268,7 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         Cluster cluster = session.getCluster();
         Node[] nodes = cluster.validateNodes();
 
-        cluster.addQueryCount();
+        cluster.addCommandCount();
         cluster.addBackgroundCount();
 
         boolean retryable = areOperationsRetryable(ops);
