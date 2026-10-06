@@ -36,7 +36,28 @@ public final class QueryPlanStats {
     public static final LongAdder filteredOutNodes = new LongAdder();
     public static final LongAdder cacheReplans = new LongAdder();
 
+    /**
+     * Access path(s) the most recent query used - index name, {@code PI} or {@code FILTERED_OUT};
+     * several distinct paths are joined with {@code +}. Meaningful for single-threaded runs only.
+     */
+    public static volatile String lastPlan = "";
+
     private QueryPlanStats() {
+    }
+
+    public static void recordPlan(String plan) {
+        String cur = lastPlan;
+
+        if (cur.isEmpty()) {
+            lastPlan = plan;
+        }
+        else if (! ("+" + cur + "+").contains("+" + plan + "+")) {
+            lastPlan = cur + "+" + plan;
+        }
+    }
+
+    public static String describe(QuerySelection selection, String indexName) {
+        return selection == QuerySelection.SECONDARY_INDEX ? indexName : selection.name();
     }
 
     public static long[] snapshot() {

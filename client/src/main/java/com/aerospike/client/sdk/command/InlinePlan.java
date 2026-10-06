@@ -137,6 +137,7 @@ public final class InlinePlan {
      */
     public void preset(Choice choice) {
         this.preset = choice;
+        QueryPlanStats.recordPlan(QueryPlanStats.describe(choice.selection(), choice.indexName()));
     }
 
     /**
@@ -183,6 +184,7 @@ public final class InlinePlan {
 
     public synchronized void onHeader(Choice choice) {
         QueryPlanStats.planHeaders.increment();
+        QueryPlanStats.recordPlan(QueryPlanStats.describe(choice.selection(), choice.indexName()));
 
         if (! seen) {
             seen = true;

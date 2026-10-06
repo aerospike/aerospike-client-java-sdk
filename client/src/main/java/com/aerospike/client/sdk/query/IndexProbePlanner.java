@@ -30,6 +30,7 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QueryPlanCache;
 import com.aerospike.client.sdk.query.plan.QueryPlanSettings;
+import com.aerospike.client.sdk.query.plan.QueryPlanStats;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 /**
@@ -185,6 +186,9 @@ final class IndexProbePlanner {
         if (plan == null) {
             plan = plan(session, dataSet, where, hint);
             cache.put(key, plan);
+        }
+        else {
+            QueryPlanStats.recordPlan(QueryPlanStats.describe(plan.getSelection(), plan.getIndexName()));
         }
 
         QueryCommand cmd = QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);

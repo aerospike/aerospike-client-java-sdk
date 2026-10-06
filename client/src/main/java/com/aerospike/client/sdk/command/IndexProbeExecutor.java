@@ -89,6 +89,8 @@ public final class IndexProbeExecutor extends SyncExecutor {
             MsgFieldParser.from(rp)
         );
 
+        QueryPlanStats.recordPlan(QueryPlanStats.describe(plan.getSelection(), plan.getIndexName()));
+
         if (log.isDebugEnabled()) {
             logQueryPlan(node, plan);
         }
