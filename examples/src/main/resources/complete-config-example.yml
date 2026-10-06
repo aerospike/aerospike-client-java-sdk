@@ -18,7 +18,7 @@ system:
       number_of_attempts: 3
     metrics:
       enabled: false
-      interval: 31
+      export_interval: 31s
       report_dir: "metrics"
       report_size_limit: 5000000 
       latency_columns: 6

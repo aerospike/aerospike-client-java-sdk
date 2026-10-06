@@ -328,7 +328,7 @@ public class BehaviorYamlConfig {
         private String reportDir;
         private String reportSizeLimit;
         private Double exportSampleRate;
-        private Integer exportInterval;
+        private Duration exportInterval;
         private Boolean enabled;
         private MetricsExtendedConfig extended;
 
@@ -360,10 +360,10 @@ public class BehaviorYamlConfig {
             this.exportSampleRate = exportSampleRate;
         }
 
-        public Integer getExportInterval() {
+        public Duration getExportInterval() {
             return exportInterval;
         }
-        public void setExportInterval(Integer interval) {
+        public void setExportInterval(Duration interval) {
             this.exportInterval = interval;
         }
 

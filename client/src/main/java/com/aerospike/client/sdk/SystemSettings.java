@@ -122,7 +122,7 @@ public class SystemSettings {
             .reportDir("")
             .reportSizeLimit(0L)
             .exportSampleRate(1.0)
-            .exportInterval(30)
+            .exportInterval(Duration.ofSeconds(30))
             .enabled(false)
             .extended(ops2 -> ops2
                 .operational(ops3 -> ops3

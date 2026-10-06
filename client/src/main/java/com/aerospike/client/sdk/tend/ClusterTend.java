@@ -267,9 +267,6 @@ public class ClusterTend implements Runnable {
             }
         }
 
-        // Perform metrics snapshot.
-        cluster.metricsSnapshot(tendCount);
-
         processRecoverQueue();
     }
 
@@ -542,18 +539,18 @@ public class ClusterTend implements Runnable {
         // have already been set to inactive. Further connection requests will result
         // in an exception and a different node will be tried.
 
-        // Flush node metrics.
-        cluster.metricsNodeClose(nodesToRemove);
+        // Flush node metrics and remove nodes atomically with respect to the metrics thread.
+        cluster.metricsNodeClose(nodesToRemove, () -> {
+            // Cleanup node resources.
+            for (Node node : nodesToRemove) {
+                // Remove node from map.
+                nodesMap.remove(node.getName());
+                node.close();
+            }
 
-        // Cleanup node resources.
-        for (Node node : nodesToRemove) {
-            // Remove node from map.
-            nodesMap.remove(node.getName());
-            node.close();
-        }
-
-        // Remove all nodes at once to avoid copying entire array multiple times.
-        removeNodesCopy(nodesToRemove);
+            // Remove all nodes at once to avoid copying entire array multiple times.
+            removeNodesCopy(nodesToRemove);
+        });
     }
 
     /**

@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk;
 
 import java.io.Closeable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,9 +27,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +93,9 @@ public class Cluster implements Closeable {
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private MetricsSettings metricsSettings;
     private final Object metricsLock = new Object();
+    private final ReentrantLock metricsSleepLock = new ReentrantLock();
+    private final Condition metricsSleepCondition = metricsSleepLock.newCondition();
+    private volatile Thread metricsThread;
     private List<IMetricsExporter> metricsExporters;
     private Version version;
     private boolean versionGE8;
@@ -390,7 +397,7 @@ public class Cluster implements Closeable {
     }
 
     private void enableMetricsInternal(MetricsSettings settings) {
-        if (metricsSettings != null && metricsSettings.equals(settings)) {
+        if (metricsEnabled && metricsSettings != null && metricsSettings.equals(settings)) {
             return; // Metrics already enabled with the same settings.
         }
 
@@ -426,6 +433,12 @@ public class Cluster implements Closeable {
         this.metricsOperationalEnabled = me.getOperational().getEnabled();
         this.metricsUsageEnabled = me.getUsage().getEnabled();
 
+        // Start metrics thread if not already running. If metrics are re-enabled with
+        // new settings, the running thread picks up the new interval on its next cycle.
+        if (metricsThread == null) {
+            startMetricsThread();
+        }
+
         if (logMetrics.isInfoEnabled()) {
             logMetrics.info("Metrics enabled.");
         }
@@ -447,6 +460,8 @@ public class Cluster implements Closeable {
             metricsEnabled = false;
             metricsOperationalEnabled = false;
             metricsUsageEnabled = false;
+
+            stopMetricsThread();
 
             for (IMetricsExporter exporter : metricsExporters) {
                 exporter.onDisable();
@@ -931,11 +946,120 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Log metrics snapshot at periodic interval. For internal use only.
+     * Start the metrics virtual thread. The thread exports a metrics snapshot every
+     * MetricsSettings.exportInterval while metrics are enabled.
+     * Must be called while holding metricsLock.
      */
-    public void metricsSnapshot(int tendCount) {
+    private void startMetricsThread() {
+        metricsThread = Thread.ofVirtual().name("metrics").unstarted(this::runMetrics);
+        metricsThread.start();
+    }
+
+    /**
+     * Signal the metrics thread to stop. The thread is not joined because it may be
+     * waiting on metricsLock, which the caller holds. Exports only run under metricsLock,
+     * so no export can be in progress when this method is called.
+     * Must be called while holding metricsLock.
+     */
+    private void stopMetricsThread() {
+        if (metricsThread == null) {
+            return;
+        }
+
+        metricsThread = null;
+
+        metricsSleepLock.lock();
+        try {
+            metricsSleepCondition.signalAll();
+        }
+        finally {
+            metricsSleepLock.unlock();
+        }
+    }
+
+    /**
+     * Return true if the current thread is the active metrics thread.
+     */
+    private boolean isMetricsThread() {
+        return Thread.currentThread() == metricsThread;
+    }
+
+    private void runMetrics() {
+        while (isMetricsThread()) {
+            long sleepMillis;
+
+            synchronized(metricsLock) {
+                if (! isMetricsThread()) {
+                    break;
+                }
+                sleepMillis = getMetricsIntervalMillis();
+            }
+
+            if (! metricsSleep(sleepMillis)) {
+                break;
+            }
+
+            try {
+                metricsSnapshot();
+            }
+            catch (Throwable e) {
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Metrics snapshot failed: " + Util.getErrorMessage(e));
+                }
+            }
+        }
+    }
+
+    /**
+     * Return metrics export interval in milliseconds. If exportInterval is not set or
+     * not positive, the tend interval is used. Must be called while holding metricsLock.
+     */
+    private long getMetricsIntervalMillis() {
+        Duration interval = metricsSettings.getExportInterval();
+
+        if (interval == null || interval.isNegative() || interval.isZero()) {
+            return def.getTendInterval();
+        }
+        return interval.toMillis();
+    }
+
+    /**
+     * Sleep until the interval expires or stopMetricsThread() signals the condition.
+     * A lock/condition is used instead of Thread.sleep() and interrupt, so the thread
+     * can be woken without interrupting an exporter that is writing a file. It also
+     * avoids pinning the virtual thread's carrier, which Object.wait() does on JDK 21.
+     *
+     * @return false if the thread should exit
+     */
+    private boolean metricsSleep(long millis) {
+        long nanos = TimeUnit.MILLISECONDS.toNanos(Math.max(millis, 1L));
+
+        metricsSleepLock.lock();
+        try {
+            while (nanos > 0 && isMetricsThread()) {
+                nanos = metricsSleepCondition.awaitNanos(nanos);
+            }
+            return isMetricsThread();
+        }
+        catch (InterruptedException ie) {
+            return false;
+        }
+        finally {
+            metricsSleepLock.unlock();
+        }
+    }
+
+    /**
+     * Export metrics snapshot if metrics are enabled. Called periodically from the
+     * metrics thread. For internal use only.
+     */
+    public void metricsSnapshot() {
         synchronized(metricsLock) {
-            if (metricsEnabled && (tendCount % metricsSettings.getExportInterval()) == 0) {
+            // A metrics thread that was stopped (and possibly replaced by a new thread when
+            // metrics were re-enabled) must not export.
+            if (metricsEnabled && isMetricsThread()) {
                 metricsExport();
             }
         }
@@ -951,9 +1075,12 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Flush metrics for closing nodes. For internal use only.
+     * Flush metrics for closing nodes and then run removeAction, which removes the nodes
+     * from the cluster. Both steps run while holding metricsLock, so the metrics thread
+     * never sees a node in both the active nodes and departed nodes lists.
+     * For internal use only.
      */
-    public void metricsNodeClose(HashSet<Node> nodesToRemove) {
+    public void metricsNodeClose(HashSet<Node> nodesToRemove, Runnable removeAction) {
         synchronized(metricsLock) {
             if (metricsEnabled) {
                 try {
@@ -972,6 +1099,7 @@ public class Cluster implements Closeable {
                     }
                 }
             }
+            removeAction.run();
         }
     }
 

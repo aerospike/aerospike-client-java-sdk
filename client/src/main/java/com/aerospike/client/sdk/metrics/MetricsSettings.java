@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.metrics;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,7 @@ public class MetricsSettings {
     private final String reportDir;
     private final Long reportSizeLimit;
     private final Double exportSampleRate;
-    private final Integer exportInterval;
+    private final Duration exportInterval;
     private final Boolean enabled;
     private final MetricsExtended extended;
 
@@ -93,7 +94,7 @@ public class MetricsSettings {
     public String getReportDir() { return reportDir; }
     public Long getReportSizeLimit() { return reportSizeLimit; }
     public Double getExportSampleRate() { return exportSampleRate; }
-    public Integer getExportInterval() { return exportInterval; }
+    public Duration getExportInterval() { return exportInterval; }
     public Boolean getEnabled() { return enabled; }
     public MetricsExtended getExtended() { return extended; }
 
@@ -150,7 +151,7 @@ public class MetricsSettings {
         private String reportDir;
         private Long reportSizeLimit;
         private Double exportSampleRate;
-        private Integer exportInterval;
+        private Duration exportInterval;
         private Boolean enabled;
         private MetricsExtended.Builder extended = MetricsExtended.builder();
 
@@ -181,7 +182,7 @@ public class MetricsSettings {
          */
         MetricsTweaks reportSizeLimit(String limit);
         MetricsTweaks exportSampleRate(Double rate);
-        MetricsTweaks exportInterval(Integer limit);
+        MetricsTweaks exportInterval(Duration interval);
         MetricsTweaks enabled(Boolean b);
         MetricsTweaks extended(Consumer<MetricsExtendedTweaks> configurator);
     }
@@ -237,7 +238,7 @@ public class MetricsSettings {
         }
 
         @Override
-        public MetricsTweaks exportInterval(Integer interval) {
+        public MetricsTweaks exportInterval(Duration interval) {
             builder.exportInterval = interval;
             return this;
         }
