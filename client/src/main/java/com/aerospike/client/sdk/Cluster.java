@@ -465,6 +465,10 @@ public class Cluster implements Closeable {
 
             stopMetricsThread();
 
+            // Flush final metrics.
+            metricsExport();
+
+            // Call onDisable() for default MetricsWriter only.
             for (IMetricsExporter exporter : metricsExporters) {
                 if (exporter instanceof MetricsWriter mw) {
                     mw.onDisable();
@@ -1136,8 +1140,6 @@ public class Cluster implements Closeable {
         synchronized(metricsLock) {
             try {
                 if (metricsEnabled) {
-                    // Flush final metrics.
-                    metricsExport();
                     disableMetricsInternal();
                 }
             }
