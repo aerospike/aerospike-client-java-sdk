@@ -1078,7 +1078,16 @@ public class Cluster implements Closeable {
         nodesDeparted.clear();
 
         for (IMetricsExporter exporter : metricsExporters) {
-            exporter.export(snapshot);
+            try {
+                exporter.export(snapshot);
+            }
+            catch(Throwable t) {
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Metrics export snapshot failed: " + Util.getErrorMessage(t));
+                }
+            }
         }
     }
 
