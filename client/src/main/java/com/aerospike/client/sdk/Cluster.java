@@ -403,7 +403,9 @@ public class Cluster implements Closeable {
 
         if (metricsEnabled && metricsExporters != null) {
             for (IMetricsExporter exporter : metricsExporters) {
-                exporter.onDisable();
+                if (exporter instanceof MetricsWriter mw) {
+                    mw.onDisable();
+                }
             }
         }
 
@@ -464,7 +466,9 @@ public class Cluster implements Closeable {
             stopMetricsThread();
 
             for (IMetricsExporter exporter : metricsExporters) {
-                exporter.onDisable();
+                if (exporter instanceof MetricsWriter mw) {
+                    mw.onDisable();
+                }
             }
 
             if (log.isInfoEnabled()) {

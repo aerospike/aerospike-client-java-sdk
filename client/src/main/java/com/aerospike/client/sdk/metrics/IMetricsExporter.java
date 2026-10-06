@@ -24,9 +24,4 @@ public interface IMetricsExporter {
 	 * Export a batch of metrics. Called periodically based on the configured interval.
 	 */
 	public void export(MetricsSnapshot snapshot);
-
-	/**
-	 * Periodic extended metrics has been disabled for the given cluster.
-	 */
-	public void onDisable();
 }

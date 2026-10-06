@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.AerospikeException;
-import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.util.Util;
 
@@ -98,7 +97,6 @@ public final class MetricsWriter implements IMetricsExporter {
 	/**
 	 * Write final cluster metrics snapshot to file and then close the file.
 	 */
-	@Override
 	public void onDisable() {
 		if (enabled) {
 			try {
