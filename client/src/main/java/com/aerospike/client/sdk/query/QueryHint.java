@@ -162,6 +162,10 @@ public final class QueryHint {
             return this;
         }
 
+        /**
+         * This is an internal method for backwards compatibility only.
+         * Do not use. Will be removed in the future.
+         */
         @Override
         public Result hardHint() {
             if (indexName == null || indexName.isBlank()) {
