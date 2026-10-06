@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.aerospike.client.sdk.policy.Behavior;
+import com.aerospike.client.sdk.query.plan.QueryPlanCache;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.Partitions;
@@ -75,6 +76,7 @@ public class Cluster implements Closeable {
     private boolean versionGE812;
     private boolean versionGE82;
     private boolean metricsEnabled;
+    private volatile QueryPlanCache queryPlanCache;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
@@ -639,6 +641,25 @@ public class Cluster implements Closeable {
      */
     public boolean supportsQuerySelection() {
         return versionGE82;
+    }
+
+    /**
+     * Cross-query server plan cache (qopt evaluation). Created on first use.
+     */
+    public QueryPlanCache getQueryPlanCache() {
+        QueryPlanCache cache = queryPlanCache;
+
+        if (cache == null) {
+            synchronized (this) {
+                cache = queryPlanCache;
+
+                if (cache == null) {
+                    cache = new QueryPlanCache(this);
+                    queryPlanCache = cache;
+                }
+            }
+        }
+        return cache;
     }
 
     /**

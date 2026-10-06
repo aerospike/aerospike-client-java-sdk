@@ -31,6 +31,7 @@ import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.QueryHint;
 import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QueryPlanCache;
 
 public final class QueryCommand extends Command {
     final String set;
@@ -47,6 +48,8 @@ public final class QueryCommand extends Command {
     final boolean planDriven;
     /** Field {@code 44} execute payload when plan-driven; {@code null} on legacy path. */
     final byte[] executeWhereBytes;
+    /** Cache entry this command was built from (A1); invalidated on 201/203. */
+    QueryPlanCache.Key planCacheKey;
 
     public QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
@@ -131,6 +134,14 @@ public final class QueryCommand extends Command {
 
     public boolean isPlanDriven() {
         return planDriven;
+    }
+
+    public void setPlanCacheKey(QueryPlanCache.Key key) {
+        this.planCacheKey = key;
+    }
+
+    public QueryPlanCache.Key getPlanCacheKey() {
+        return planCacheKey;
     }
 
     public void execute(AsyncRecordStream stream) {

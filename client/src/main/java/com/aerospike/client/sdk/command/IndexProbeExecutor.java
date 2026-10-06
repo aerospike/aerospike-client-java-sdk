@@ -28,6 +28,7 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QueryPlanStats;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.RandomShift;
 
@@ -61,6 +62,8 @@ public final class IndexProbeExecutor extends SyncExecutor {
     protected CommandBuffer getCommandBuffer() {
         CommandBuffer cb = new CommandBuffer();
         cb.setQueryExplain(probe);
+        QueryPlanStats.explains.increment();
+        QueryPlanStats.explainBytesOut.add(cb.getLength());
         return cb;
     }
 

@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.query.KeyRecord;
+import com.aerospike.client.sdk.query.plan.QueryPlanStats;
 
 public final class QueryNodeExecutor extends NodeExecutor {
     private final QueryCommand query;
@@ -55,6 +56,8 @@ public final class QueryNodeExecutor extends NodeExecutor {
     protected CommandBuffer getCommandBuffer() {
         CommandBuffer cb = new CommandBuffer();
         cb.setQuery(query, tracker, nodePartitions, taskId);
+        QueryPlanStats.executeCommands.increment();
+        QueryPlanStats.executeBytesOut.add(cb.getLength());
         return cb;
     }
 

@@ -27,6 +27,8 @@ import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QueryPlanCache;
+import com.aerospike.client.sdk.query.plan.QueryPlanSettings;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
 /**
@@ -77,8 +79,47 @@ final class IndexProbePlanner {
         if (!useServerQuerySelection(cluster, where, hint, qb.getFilter())) {
             return legacyCommand(cluster, dataSet, where, policy, qb);
         }
+        if (QueryPlanSettings.cacheEnabled()) {
+            return cachedCommand(session, dataSet, where, hint, policy, qb);
+        }
+
         QueryPlan plan = plan(session, dataSet, where, hint);
         return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
+    }
+
+    /**
+     * A1: reuse a cached plan when one exists, otherwise explain and cache the result. The cached
+     * plan is pinned for every chunk exactly as a freshly explained plan would be.
+     */
+    private static QueryCommand cachedCommand(
+        Session session,
+        DataSet dataSet,
+        WhereClauseProcessor where,
+        QueryHint.Result hint,
+        ResolvedSettings policy,
+        QueryBuilder qb
+    ) {
+        Cluster cluster = session.getCluster();
+        ResolvedSettings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        QueryPlanCache cache = cluster.getQueryPlanCache();
+        QueryPlanCache.Key key = new QueryPlanCache.Key(
+            dataSet.getNamespace(),
+            dataSet.getSet(),
+            where.getAelString(),
+            explainWhereFlags(settings, hint),
+            indexNameHintForProbe(hint)
+        );
+
+        QueryPlan plan = cache.get(key);
+
+        if (plan == null) {
+            plan = plan(session, dataSet, where, hint);
+            cache.put(key, plan);
+        }
+
+        QueryCommand cmd = QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
+        cmd.setPlanCacheKey(key);
+        return cmd;
     }
 
     /**

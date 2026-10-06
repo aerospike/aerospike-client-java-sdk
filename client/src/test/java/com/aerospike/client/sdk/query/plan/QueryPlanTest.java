@@ -19,6 +19,7 @@ package com.aerospike.client.sdk.query.plan;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -196,6 +197,53 @@ public class QueryPlanTest {
             offset = writeField(buffer, offset, entry.type, entry.value);
         }
         return new MsgFieldParser(buffer, 0, fieldCount);
+    }
+
+    @Test
+    void planCacheHitMissAndInvalidate() {
+        QueryPlanCache cache = new QueryPlanCache(null);
+        QueryPlanCache.Key key = new QueryPlanCache.Key("test", "users", AEL, QueryWhereWire.FLAG_EXPLAIN, null);
+        QueryPlan plan = QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fieldsOf());
+
+        assertNull(cache.get(key));
+        cache.put(key, plan);
+        assertSame(plan, cache.get(key));
+        assertSame(plan, cache.get(new QueryPlanCache.Key("test", "users", AEL, QueryWhereWire.FLAG_EXPLAIN, null)));
+        assertNull(cache.get(new QueryPlanCache.Key("test", "users", "$.age > 31", QueryWhereWire.FLAG_EXPLAIN, null)));
+
+        cache.invalidate(key);
+        assertNull(cache.get(key));
+    }
+
+    @Test
+    void planCacheExpiresAndDropsNamespace() {
+        long ttl = QueryPlanSettings.getCacheTtlMs();
+        QueryPlanCache cache = new QueryPlanCache(null);
+        QueryPlan plan = QueryPlan.fromExplainResponse(ResultCode.OK, "test", "users", EXPLAIN_WHERE, fieldsOf());
+        QueryPlanCache.Key a = new QueryPlanCache.Key("test", "users", AEL, 0, null);
+        QueryPlanCache.Key b = new QueryPlanCache.Key("other", "users", AEL, 0, null);
+
+        try {
+            cache.put(a, plan);
+            cache.put(b, plan);
+            cache.invalidateNamespace("test");
+            assertNull(cache.get(a));
+            assertSame(plan, cache.get(b));
+
+            QueryPlanSettings.setCacheTtlMs(0);
+            cache.put(a, plan);
+            assertNull(cache.get(a));
+        }
+        finally {
+            QueryPlanSettings.setCacheTtlMs(ttl);
+        }
+    }
+
+    @Test
+    void planCacheParsesSindexGen() {
+        assertEquals(17L, QueryPlanCache.parseGen("objects=5;sindex_gc_cleaned=0;sindex_gen=17;x=1"));
+        assertNull(QueryPlanCache.parseGen("objects=5"));
+        assertNull(QueryPlanCache.parseGen(null));
     }
 
     private static Field field(int type, String utf8) {

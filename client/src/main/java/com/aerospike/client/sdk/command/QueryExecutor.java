@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AsyncRecordStream;
 import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.util.RandomShift;
 import com.aerospike.client.sdk.util.Util;
@@ -152,6 +153,7 @@ public final class QueryExecutor implements IQueryExecutor {
         // There is no need to stop threads if all threads have already completed.
         if (done.compareAndSet(false, true)) {
             exception = cause;
+            invalidatePlan(cause);
 
             // Send stop signal to threads.
             // Must synchronize here because this method can be called from the main
@@ -166,6 +168,22 @@ public final class QueryExecutor implements IQueryExecutor {
             // Terminate the stream with the error rather than completing it normally. Completing
             // normally here would present a query the server rejected as one that matched nothing.
             stream.error(toQueryException(cause));
+        }
+    }
+
+    /**
+     * A pinned index that is gone or not readable makes a cached plan useless - drop it so the
+     * next query re-plans.
+     */
+    private void invalidatePlan(Throwable cause) {
+        if (cmd.getPlanCacheKey() == null || ! (cause instanceof AerospikeException ae)) {
+            return;
+        }
+
+        int rc = ae.getResultCode();
+
+        if (rc == ResultCode.INDEX_NOTFOUND || rc == ResultCode.INDEX_NOTREADABLE) {
+            cluster.getQueryPlanCache().invalidate(cmd.getPlanCacheKey());
         }
     }
 
