@@ -203,7 +203,7 @@ public final class Behavior {
             .on(Selectors.reads().query(), ops -> ops
                     .abandonCallAfter(Duration.ofSeconds(0))
                     .recordQueueSize(5000)
-                    .allowScansWithWhere(false)
+                    .allowScansWithWhere(true)
                     .maximumNumberOfCallAttempts(6)
             )
             // Retryable write defaults
