@@ -791,6 +791,31 @@ public final class CommandBuffer {
         byte[] packedCtx = null;
         String indexName = null;
         byte[] packedExp = null;
+        byte[] whereBytes = cmd.executeWhereBytes;
+        boolean sendBVals = filter != null;
+
+        if (cmd.inlinePlan != null) {
+            // A2: first command plans inline; later commands pin what the nodes reported.
+            InlinePlan.Choice pinned = cmd.inlinePlan.pinned();
+
+            if (pinned == null) {
+                whereBytes = cmd.inlinePlan.autoWhere;
+                indexName = cmd.inlineHint;
+            }
+            else if (pinned.isSecondaryIndex()) {
+                whereBytes = cmd.inlinePlan.pinWhere;
+                indexName = pinned.indexName();
+                sendBVals = true;
+            }
+            else {
+                whereBytes = cmd.inlinePlan.scanWhere;
+            }
+
+            if (indexName != null) {
+                dataOffset += Command.FIELD_HEADER_SIZE + Buffer.estimateSizeUtf8(indexName);
+                fieldCount++;
+            }
+        }
 
         if (filter != null) {
             IndexCollectionType type = filter.getCollectionType();
@@ -827,8 +852,8 @@ public final class CommandBuffer {
             }
         }
 
-        if (cmd.executeWhereBytes != null) {
-            dataOffset += Command.FIELD_HEADER_SIZE + cmd.executeWhereBytes.length;
+        if (whereBytes != null) {
+            dataOffset += Command.FIELD_HEADER_SIZE + whereBytes.length;
             fieldCount++;
         }
         else if (cmd.where != null) {
@@ -845,7 +870,7 @@ public final class CommandBuffer {
             partsFullSize = nodePartitions.partsFull.size() * 2;
             partsPartialDigestSize = nodePartitions.partsPartial.size() * 20;
 
-            if (filter != null) {
+            if (sendBVals) {
                 partsPartialBValSize = nodePartitions.partsPartial.size() * 8;
             }
             maxRecords = nodePartitions.recordMax;
@@ -985,10 +1010,14 @@ public final class CommandBuffer {
             }
         }
 
-        if (cmd.executeWhereBytes != null) {
-            writeFieldHeader(cmd.executeWhereBytes.length, FieldType.WHERE);
-            System.arraycopy(cmd.executeWhereBytes, 0, dataBuffer, dataOffset, cmd.executeWhereBytes.length);
-            dataOffset += cmd.executeWhereBytes.length;
+        if (cmd.inlinePlan != null && indexName != null) {
+            writeField(indexName, FieldType.INDEX_NAME);
+        }
+
+        if (whereBytes != null) {
+            writeFieldHeader(whereBytes.length, FieldType.WHERE);
+            System.arraycopy(whereBytes, 0, dataBuffer, dataOffset, whereBytes.length);
+            dataOffset += whereBytes.length;
         }
         else if (cmd.where != null) {
             writeFieldExpression(cmd.where);

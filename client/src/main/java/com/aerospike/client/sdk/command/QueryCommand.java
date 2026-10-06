@@ -50,6 +50,8 @@ public final class QueryCommand extends Command {
     final byte[] executeWhereBytes;
     /** Cache entry this command was built from (A1); invalidated on 201/203. */
     QueryPlanCache.Key planCacheKey;
+    /** AUTO_PLAN state (A2) - {@code null} on every other path. */
+    InlinePlan inlinePlan;
 
     public QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
@@ -100,6 +102,30 @@ public final class QueryCommand extends Command {
         return new QueryCommand(cluster, set, filter, null, settings, qb, plan, false);
     }
 
+    /**
+     * Single-phase command (A2): no explain - every node plans inline and reports its plan in a
+     * header; later chunks and retries pin that plan.
+     *
+     * @param policyFlags REQUIRE_INDEX / HARD_HINT, evaluated by each node on the first command
+     * @param indexHint   optional index name hint; sent only on the first command
+     */
+    public static QueryCommand forInline(
+        Cluster cluster,
+        DataSet set,
+        String ael,
+        int policyFlags,
+        String indexHint,
+        ResolvedSettings settings,
+        QueryBuilder qb
+    ) {
+        QueryCommand cmd = new QueryCommand(cluster, set, null, null, settings, qb, null, true);
+        cmd.inlinePlan = new InlinePlan(ael, policyFlags);
+        cmd.inlineHint = indexHint;
+        return cmd;
+    }
+
+    String inlineHint;
+
     private QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
         ResolvedSettings settings, QueryBuilder qb, QueryPlan plan, boolean explicitFilter
@@ -134,6 +160,10 @@ public final class QueryCommand extends Command {
 
     public boolean isPlanDriven() {
         return planDriven;
+    }
+
+    public InlinePlan getInlinePlan() {
+        return inlinePlan;
     }
 
     public void setPlanCacheKey(QueryPlanCache.Key key) {

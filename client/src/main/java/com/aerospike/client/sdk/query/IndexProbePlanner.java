@@ -83,8 +83,34 @@ final class IndexProbePlanner {
             return cachedCommand(session, dataSet, where, hint, policy, qb);
         }
 
+        if (QueryPlanSettings.inlineEnabled()) {
+            return inlineCommand(session, dataSet, where, hint, policy, qb);
+        }
+
         QueryPlan plan = plan(session, dataSet, where, hint);
         return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
+    }
+
+    /**
+     * A2: no explain - the execute command carries AUTO_PLAN and every node plans inline. An index
+     * name travels only with a hard hint (the server treats a name on AUTO_PLAN as a pin).
+     */
+    private static QueryCommand inlineCommand(
+        Session session,
+        DataSet dataSet,
+        WhereClauseProcessor where,
+        QueryHint.Result hint,
+        ResolvedSettings policy,
+        QueryBuilder qb
+    ) {
+        String ael = where.getAelString();
+        QueryWhereWire.requireAel(ael);
+
+        ResolvedSettings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        int policyFlags = explainWhereFlags(settings, hint) & ~QueryWhereWire.FLAG_EXPLAIN;
+        String pin = (policyFlags & QueryWhereWire.FLAG_HARD_HINT) != 0 ? indexNameHintForProbe(hint) : null;
+
+        return QueryCommand.forInline(session.getCluster(), dataSet, ael, policyFlags, pin, policy, qb);
     }
 
     /**

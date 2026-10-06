@@ -34,7 +34,9 @@ public final class QueryPlanSettings {
         /** Shipped flow: explain on one node, then execute with the returned pins. */
         TWO_PHASE,
         /** A1: two-phase on a miss, execute-only with a cached plan on a hit. */
-        CACHE
+        CACHE,
+        /** A2: single phase - every node plans inline (AUTO_PLAN), continuation pins the plan. */
+        INLINE
     }
 
     private static volatile Mode mode = Mode.valueOf(
@@ -56,6 +58,10 @@ public final class QueryPlanSettings {
 
     public static boolean cacheEnabled() {
         return mode == Mode.CACHE;
+    }
+
+    public static boolean inlineEnabled() {
+        return mode == Mode.INLINE;
     }
 
     public static long getCacheTtlMs() {

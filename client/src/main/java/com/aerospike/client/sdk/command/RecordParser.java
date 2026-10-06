@@ -43,6 +43,9 @@ public final class RecordParser {
     public int dataOffset;
     public int subCode = SubCode.NONE;
     public long bytesIn;
+    /** AUTO_PLAN plan header: QUERY_PLAN selection byte, or -1 when the row is not a header. */
+    public int planSelection = -1;
+    public String planIndexName;
     public String message;
     public ExpressionTrace expTrace;
 
@@ -260,6 +263,9 @@ public final class RecordParser {
         String setName = null;
         Value userKey = null;
 
+        planSelection = -1;
+        planIndexName = null;
+
         for (int i = 0; i < fieldCount; i++) {
             int fieldlen = Buffer.bytesToInt(dataBuffer, dataOffset);
             dataOffset += 4;
@@ -289,6 +295,14 @@ public final class RecordParser {
 
             case FieldType.BVAL_ARRAY:
                 bval.val = Buffer.littleBytesToLong(dataBuffer, dataOffset);
+                break;
+
+            case FieldType.QUERY_PLAN:
+                planSelection = dataBuffer[dataOffset] & 0xFF;
+                break;
+
+            case FieldType.INDEX_NAME:
+                planIndexName = Buffer.utf8ToString(dataBuffer, dataOffset, size);
                 break;
 
             case FieldType.ERROR_MESSAGE:

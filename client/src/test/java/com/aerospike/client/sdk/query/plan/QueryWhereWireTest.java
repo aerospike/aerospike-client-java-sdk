@@ -131,7 +131,7 @@ public class QueryWhereWireTest {
     @Test
     void rejectsUnknownFlags() {
         assertThrows(IllegalArgumentException.class,
-            () -> QueryWhereWire.encode(1 << 4, SIMPLE_AEL));
+            () -> QueryWhereWire.encode(1 << 5, SIMPLE_AEL));
     }
 
     @Test

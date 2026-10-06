@@ -54,8 +54,11 @@ public final class QueryWhereWire {
     /** Explain-only: require field {@code 21} index name hint; fail if hint missing or not selected. */
     public static final int FLAG_HARD_HINT = 1 << 3;
 
+    /** Execute-time inline planning: each node picks the index and answers with a plan header. */
+    public static final int FLAG_AUTO_PLAN = 1 << 4;
+
     public static final int FLAG_KNOWN =
-        FLAG_ENC_VARINT | FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT;
+        FLAG_ENC_VARINT | FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT | FLAG_AUTO_PLAN;
 
     /** Explain-only flags cleared when building field {@code 44} for execute. */
     static final int EXPLAIN_ONLY_FLAGS = FLAG_EXPLAIN | FLAG_REQUIRE_INDEX | FLAG_HARD_HINT;

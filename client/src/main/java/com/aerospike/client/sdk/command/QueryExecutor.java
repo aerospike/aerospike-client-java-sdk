@@ -104,7 +104,7 @@ public final class QueryExecutor implements IQueryExecutor {
             else {
                 for (NodePartitions nodePartitions : list) {
                     QueryNodeExecutor exec = new QueryNodeExecutor(cluster, cmd, taskId, tracker, nodePartitions, stream);
-                    exec.execute();
+                    exec.run();
                 }
             }
 
@@ -213,7 +213,7 @@ public final class QueryExecutor implements IQueryExecutor {
         public void run() {
             try {
                 if (exec.isValid()) {
-                    exec.execute();
+                    exec.run();
                 }
                 threadCompleted();
             }

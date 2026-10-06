@@ -19,6 +19,7 @@ package com.aerospike.client.sdk;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -31,6 +32,7 @@ import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.CommandBuffer;
 import com.aerospike.client.sdk.command.FieldType;
+import com.aerospike.client.sdk.command.InlinePlan;
 import com.aerospike.client.sdk.command.MsgFieldParser;
 import com.aerospike.client.sdk.command.PartitionFilter;
 import com.aerospike.client.sdk.command.PartitionTracker;
@@ -83,6 +85,67 @@ public class QueryPlanExecuteWireTest {
         assertFalse(types.contains(FieldType.INDEX_NAME));
         assertFalse(types.contains(FieldType.FILTER_EXP));
         assertArrayEquals(plan.getExecuteWhereBytes(), fieldBytes(cb, FieldType.WHERE));
+    }
+
+    @Test
+    void inlineFirstCommandSendsAutoPlanWithPolicyFlagsOnly() {
+        QueryCommand cmd = inlineCommand(QueryWhereWire.FLAG_REQUIRE_INDEX);
+        CommandBuffer cb = encodeQuery(cmd);
+        List<Integer> types = fieldTypes(cb);
+
+        assertEquals(QueryWhereWire.FLAG_AUTO_PLAN | QueryWhereWire.FLAG_REQUIRE_INDEX,
+            QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
+        assertFalse(types.contains(FieldType.INDEX_NAME));
+        assertFalse(types.contains(FieldType.INDEX_RANGE));
+        assertFalse(types.contains(FieldType.FILTER_EXP));
+    }
+
+    @Test
+    void inlineContinuationPinsReportedSindexByName() {
+        QueryCommand cmd = inlineCommand(QueryWhereWire.FLAG_REQUIRE_INDEX);
+        InlinePlan.Choice si = new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "age_idx");
+
+        cmd.getInlinePlan().onHeader(si);
+        cmd.getInlinePlan().onHeader(si);
+
+        CommandBuffer cb = encodeQuery(cmd);
+        List<Integer> types = fieldTypes(cb);
+
+        assertEquals(QueryWhereWire.FLAG_AUTO_PLAN, QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
+        assertEquals("age_idx", fieldUtf8(cb, FieldType.INDEX_NAME));
+        assertFalse(types.contains(FieldType.INDEX_RANGE));
+    }
+
+    @Test
+    void inlineContinuationPinsReportedScanAsPlainExecute() {
+        QueryCommand cmd = inlineCommand(0);
+
+        cmd.getInlinePlan().onHeader(new InlinePlan.Choice(QuerySelection.PRIMARY_INDEX, null));
+
+        CommandBuffer cb = encodeQuery(cmd);
+
+        assertEquals(0, QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
+        assertFalse(fieldTypes(cb).contains(FieldType.INDEX_NAME));
+    }
+
+    @Test
+    void inlineContinuationRejectsDisagreeingNodes() {
+        QueryCommand cmd = inlineCommand(0);
+
+        cmd.getInlinePlan().onHeader(new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "age_idx"));
+        cmd.getInlinePlan().onHeader(new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "city_idx"));
+
+        assertTrue(cmd.getInlinePlan().isDisagreed());
+        assertThrows(AerospikeException.class, () -> encodeQuery(cmd));
+    }
+
+    private static QueryCommand inlineCommand(int policyFlags) {
+        Session session = new Session(null, Behavior.DEFAULT);
+        DataSet dataSet = DataSet.of("test", "users");
+        QueryBuilder qb = new QueryBuilder(session, dataSet);
+        ResolvedSettings settings = Behavior.DEFAULT.getSettings(
+            Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
+        return QueryCommand.forInline(null, dataSet, AEL, policyFlags, null, settings, qb);
     }
 
     private static byte[] probeIndexRangeBytes() {

@@ -27,6 +27,7 @@ import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.query.KeyRecord;
 import com.aerospike.client.sdk.query.plan.QueryPlanStats;
+import com.aerospike.client.sdk.query.plan.QuerySelection;
 
 public final class QueryNodeExecutor extends NodeExecutor {
     private final QueryCommand query;
@@ -61,10 +62,33 @@ public final class QueryNodeExecutor extends NodeExecutor {
         return cb;
     }
 
+    /**
+     * Runs this node's command. On an AUTO_PLAN query a node that proves the filter unsatisfiable
+     * answers FILTERED_OUT without scanning; it surfaces as the same FILTERED_OUT error a
+     * two-phase explain raises, so callers see one behavior in every mode.
+     */
+    public void run() {
+        try {
+            execute();
+        }
+        catch (AerospikeException ae) {
+            if (query.inlinePlan != null && ae.getResultCode() == ResultCode.FILTERED_OUT) {
+                QueryPlanStats.filteredOutNodes.increment();
+            }
+            throw ae;
+        }
+    }
+
     @Override
     protected boolean parseRow() {
         BVal bval = new BVal();
         Key key = parser.parseFieldsQuery(bval);
+
+        if (parser.planSelection >= 0) {
+            // AUTO_PLAN header - always the first row on the socket, never a record.
+            onPlanHeader();
+            return true;
+        }
 
         if ((parser.info3 & Command.INFO3_PARTITION_DONE) != 0) {
             // Generation is overloaded as partitionId.
@@ -104,5 +128,19 @@ public final class QueryNodeExecutor extends NodeExecutor {
             tracker.setLast(nodePartitions, key, bval.val);
         }
         return true;
+    }
+
+    private void onPlanHeader() {
+        if (query.inlinePlan == null) {
+            throw new AerospikeException.Parse("Unexpected query plan header");
+        }
+
+        // Server AS_QUERY_PLAN_PI = 0, AS_QUERY_PLAN_SINDEX = 1.
+        QuerySelection selection = parser.planSelection == 1
+            ? QuerySelection.SECONDARY_INDEX
+            : QuerySelection.PRIMARY_INDEX;
+
+        query.inlinePlan.onHeader(new InlinePlan.Choice(selection,
+            selection == QuerySelection.SECONDARY_INDEX ? parser.planIndexName : null));
     }
 }
