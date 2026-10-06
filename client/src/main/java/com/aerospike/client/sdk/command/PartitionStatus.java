@@ -29,6 +29,11 @@ public final class PartitionStatus implements Serializable {
     public transient Node node;
     public transient int sequence;
     public boolean retry;
+    /**
+     * Access path the cursor above belongs to on an AUTO_PLAN query with per-partition plans
+     * (A4) - {@code null} until the owning node's plan header arrives.
+     */
+    public transient InlinePlan.Choice plan;
 
     public PartitionStatus(int id) {
         this.id = id;

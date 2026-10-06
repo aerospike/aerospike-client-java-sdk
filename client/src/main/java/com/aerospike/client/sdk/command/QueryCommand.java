@@ -32,6 +32,7 @@ import com.aerospike.client.sdk.query.QueryHint;
 import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QueryPlanCache;
+import com.aerospike.client.sdk.query.plan.QueryPlanSettings;
 
 public final class QueryCommand extends Command {
     final String set;
@@ -119,7 +120,7 @@ public final class QueryCommand extends Command {
         QueryBuilder qb
     ) {
         QueryCommand cmd = new QueryCommand(cluster, set, null, null, settings, qb, null, true);
-        cmd.inlinePlan = new InlinePlan(ael, policyFlags);
+        cmd.inlinePlan = new InlinePlan(ael, policyFlags, QueryPlanSettings.perPartitionPlans());
         cmd.inlineHint = indexHint;
         return cmd;
     }

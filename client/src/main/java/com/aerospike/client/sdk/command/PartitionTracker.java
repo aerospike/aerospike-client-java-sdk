@@ -19,6 +19,7 @@ package com.aerospike.client.sdk.command;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -170,13 +171,15 @@ public final class PartitionTracker {
                     continue;
                 }
 
-                NodePartitions np = findNode(list, node);
+                NodePartitions np = findNode(list, node, part.plan);
 
                 if (np == null) {
                     // If the partition map is in a transitional state, multiple
                     // NodePartitions instances (each with different partitions)
-                    // may be created for a single node.
+                    // may be created for a single node. Partitions resumed on
+                    // different access paths (A4) also get separate commands.
                     np = new NodePartitions(node, partitionsCapacity);
+                    np.plan = part.plan;
                     list.add(np);
                 }
                 np.addPartition(part);
@@ -228,10 +231,10 @@ public final class PartitionTracker {
         return list;
     }
 
-    private NodePartitions findNode(List<NodePartitions> list, Node node) {
+    private NodePartitions findNode(List<NodePartitions> list, Node node, InlinePlan.Choice plan) {
         for (NodePartitions nodePartition : list) {
             // Use pointer equality for performance.
-            if (nodePartition.node == node) {
+            if (nodePartition.node == node && Objects.equals(nodePartition.plan, plan)) {
                 return nodePartition;
             }
         }
@@ -490,6 +493,8 @@ public final class PartitionTracker {
         public long recordMax;
         public int partsUnavailable;
         public boolean retry;
+        /** Plan every partition in this command resumes on (A4); {@code null} = not yet known. */
+        public InlinePlan.Choice plan;
 
         public NodePartitions(Node node, int capacity) {
             this.node = node;

@@ -35,6 +35,7 @@ import com.aerospike.client.sdk.command.FieldType;
 import com.aerospike.client.sdk.command.InlinePlan;
 import com.aerospike.client.sdk.command.MsgFieldParser;
 import com.aerospike.client.sdk.command.PartitionFilter;
+import com.aerospike.client.sdk.command.PartitionStatus;
 import com.aerospike.client.sdk.command.PartitionTracker;
 import com.aerospike.client.sdk.command.QueryCommand;
 import com.aerospike.client.sdk.policy.Behavior;
@@ -44,6 +45,7 @@ import com.aerospike.client.sdk.query.IndexCollectionType;
 import com.aerospike.client.sdk.query.QueryBuilder;
 import com.aerospike.client.sdk.query.plan.IndexRangeWire;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
+import com.aerospike.client.sdk.query.plan.QueryPlanSettings;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 
@@ -139,7 +141,105 @@ public class QueryPlanExecuteWireTest {
         assertThrows(AerospikeException.class, () -> encodeQuery(cmd));
     }
 
+    @Test
+    void perPartitionPlansPinEachCommandToItsNodesReport() {
+        QueryCommand cmd = inlineCommand(0, true);
+        InlinePlan.Choice si = new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "age_idx");
+        InlinePlan.Choice pi = new InlinePlan.Choice(QuerySelection.PRIMARY_INDEX, null);
+
+        PartitionTracker.NodePartitions nodeA = nodePartitions(1, 2);
+        PartitionTracker.NodePartitions nodeB = nodePartitions(3, 4);
+
+        // Both first commands plan inline; the nodes then disagree.
+        assertEquals(QueryWhereWire.FLAG_AUTO_PLAN,
+            QueryWhereWire.flags(fieldBytes(encodeQuery(cmd, nodeA), FieldType.WHERE)));
+
+        cmd.getInlinePlan().onHeader(nodeA, si);
+        cmd.getInlinePlan().onHeader(nodeB, pi);
+
+        assertEquals(si, nodeA.partsFull.get(0).plan);
+        assertEquals(pi, nodeB.partsFull.get(1).plan);
+        assertTrue(cmd.getInlinePlan().isDisagreed());
+
+        // Continuation: each regrouped command resumes on its own partitions' path.
+        PartitionTracker.NodePartitions resumeA = nodePartitions(nodeA.partsFull);
+        PartitionTracker.NodePartitions resumeB = nodePartitions(nodeB.partsFull);
+
+        resumeA.plan = si;
+        resumeB.plan = pi;
+
+        CommandBuffer cbA = encodeQuery(cmd, resumeA);
+        CommandBuffer cbB = encodeQuery(cmd, resumeB);
+
+        assertEquals("age_idx", fieldUtf8(cbA, FieldType.INDEX_NAME));
+        assertEquals(QueryWhereWire.FLAG_AUTO_PLAN, QueryWhereWire.flags(fieldBytes(cbA, FieldType.WHERE)));
+        assertFalse(fieldTypes(cbB).contains(FieldType.INDEX_NAME));
+        assertEquals(0, QueryWhereWire.flags(fieldBytes(cbB, FieldType.WHERE)));
+    }
+
+    @Test
+    void perPartitionPlansSendBValsForResumedSindexPartitions() {
+        QueryCommand cmd = inlineCommand(0, true);
+        InlinePlan.Choice si = new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "age_idx");
+
+        PartitionStatus ps = new PartitionStatus(7);
+        ps.plan = si;
+        ps.digest = new byte[20];
+        ps.bval = 42;
+
+        PartitionTracker.NodePartitions np = nodePartitions(List.of(ps));
+        np.plan = si;
+
+        List<Integer> types = fieldTypes(encodeQuery(cmd, np));
+
+        assertTrue(types.contains(FieldType.DIGEST_ARRAY));
+        assertTrue(types.contains(FieldType.BVAL_ARRAY));
+    }
+
+    private static PartitionTracker.NodePartitions nodePartitions(int... ids) {
+        PartitionTracker.NodePartitions np = new PartitionTracker.NodePartitions(null, ids.length);
+
+        for (int id : ids) {
+            np.addPartition(new PartitionStatus(id));
+        }
+        return np;
+    }
+
+    private static PartitionTracker.NodePartitions nodePartitions(List<PartitionStatus> parts) {
+        PartitionTracker.NodePartitions np = new PartitionTracker.NodePartitions(null, parts.size());
+
+        for (PartitionStatus ps : parts) {
+            np.addPartition(ps);
+        }
+        return np;
+    }
+
+    private static CommandBuffer encodeQuery(QueryCommand cmd, PartitionTracker.NodePartitions np) {
+        PartitionTracker tracker = new PartitionTracker(
+            cmd, new Node[1], PartitionFilter.all());
+        CommandBuffer cb = new CommandBuffer();
+        cb.setQuery(cmd, tracker, np, 9L);
+        return cb;
+    }
+
+    private static QueryCommand inlineCommand(int policyFlags, boolean perPartition) {
+        QueryPlanSettings.Mode prev = QueryPlanSettings.getMode();
+
+        try {
+            QueryPlanSettings.setMode(perPartition
+                ? QueryPlanSettings.Mode.INLINE_PLANIDS : QueryPlanSettings.Mode.INLINE);
+            return buildInlineCommand(policyFlags);
+        }
+        finally {
+            QueryPlanSettings.setMode(prev);
+        }
+    }
+
     private static QueryCommand inlineCommand(int policyFlags) {
+        return inlineCommand(policyFlags, false);
+    }
+
+    private static QueryCommand buildInlineCommand(int policyFlags) {
         Session session = new Session(null, Behavior.DEFAULT);
         DataSet dataSet = DataSet.of("test", "users");
         QueryBuilder qb = new QueryBuilder(session, dataSet);

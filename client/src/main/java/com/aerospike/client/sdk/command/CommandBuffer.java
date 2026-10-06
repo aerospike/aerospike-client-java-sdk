@@ -796,7 +796,7 @@ public final class CommandBuffer {
 
         if (cmd.inlinePlan != null) {
             // A2: first command plans inline; later commands pin what the nodes reported.
-            InlinePlan.Choice pinned = cmd.inlinePlan.pinned();
+            InlinePlan.Choice pinned = cmd.inlinePlan.pinnedFor(nodePartitions);
 
             if (pinned == null) {
                 whereBytes = cmd.inlinePlan.autoWhere;

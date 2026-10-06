@@ -140,7 +140,7 @@ public final class QueryNodeExecutor extends NodeExecutor {
             ? QuerySelection.SECONDARY_INDEX
             : QuerySelection.PRIMARY_INDEX;
 
-        query.inlinePlan.onHeader(new InlinePlan.Choice(selection,
+        query.inlinePlan.onHeader(nodePartitions, new InlinePlan.Choice(selection,
             selection == QuerySelection.SECONDARY_INDEX ? parser.planIndexName : null));
     }
 }

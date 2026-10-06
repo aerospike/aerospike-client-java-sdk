@@ -20,6 +20,7 @@ import java.util.Objects;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.query.plan.QueryPlanStats;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
@@ -49,14 +50,61 @@ public final class InlinePlan {
     /** Pinned primary-index scan: plain execute WHERE, exactly as two-phase sends it. */
     final byte[] scanWhere;
 
+    /**
+     * A4: remember the plan per partition instead of requiring one global plan. Each partition is
+     * resumed on the path its node reported, so nodes that disagree (an index still building on
+     * one node, differing local stats) no longer stop the query.
+     */
+    final boolean perPartition;
+
     private Choice agreed;
     private boolean seen;
     private boolean disagreed;
 
     public InlinePlan(String ael, int policyFlags) {
+        this(ael, policyFlags, false);
+    }
+
+    public InlinePlan(String ael, int policyFlags, boolean perPartition) {
         this.autoWhere = QueryWhereWire.encode(QueryWhereWire.FLAG_AUTO_PLAN | policyFlags, ael);
         this.pinWhere = QueryWhereWire.encode(QueryWhereWire.FLAG_AUTO_PLAN, ael);
         this.scanWhere = QueryWhereWire.forExecute(ael);
+        this.perPartition = perPartition;
+    }
+
+    /**
+     * Header from the node serving {@code np}. With per-partition plans, every partition in that
+     * command that has no plan yet takes this one - records (and so cursors) only follow the
+     * header, so no partition can hold a cursor from an unrecorded path.
+     */
+    public void onHeader(NodePartitions np, Choice choice) {
+        if (perPartition && np != null) {
+            synchronized (this) {
+                for (PartitionStatus ps : np.partsFull) {
+                    if (ps.plan == null) {
+                        ps.plan = choice;
+                    }
+                }
+
+                for (PartitionStatus ps : np.partsPartial) {
+                    if (ps.plan == null) {
+                        ps.plan = choice;
+                    }
+                }
+            }
+        }
+
+        onHeader(choice);
+    }
+
+    /**
+     * Plan to pin on the command for {@code np}, or {@code null} to plan inline.
+     */
+    public Choice pinnedFor(NodePartitions np) {
+        if (perPartition) {
+            return np != null ? np.plan : null;
+        }
+        return pinned();
     }
 
     public synchronized void onHeader(Choice choice) {
