@@ -196,6 +196,39 @@ public class QueryPlanExecuteWireTest {
         assertTrue(types.contains(FieldType.BVAL_ARRAY));
     }
 
+    @Test
+    void presetPlanPinsFirstCommandAndAllowsReplanBeforeCursor() {
+        QueryCommand cmd = inlineCommand(0, true);
+        InlinePlan.Choice si = new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "age_idx");
+
+        cmd.getInlinePlan().preset(si);
+
+        PartitionTracker.NodePartitions np = nodePartitions(1, 2);
+        CommandBuffer cb = encodeQuery(cmd, np);
+
+        assertEquals("age_idx", fieldUtf8(cb, FieldType.INDEX_NAME));
+        assertEquals(QueryWhereWire.FLAG_AUTO_PLAN, QueryWhereWire.flags(fieldBytes(cb, FieldType.WHERE)));
+        assertEquals(si, np.partsFull.get(0).plan);
+
+        // No cursor yet - a stale pin may fall back to inline planning, once.
+        assertTrue(cmd.getInlinePlan().canReplan(np));
+        assertFalse(cmd.getInlinePlan().canReplan(np));
+    }
+
+    @Test
+    void presetPlanCannotReplanPartitionsWithCursor() {
+        QueryCommand cmd = inlineCommand(0, true);
+        InlinePlan.Choice si = new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "age_idx");
+
+        cmd.getInlinePlan().preset(si);
+
+        PartitionTracker.NodePartitions np = nodePartitions(1);
+        encodeQuery(cmd, np);
+        np.partsFull.get(0).digest = new byte[20];
+
+        assertFalse(cmd.getInlinePlan().canReplan(np));
+    }
+
     private static PartitionTracker.NodePartitions nodePartitions(int... ids) {
         PartitionTracker.NodePartitions np = new PartitionTracker.NodePartitions(null, ids.length);
 

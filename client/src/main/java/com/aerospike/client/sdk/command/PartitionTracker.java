@@ -241,6 +241,20 @@ public final class PartitionTracker {
         return null;
     }
 
+    /**
+     * A5: a cached pin failed on this node before any record was returned, so none of these
+     * partitions holds a cursor - retry them (same node) with inline planning instead.
+     */
+    public void replan(NodePartitions nodePartitions, AerospikeException ae) {
+        for (PartitionStatus ps : nodePartitions.partsFull) {
+            ps.retry = true;
+            ps.plan = null;
+        }
+
+        nodePartitions.partsUnavailable = nodePartitions.partsFull.size();
+        addException(nodePartitions.node, ae);
+    }
+
     public void partitionUnavailable(NodePartitions nodePartitions, int partitionId) {
         PartitionStatus ps = partitions[partitionId - partitionBegin];
         ps.retry = true;

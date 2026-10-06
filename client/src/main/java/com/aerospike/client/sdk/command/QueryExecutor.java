@@ -112,6 +112,10 @@ public final class QueryExecutor implements IQueryExecutor {
                 break;
             }
 
+            if (cmd.inlinePlan != null) {
+                cmd.inlinePlan.onRoundComplete();
+            }
+
             // Set done to false so RecordSet thread has chance to close early again.
             done.set(false);
 

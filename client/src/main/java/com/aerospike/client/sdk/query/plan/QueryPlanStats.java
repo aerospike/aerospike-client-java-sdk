@@ -34,6 +34,7 @@ public final class QueryPlanStats {
     public static final LongAdder planHeaders = new LongAdder();
     public static final LongAdder planDisagreements = new LongAdder();
     public static final LongAdder filteredOutNodes = new LongAdder();
+    public static final LongAdder cacheReplans = new LongAdder();
 
     private QueryPlanStats() {
     }
@@ -42,7 +43,7 @@ public final class QueryPlanStats {
         return new long[] {
             explains.sum(), explainBytesOut.sum(), executeCommands.sum(), executeBytesOut.sum(),
             cacheHits.sum(), cacheMisses.sum(), cacheInvalidations.sum(), genPolls.sum(),
-            planHeaders.sum(), planDisagreements.sum(), filteredOutNodes.sum()
+            planHeaders.sum(), planDisagreements.sum(), filteredOutNodes.sum(), cacheReplans.sum()
         };
     }
 
@@ -50,7 +51,7 @@ public final class QueryPlanStats {
         return new String[] {
             "explains", "explainBytesOut", "executeCommands", "executeBytesOut",
             "cacheHits", "cacheMisses", "cacheInvalidations", "genPolls",
-            "planHeaders", "planDisagreements", "filteredOutNodes"
+            "planHeaders", "planDisagreements", "filteredOutNodes", "cacheReplans"
         };
     }
 }

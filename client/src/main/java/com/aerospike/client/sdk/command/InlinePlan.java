@@ -21,6 +21,7 @@ import java.util.Objects;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
+import com.aerospike.client.sdk.query.plan.QueryPlanCache;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.query.plan.QueryPlanStats;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
@@ -60,6 +61,12 @@ public final class InlinePlan {
     private Choice agreed;
     private boolean seen;
     private boolean disagreed;
+
+    /** A5: cached plan pinned on partitions with no plan of their own yet. */
+    private Choice preset;
+    /** A5: where to record a plan every node agreed on, once a round completes. */
+    private QueryPlanCache cache;
+    private QueryPlanCache.Key cacheKey;
 
     public InlinePlan(String ael, int policyFlags) {
         this(ael, policyFlags, false);
@@ -102,9 +109,76 @@ public final class InlinePlan {
      */
     public Choice pinnedFor(NodePartitions np) {
         if (perPartition) {
-            return np != null ? np.plan : null;
+            if (np == null) {
+                return null;
+            }
+
+            if (np.plan == null && preset != null) {
+                // Cache hit: these partitions start on the cached path.
+                synchronized (this) {
+                    np.plan = preset;
+
+                    for (PartitionStatus ps : np.partsFull) {
+                        ps.plan = preset;
+                    }
+
+                    for (PartitionStatus ps : np.partsPartial) {
+                        ps.plan = preset;
+                    }
+                }
+            }
+            return np.plan;
         }
         return pinned();
+    }
+
+    /**
+     * A5 cache hit - pin {@code choice} from the first command on.
+     */
+    public void preset(Choice choice) {
+        this.preset = choice;
+    }
+
+    /**
+     * Whether a failed pinned command on {@code np} can fall back to inline planning: it was the
+     * cached pin, and no partition in it has a cursor yet.
+     */
+    public synchronized boolean canReplan(NodePartitions np) {
+        if (preset == null || np.plan != preset || ! np.partsPartial.isEmpty()) {
+            return false;
+        }
+
+        for (PartitionStatus ps : np.partsFull) {
+            if (ps.digest != null) {
+                return false;
+            }
+        }
+
+        preset = null;
+        return true;
+    }
+
+    /**
+     * A5 cache miss - record the plan once every node of the first round agreed on it.
+     */
+    public void learnInto(QueryPlanCache cache, QueryPlanCache.Key key) {
+        this.cache = cache;
+        this.cacheKey = key;
+    }
+
+    /**
+     * End of a retry round. A plan is cached only when every node that answered agreed and it
+     * is a real access path - disagreement means the catalog differs between nodes right now.
+     */
+    public synchronized void onRoundComplete() {
+        if (cache == null || ! seen) {
+            return;
+        }
+
+        if (! disagreed && agreed.selection() != QuerySelection.FILTERED_OUT) {
+            cache.putChoice(cacheKey, agreed);
+        }
+        cache = null;
     }
 
     public synchronized void onHeader(Choice choice) {

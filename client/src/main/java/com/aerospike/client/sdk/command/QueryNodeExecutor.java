@@ -72,8 +72,19 @@ public final class QueryNodeExecutor extends NodeExecutor {
             execute();
         }
         catch (AerospikeException ae) {
-            if (query.inlinePlan != null && ae.getResultCode() == ResultCode.FILTERED_OUT) {
+            int rc = ae.getResultCode();
+
+            if (query.inlinePlan != null && rc == ResultCode.FILTERED_OUT) {
                 QueryPlanStats.filteredOutNodes.increment();
+            }
+
+            if ((rc == ResultCode.INDEX_NOTFOUND || rc == ResultCode.INDEX_NOTREADABLE) &&
+                query.inlinePlan != null && query.inlinePlan.canReplan(nodePartitions)) {
+                // Stale cached pin - drop it and let this node plan inline next round.
+                QueryPlanStats.cacheReplans.increment();
+                cluster.getQueryPlanCache().invalidate(query.getPlanCacheKey());
+                tracker.replan(nodePartitions, ae);
+                return;
             }
             throw ae;
         }

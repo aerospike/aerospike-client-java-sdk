@@ -38,7 +38,9 @@ public final class QueryPlanSettings {
         /** A2: single phase - every node plans inline (AUTO_PLAN), continuation pins the plan. */
         INLINE,
         /** A4: single phase with the plan pinned per partition, so nodes may disagree. */
-        INLINE_PLANIDS
+        INLINE_PLANIDS,
+        /** A5: cached plan pinned on a hit, A4 inline planning on a miss. */
+        AUTO
     }
 
     private static volatile Mode mode = Mode.valueOf(
@@ -63,11 +65,15 @@ public final class QueryPlanSettings {
     }
 
     public static boolean inlineEnabled() {
-        return mode == Mode.INLINE || mode == Mode.INLINE_PLANIDS;
+        return mode == Mode.INLINE || mode == Mode.INLINE_PLANIDS || mode == Mode.AUTO;
     }
 
     public static boolean perPartitionPlans() {
-        return mode == Mode.INLINE_PLANIDS;
+        return mode == Mode.INLINE_PLANIDS || mode == Mode.AUTO;
+    }
+
+    public static boolean autoEnabled() {
+        return mode == Mode.AUTO;
     }
 
     public static long getCacheTtlMs() {

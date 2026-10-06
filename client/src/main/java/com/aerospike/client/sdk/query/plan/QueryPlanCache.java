@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.command.Info;
+import com.aerospike.client.sdk.command.InlinePlan;
 import com.aerospike.client.sdk.util.Util;
 
 /**
@@ -43,7 +44,8 @@ public final class QueryPlanCache {
     public record Key(String namespace, String set, String ael, int whereFlags, String indexHint) {
     }
 
-    private record Entry(QueryPlan plan, long expiresNanos) {
+    /** Value is a {@link QueryPlan} (A1 explain result) or an {@link InlinePlan.Choice} (A5). */
+    private record Entry(Object plan, long expiresNanos) {
     }
 
     private final Cluster cluster;
@@ -63,6 +65,18 @@ public final class QueryPlanCache {
     }
 
     public QueryPlan get(Key key) {
+        return (QueryPlan)getValue(key);
+    }
+
+    public InlinePlan.Choice getChoice(Key key) {
+        return (InlinePlan.Choice)getValue(key);
+    }
+
+    public void putChoice(Key key, InlinePlan.Choice choice) {
+        putValue(key, choice);
+    }
+
+    private Object getValue(Key key) {
         Entry e;
 
         synchronized (map) {
@@ -84,6 +98,10 @@ public final class QueryPlanCache {
     }
 
     public void put(Key key, QueryPlan plan) {
+        putValue(key, plan);
+    }
+
+    private void putValue(Key key, Object plan) {
         long ttlNanos = QueryPlanSettings.getCacheTtlMs() * 1_000_000L;
 
         synchronized (map) {

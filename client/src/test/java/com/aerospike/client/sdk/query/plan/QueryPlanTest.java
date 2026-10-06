@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.command.FieldType;
+import com.aerospike.client.sdk.command.InlinePlan;
 import com.aerospike.client.sdk.command.MsgFieldParser;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexCollectionType;
@@ -237,6 +238,35 @@ public class QueryPlanTest {
         finally {
             QueryPlanSettings.setCacheTtlMs(ttl);
         }
+    }
+
+    @Test
+    void inlinePlanCachedOnlyWhenNodesAgree() {
+        QueryPlanCache cache = new QueryPlanCache(null);
+        QueryPlanCache.Key key = new QueryPlanCache.Key("test", "users", AEL, QueryWhereWire.FLAG_AUTO_PLAN, null);
+        InlinePlan.Choice si = new InlinePlan.Choice(QuerySelection.SECONDARY_INDEX, "age_idx");
+
+        InlinePlan agree = new InlinePlan(AEL, 0, true);
+        agree.learnInto(cache, key);
+        agree.onHeader(si);
+        agree.onHeader(si);
+        agree.onRoundComplete();
+        assertEquals(si, cache.getChoice(key));
+
+        cache.invalidate(key);
+
+        InlinePlan split = new InlinePlan(AEL, 0, true);
+        split.learnInto(cache, key);
+        split.onHeader(si);
+        split.onHeader(new InlinePlan.Choice(QuerySelection.PRIMARY_INDEX, null));
+        split.onRoundComplete();
+        assertNull(cache.getChoice(key));
+
+        InlinePlan empty = new InlinePlan(AEL, 0, true);
+        empty.learnInto(cache, key);
+        empty.onHeader(new InlinePlan.Choice(QuerySelection.FILTERED_OUT, null));
+        empty.onRoundComplete();
+        assertNull(cache.getChoice(key));
     }
 
     @Test

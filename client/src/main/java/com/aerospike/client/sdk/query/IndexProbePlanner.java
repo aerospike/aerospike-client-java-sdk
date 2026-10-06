@@ -20,6 +20,7 @@ import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Session;
 import com.aerospike.client.sdk.command.IndexProbeCommand;
+import com.aerospike.client.sdk.command.InlinePlan;
 import com.aerospike.client.sdk.command.QueryCommand;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
@@ -83,6 +84,10 @@ final class IndexProbePlanner {
             return cachedCommand(session, dataSet, where, hint, policy, qb);
         }
 
+        if (QueryPlanSettings.autoEnabled()) {
+            return autoCommand(session, dataSet, where, hint, policy, qb);
+        }
+
         if (QueryPlanSettings.inlineEnabled()) {
             return inlineCommand(session, dataSet, where, hint, policy, qb);
         }
@@ -111,6 +116,45 @@ final class IndexProbePlanner {
         String pin = (policyFlags & QueryWhereWire.FLAG_HARD_HINT) != 0 ? indexNameHintForProbe(hint) : null;
 
         return QueryCommand.forInline(session.getCluster(), dataSet, ael, policyFlags, pin, policy, qb);
+    }
+
+    /**
+     * A5: one round trip in every case. A cache hit pins the cached plan from the first command
+     * (no planning on the nodes); a miss plans inline with per-partition pinning and caches the
+     * plan if every node agreed on it.
+     */
+    private static QueryCommand autoCommand(
+        Session session,
+        DataSet dataSet,
+        WhereClauseProcessor where,
+        QueryHint.Result hint,
+        ResolvedSettings policy,
+        QueryBuilder qb
+    ) {
+        QueryCommand cmd = inlineCommand(session, dataSet, where, hint, policy, qb);
+        InlinePlan inline = cmd.getInlinePlan();
+        ResolvedSettings settings = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        int policyFlags = explainWhereFlags(settings, hint) & ~QueryWhereWire.FLAG_EXPLAIN;
+        QueryPlanCache cache = session.getCluster().getQueryPlanCache();
+        QueryPlanCache.Key key = new QueryPlanCache.Key(
+            dataSet.getNamespace(),
+            dataSet.getSet(),
+            where.getAelString(),
+            policyFlags | QueryWhereWire.FLAG_AUTO_PLAN,
+            indexNameHintForProbe(hint)
+        );
+
+        InlinePlan.Choice cached = cache.getChoice(key);
+
+        if (cached != null) {
+            inline.preset(cached);
+        }
+        else {
+            inline.learnInto(cache, key);
+        }
+
+        cmd.setPlanCacheKey(key);
+        return cmd;
     }
 
     /**
