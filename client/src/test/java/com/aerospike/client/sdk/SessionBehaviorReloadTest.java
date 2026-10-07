@@ -44,8 +44,8 @@ class SessionBehaviorReloadTest {
         BehaviorYamlLoader.loadBehaviorsFromString("""
             behaviors:
               DEFAULT:
-                allOperations:
-                  abandonCallAfter: 5s
+                all_operations:
+                  abandon_call_after: 5s
             """);
 
         Session session = new Session(null, Behavior.DEFAULT);
@@ -57,8 +57,8 @@ class SessionBehaviorReloadTest {
         BehaviorYamlLoader.loadBehaviorsFromString("""
             behaviors:
               DEFAULT:
-                allOperations:
-                  abandonCallAfter: 12s
+                all_operations:
+                  abandon_call_after: 12s
             """);
 
         ResolvedSettings second = session.getBehavior().getSettings(Behavior.OpKind.READ, Behavior.OpShape.POINT,

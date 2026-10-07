@@ -261,6 +261,7 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         Node[] nodes = cluster.validateNodes();
 
         cluster.addCommandCount();
+        cluster.addBackgroundCount();
 
         ResolvedSettings settings = session.getBehavior().getSettings(
             OpKind.WRITE_NON_RETRYABLE,

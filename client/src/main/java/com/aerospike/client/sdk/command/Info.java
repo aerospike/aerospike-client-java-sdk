@@ -383,7 +383,7 @@ public class Info {
 
             // Write.
             conn.write(buffer, offset);
-            if (node != null && node.isMetricsEnabled()) {
+            if (node != null) {
                 node.addBytesOut(null, offset);
             }
 
@@ -399,7 +399,7 @@ public class Info {
             }
             conn.readFully(buffer, length);
             bytesIn += length;
-            if (node != null && node.isMetricsEnabled()) {
+            if (node != null) {
                 node.addBytesIn(null, bytesIn);
             }
             conn.updateLastUsed();

@@ -328,6 +328,9 @@ class OperationSpecExecutor {
             }
         }
 
+        cluster.addCommandCount();
+        cluster.addBlockingCount();
+
         if (txn != null) {
             TxnMonitor.addKeysBatchReadWrite(txn, session, records);
             BatchExecutor.execute(cluster, commands, status);
@@ -467,6 +470,9 @@ class OperationSpecExecutor {
         boolean includeMissingKeys = spec.isIncludeMissingKeys();
         boolean failOnFilteredOut = spec.isFailOnFilteredOut();
         long ttl = resolveTtl(spec, defaultExpirationInSeconds);
+
+        cluster.addCommandCount();
+        cluster.addBlockingCount();
 
         try {
             if (spec.isQuery()) {

@@ -32,6 +32,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.management.Attribute;
 import javax.management.AttributeList;
@@ -41,6 +43,8 @@ import javax.management.ObjectName;
 import com.aerospike.client.sdk.AerospikeException;
 
 public final class Util {
+    private static final Pattern SIZE_PATTERN = Pattern.compile("^(\\d+)\\s*([a-zA-Z]*)$");
+
     public static void sleep(long millis) {
         try {
             Thread.sleep(millis);
@@ -176,6 +180,66 @@ public final class Util {
     public static String fromTimeStamp(long timeStamp, String pattern){
         SimpleDateFormat format = new SimpleDateFormat(pattern);
         return fromTimeStamp(timeStamp, format);
+    }
+
+    /**
+     * Parse a data size string into a number of bytes. The value is a non-negative
+     * integer followed by an optional, case-insensitive unit: {@code b}, {@code k}/{@code kb},
+     * {@code m}/{@code mb}, {@code g}/{@code gb} or {@code t}/{@code tb}. Units are binary
+     * (1 KB = 1024 bytes). Whitespace between the number and unit is allowed.
+     * Examples: {@code "10mb"}, {@code "512 KB"}, {@code "1g"}, {@code "4096"}.
+     *
+     * @param value size string
+     * @return size in bytes
+     * @throws IllegalArgumentException if the value is null or cannot be parsed
+     */
+    public static long parseSize(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Size value is null");
+        }
+
+        Matcher m = SIZE_PATTERN.matcher(value.trim());
+
+        if (!m.matches()) {
+            throw new IllegalArgumentException("Invalid size: '" + value +
+                "'. Expected <number>[b|k|kb|m|mb|g|gb|t|tb] (e.g. '10mb')");
+        }
+
+        String unit = m.group(2).toLowerCase();
+        int shift;
+
+        switch (unit) {
+            case "":
+            case "b":
+                shift = 0;
+                break;
+            case "k":
+            case "kb":
+                shift = 10;
+                break;
+            case "m":
+            case "mb":
+                shift = 20;
+                break;
+            case "g":
+            case "gb":
+                shift = 30;
+                break;
+            case "t":
+            case "tb":
+                shift = 40;
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid size unit '" + m.group(2) +
+                    "' in '" + value + "'. Expected b, k, kb, m, mb, g, gb, t or tb");
+        }
+
+        try {
+            return Math.multiplyExact(Long.parseLong(m.group(1)), 1L << shift);
+        }
+        catch (ArithmeticException | NumberFormatException e) {
+            throw new IllegalArgumentException("Size out of range: '" + value + "'", e);
+        }
     }
 
     /**

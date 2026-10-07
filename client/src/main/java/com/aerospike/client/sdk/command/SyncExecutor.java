@@ -47,18 +47,6 @@ public abstract class SyncExecutor {
         this.totalTimeout = cmd.totalTimeout;
     }
 
-    /**
-     * Scan/Query constructor.
-     */
-    /*
-    public SyncCommand(Cluster cluster, Policy policy, int socketTimeout, int totalTimeout, String namespace) {
-        super(socketTimeout, totalTimeout, 0);
-        this.cluster = cluster;
-        this.policy = policy;
-        this.namespace = namespace;
-    }
-    */
-
     public final void execute() {
         if (totalTimeout > 0) {
             deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(totalTimeout);
@@ -69,9 +57,8 @@ public abstract class SyncExecutor {
     public final void executeCommand() {
         Node node;
         AerospikeException exception = null;
-        //long begin = 0;
-        //boolean metricsEnabled = cluster.metricsEnabled;
-        //LatencyType latencyType = metricsEnabled? getLatencyType() : LatencyType.NONE;
+        long begin = 0;
+        final LatencyType latencyType = cluster.isMetricsOperationalEnabled()? getLatencyType() : LatencyType.NONE;
         boolean isClientTimeout;
 
         // Execute command until successful, timed out or maximum iterations have been reached.
@@ -92,11 +79,9 @@ public abstract class SyncExecutor {
             try {
                 node.validateErrorCount();
 
-                /*
                 if (latencyType != LatencyType.NONE) {
                     begin = System.nanoTime();
                 }
-                */
 
                 Connection conn = node.getConnection(this, cmd.connectTimeout, socketTimeout, cmd.timeoutDelay);
 
@@ -107,12 +92,7 @@ public abstract class SyncExecutor {
                     // Send command.
                     conn.write(cb.getBuffer(), cb.getLength());
                     commandSentCounter++;
-
-                    /*
-                    if (metricsEnabled) {
-                        node.addBytesOut(namespace, dataOffset);
-                    }
-                    */
+                    node.addBytesOut(cmd.namespace, cb.getLength());
 
                     // Parse results.
                     parseResult(node, conn, cb.getBuffer());
@@ -120,12 +100,10 @@ public abstract class SyncExecutor {
                     // Put connection back in pool.
                     node.putConnection(conn);
 
-                    /*
                     if (latencyType != LatencyType.NONE) {
                         long elapsed = System.nanoTime() - begin;
-                        node.addLatency(namespace, latencyType, elapsed);
+                        node.addLatency(cmd.namespace, latencyType, elapsed);
                     }
-                    */
 
                     // Command has completed successfully.  Exit method.
                     return;
@@ -283,7 +261,7 @@ public abstract class SyncExecutor {
                 }
             }
 
-            cluster.addRetry();
+            cluster.addRetryCount();
         }
 
         // Retries have been exhausted.  Throw last exception.

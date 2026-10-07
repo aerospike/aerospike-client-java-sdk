@@ -122,18 +122,18 @@ public class YamlConfigExample extends Example {
         String yaml = """
             behaviors:
               myCustomBehavior:
-                allOperations:
-                  abandonCallAfter: 5s
-                  maximumNumberOfCallAttempts: 3
-                batchReads:
-                  maxConcurrentServers: 8
-                  allowInlineMemoryAccess: true
+                all_operations:
+                  abandon_call_after: 5s
+                  maximum_number_of_call_attempts: 3
+                batch_reads:
+                  max_concurrent_servers: 8
+                  allow_inline_memory_access: true
 
             system:
               DEFAULT:
                 connections:
-                  minimumConnectionsPerNode: 20
-                  maximumConnectionsPerNode: 200
+                  minimum_connections_per_node: 20
+                  maximum_connections_per_node: 200
             """;
 
         Map<String, Behavior> behaviors = BehaviorYamlLoader.loadBehaviorsFromString(yaml);
@@ -156,15 +156,15 @@ public class YamlConfigExample extends Example {
         String yaml = """
             behaviors:
               production:
-                allOperations:
-                  abandonCallAfter: 10s
-                  maximumNumberOfCallAttempts: 5
+                all_operations:
+                  abandon_call_after: 10s
+                  maximum_number_of_call_attempts: 5
 
             system:
               DEFAULT:
                 connections:
-                  minimumConnectionsPerNode: 50
-                  maximumConnectionsPerNode: 200
+                  minimum_connections_per_node: 50
+                  maximum_connections_per_node: 200
             """;
 
         Map<String, Behavior> behaviors = BehaviorYamlLoader.loadBehaviorsFromString(yaml);

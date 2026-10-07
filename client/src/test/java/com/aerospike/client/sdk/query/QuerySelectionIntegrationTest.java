@@ -534,7 +534,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     @Test
     void gateOffStringAelFailsAtExecute() {
         String where = "$.age >= 14 and $.age <= 18";
-        Version saved = cluster.getVersion();
+        Version saved = cluster.getServerVersion();
 
         try {
             cluster.setVersion(Version.SERVER_VERSION_8_1_2);

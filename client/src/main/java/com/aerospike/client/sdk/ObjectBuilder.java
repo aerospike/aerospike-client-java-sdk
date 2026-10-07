@@ -902,6 +902,9 @@ public class ObjectBuilder<T> {
             }
         }
 
+        cluster.addCommandCount();
+        cluster.addBlockingCount();
+
         if (txnToUse != null) {
             TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
             BatchExecutor.execute(cluster, commands, status);
@@ -1094,6 +1097,9 @@ public class ObjectBuilder<T> {
                 final T element = elements.get(i);
                 final int idx = i;
 
+                cluster.addCommandCount();
+                cluster.addBlockingCount();
+
                 es.submit(() -> {
                     try {
                         Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
@@ -1188,6 +1194,9 @@ public class ObjectBuilder<T> {
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
+        cluster.addCommandCount();
+        cluster.addBlockingCount();
+
         try {
             Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
 
@@ -1258,6 +1267,9 @@ public class ObjectBuilder<T> {
         T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
         boolean isBatch
     ) {
+        cluster.addCommandCount();
+        cluster.addDeferredCount();
+
         cluster.startVirtualThread(() -> {
             try {
                 Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);

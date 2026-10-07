@@ -17,8 +17,14 @@
 package com.aerospike.client.sdk;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+
+import com.aerospike.client.sdk.metrics.MetricsExporterType;
+import com.aerospike.client.sdk.metrics.MetricsSettings;
+import com.aerospike.client.sdk.metrics.MetricsSettings.MetricsTweaks;
 
 /**
  * System-level settings that apply to an entire Cluster instance.
@@ -87,6 +93,9 @@ public class SystemSettings {
     private final Duration sleepBetweenAttempts;
     private final Integer numberOfAttempts;
 
+    // ===== Metrics Settings =====
+    private final MetricsSettings metrics;
+
     /**
      * Hard-coded default system settings.
      * These are the lowest priority and serve as the base for all other settings.
@@ -109,6 +118,30 @@ public class SystemSettings {
             .sleepBetweenAttempts(Duration.ofMillis(20))
             .numberOfAttempts(10)
         )
+        .metrics(ops -> ops
+            .exporter(MetricsExporterType.FILE)
+            .labels(new HashMap<>())
+            .reportDir("")
+            .reportSizeLimit(0L)
+            .exportSampleRate(1.0)
+            .exportInterval(Duration.ofSeconds(30))
+            .enabled(false)
+            .extended(ops2 -> ops2
+                .operational(ops3 -> ops3
+                    .latencyUnit(TimeUnit.MILLISECONDS)
+                    .latencyColumns(7)
+                    .latencyShift(1)
+                    .enabled(false)
+                    .sampler(sam -> sam
+                        .range(1)
+                        .threshold(1)
+                    )
+                )
+                .usage(ops4 -> ops4
+                    .enabled(false)
+                )
+            )
+        )
         .build();
 
     private SystemSettings(Builder builder) {
@@ -121,7 +154,8 @@ public class SystemSettings {
         this.implicitBatchWriteTransactions = builder.implicitBatchWriteTransactions;
         this.sleepBetweenAttempts = builder.sleepBetweenAttempts;
         this.numberOfAttempts = builder.numberOfAttempts;
-   }
+        this.metrics = new MetricsSettings(builder.metrics);
+    }
 
     /**
      * Creates a new builder for SystemSettings.
@@ -170,6 +204,9 @@ public class SystemSettings {
         merged.numberOfAttempts = this.numberOfAttempts != null
             ? this.numberOfAttempts : base.numberOfAttempts;
 
+        // Metrics
+        merged.metrics = this.metrics.mergeWith(base.metrics);
+
         return merged.build();
     }
 
@@ -183,6 +220,7 @@ public class SystemSettings {
     public Boolean getImplicitBatchWriteTransactions() { return implicitBatchWriteTransactions; }
     public Duration getSleepBetweenAttempts() { return sleepBetweenAttempts; }
     public Integer getNumberOfAttempts() { return numberOfAttempts; }
+    public MetricsSettings getMetrics() { return metrics; }
 
     @Override
     public boolean equals(Object o) {
@@ -201,14 +239,15 @@ public class SystemSettings {
                Objects.equals(tendInterval, that.tendInterval) &&
                Objects.equals(implicitBatchWriteTransactions, that.implicitBatchWriteTransactions) &&
                Objects.equals(sleepBetweenAttempts, that.sleepBetweenAttempts) &&
-               Objects.equals(numberOfAttempts, that.numberOfAttempts);
+               Objects.equals(numberOfAttempts, that.numberOfAttempts) &&
+               Objects.equals(metrics, that.metrics);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(minimumConnectionsPerNode, maximumConnectionsPerNode, maximumSocketIdleTime,
-                           numTendIntervalsInErrorWindow, maximumErrorsInErrorWindow, tendInterval,
-                           implicitBatchWriteTransactions, sleepBetweenAttempts, numberOfAttempts);
+           numTendIntervalsInErrorWindow, maximumErrorsInErrorWindow, tendInterval,
+           implicitBatchWriteTransactions, sleepBetweenAttempts, numberOfAttempts, metrics);
     }
 
     @Override
@@ -223,6 +262,7 @@ public class SystemSettings {
                ", implicitBatchWriteTransactions=" + implicitBatchWriteTransactions +
                ", sleepBetweenAttempts=" + sleepBetweenAttempts +
                ", numberOfAttempts=" + numberOfAttempts +
+               ", metrics=" + metrics +
                '}';
     }
 
@@ -239,6 +279,7 @@ public class SystemSettings {
         private Boolean implicitBatchWriteTransactions;
         private Duration sleepBetweenAttempts;
         private Integer numberOfAttempts;
+        private MetricsSettings.Builder metrics = MetricsSettings.builder();
 
         /**
          * Configure connection settings using a lambda.
@@ -316,6 +357,24 @@ public class SystemSettings {
          */
         public Builder transactions(Consumer<TransactionsTweaks> configurator) {
             configurator.accept(new TransactionsTweaksImpl(this));
+            return this;
+        }
+
+        /**
+         * Configure metrics settings using a lambda.
+         *
+         * <p>Example:</p>
+         * <pre>{@code
+         * builder.metrics(ops -> ops
+         *     .enabled(true)
+         * )
+         * }</pre>
+         *
+         * @param configurator lambda to configure transaction settings
+         * @return this builder for method chaining
+         */
+        public Builder metrics(Consumer<MetricsTweaks> configurator) {
+            configurator.accept(new MetricsSettings.MetricsTweaksImpl(metrics));
             return this;
         }
 
@@ -548,4 +607,3 @@ public class SystemSettings {
         }
     }
 }
-

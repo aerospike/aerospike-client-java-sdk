@@ -110,9 +110,7 @@ public abstract class NodeExecutor extends SyncExecutor {
             try {
                 conn.readFully(buf, size, Command.STATE_READ_DETAIL);
                 bytesIn += size;
-                if (node.isMetricsEnabled()) {
-                    node.addBytesIn(cmd.namespace, bytesIn);
-                }
+                node.addBytesIn(cmd.namespace, bytesIn);
                 conn.updateLastUsed();
             }
             catch (ReadTimeout rt) {

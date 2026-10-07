@@ -46,6 +46,11 @@ public final class Loggers {
     public static final String INFO = "info";
 
     /**
+     * Metrics.
+     */
+    public static final String METRICS = "metrics";
+
+    /**
      * All high-volume encode/decode diagnostics.
      */
     public static final String SERDE = "serde";

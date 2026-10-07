@@ -172,7 +172,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
             !qb.getOperations().isEmpty()) {
             throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "Index query with read operations requires server version 8.1.2+. Server version is " +
-                cluster.getVersion());
+                cluster.getServerVersion());
         }
     }
 

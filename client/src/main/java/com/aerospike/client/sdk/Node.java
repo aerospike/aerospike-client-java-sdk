@@ -29,11 +29,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.command.AdminCommand;
+import com.aerospike.client.sdk.command.AdminCommand.LoginCommand;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
 import com.aerospike.client.sdk.command.Pool;
 import com.aerospike.client.sdk.command.SyncExecutor;
-import com.aerospike.client.sdk.command.AdminCommand.LoginCommand;
+import com.aerospike.client.sdk.metrics.LatencyType;
+import com.aerospike.client.sdk.metrics.MetricsSettings;
+import com.aerospike.client.sdk.metrics.NodeMetrics;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.NodeValidator;
 import com.aerospike.client.sdk.tend.PartitionParser;
@@ -41,7 +44,6 @@ import com.aerospike.client.sdk.tend.Peer;
 import com.aerospike.client.sdk.tend.PeerParser;
 import com.aerospike.client.sdk.tend.Peers;
 import com.aerospike.client.sdk.tend.RackParser;
-import com.aerospike.client.sdk.util.Counter;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
@@ -73,14 +75,11 @@ public class Node implements Closeable {
     private byte[] sessionToken;
     private long sessionExpiration;
     protected volatile Map<String,Integer> racks;
-    //private volatile NodeMetrics metrics;
+    private volatile NodeMetrics metrics;
     final AtomicInteger connsOpened;
     final AtomicInteger connsClosed;
     private AtomicInteger errorRateCount;
     protected int maxErrorRate;
-    private Counter errorCounter;
-    private Counter timeoutCounter;
-    private Counter keyBusyCounter;
     protected int connectionIter;
     private int peersGeneration;
     int partitionGeneration;
@@ -117,9 +116,6 @@ public class Node implements Closeable {
         this.connsClosed = new AtomicInteger(0);
         this.errorRateCount = new AtomicInteger(0);
         this.maxErrorRate = def.maxErrorRate;
-        this.errorCounter = new Counter();
-        this.timeoutCounter = new Counter();
-        this.keyBusyCounter = new Counter();
         this.peersGeneration = -1;
         this.partitionGeneration = -1;
         this.rebalanceGeneration = -1;
@@ -128,12 +124,10 @@ public class Node implements Closeable {
         this.racks = this.rebalanceChanged ? new HashMap<String,Integer>() : null;
         this.active = true;
 
-        // TODO: Handle metrics.
-        /*
-        if (cluster.metricsEnabled) {
-            this.metrics = new NodeMetrics(cluster.metricsPolicy);
+        if (cluster.isMetricsOperationalEnabled()) {
+            MetricsSettings ms = cluster.getSystemSettings().getMetrics();
+            this.metrics = new NodeMetrics(ms);
         }
-        */
 
         // Create sync connection pools.
         connectionPools = new Pool[def.connPoolsPerNode];
@@ -654,31 +648,24 @@ public class Node implements Closeable {
 
     private Connection createConnection(Pool pool, int timeout) {
         // Create sync connection.
-        /*
+        TlsBuilder tls = cluster.def.tlsBuilder;
         Connection conn;
 
-        if (cluster.metricsEnabled) {
+        if (cluster.isMetricsOperationalEnabled()) {
             long begin = System.nanoTime();
 
-            conn = (cluster.tlsPolicy != null && !cluster.tlsPolicy.forLoginOnly) ?
-                new Connection(cluster.tlsPolicy, host.tlsName, address, timeout, this, pool) :
+            conn = (tls != null && !tls.isForLoginOnly()) ?
+                new Connection(tls, host.tlsName, address, timeout, this, pool) :
                 new Connection(address, timeout, this, pool);
 
             long elapsed = System.nanoTime() - begin;
             metrics.addLatency(null, LatencyType.CONN, elapsed);
         }
         else {
-            conn = (cluster.tlsPolicy != null && !cluster.tlsPolicy.forLoginOnly) ?
-                new Connection(cluster.tlsPolicy, host.tlsName, address, timeout, this, pool) :
-                new Connection(address, timeout, this, pool);
-        }
-        */
-
-        TlsBuilder tls = cluster.def.tlsBuilder;
-
-        Connection conn = (tls != null && !tls.isForLoginOnly()) ?
+            conn = (tls != null && !tls.isForLoginOnly()) ?
                 new Connection(tls, host.tlsName, address, timeout, this, pool) :
                 new Connection(address, timeout, this, pool);
+        }
 
         connsOpened.getAndIncrement();
         return conn;
@@ -891,6 +878,18 @@ public class Node implements Closeable {
         }
     }
 
+    public final Pool[] getConnectionPools() {
+        return connectionPools;
+    }
+
+    public final int getConnectionsOpened() {
+        return connsOpened.get();
+    }
+
+    public final int getConnectionsClosed() {
+        return connsClosed.get();
+    }
+
     /**
      * Close pooled connection on error and decrement connection count.
      */
@@ -979,47 +978,101 @@ public class Node implements Closeable {
 
     /**
      * Increment transaction error count. If the error is retryable, multiple errors per
-     * transaction may occur.
+     * transaction may occur. For internal use only.
      */
     public void addError(String namespace) {
-        errorCounter.increment(namespace);
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.errorCounter.increment(namespace);
+        }
+    }
+
+    /**
+     * Return error count by namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getErrorCount(String namespace) {
+        return (metrics != null)? metrics.errorCounter.getCountByNS(namespace) : 0;
     }
 
     /**
      * Increment transaction timeout count. If the timeout is retryable (ie socketTimeout),
-     * multiple timeouts per transaction may occur.
+     * multiple timeouts per transaction may occur. For internal use only.
      */
     public void addTimeout(String namespace) {
-        timeoutCounter.increment(namespace);
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.timeoutCounter.increment(namespace);
+        }
     }
 
     /**
-     * Increment the key busy counter.
+     * Return timeout count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getTimeoutCount(String namespace) {
+        return (metrics != null)? metrics.timeoutCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Increment the key busy counter. For internal use only.
      */
     public void addKeyBusy(String namespace) {
-        keyBusyCounter.increment(namespace);
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.keyBusyCounter.increment(namespace);
+        }
     }
 
     /**
-     * Add to the count of bytes sent to the node.
+     * Return key busy count for a given namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getKeyBusyCount(String namespace) {
+        return (metrics != null)? metrics.keyBusyCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Add to the count of bytes sent to the node. For internal use only.
      */
     public void addBytesOut(String namespace, long count) {
-        // TODO: Implement
-        //metrics.bytesOutCounter.increment(namespace, count);
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.bytesOutCounter.increment(namespace, count);
+        }
     }
 
     /**
-     * Add to the count of bytes received from the node.
+     * Return count of bytes out by namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getBytesOut(String namespace) {
+        return (metrics != null)? metrics.bytesOutCounter.getCountByNS(namespace) : 0;
+    }
+    /**
+     * Add to the count of bytes received from the node. For internal use only.
      */
     public void addBytesIn(String namespace, long count) {
-        // TODO: Implement
-        //metrics.bytesInCounter.increment(namespace, count);
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.bytesInCounter.increment(namespace, count);
+        }
     }
 
-    public boolean isMetricsEnabled() {
-        // TODO: Implement
-        //return cluster.metricsEnabled;
-        return false;
+    /**
+     * Return count of bytes in by namespace. The value is cumulative and not reset per metrics interval.
+     */
+    public long getBytesIn(String namespace) {
+        return (metrics != null)? metrics.bytesInCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Add elapsed time in nanoseconds to latency buckets corresponding to latency type.
+     * For internal use only.
+     */
+    public final void addLatency(String namespace, LatencyType type, long elapsed) {
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.addLatency(namespace, type, elapsed);
+        }
+    }
+
+    public final NodeMetrics getMetrics() {
+        return metrics;
+    }
+
+    public final void enableMetrics(MetricsSettings settings) {
+        metrics = new NodeMetrics(settings);
     }
 
     private boolean isErrorRateValid() {
@@ -1078,7 +1131,6 @@ public class Node implements Closeable {
     public void setPeersCount(int peersCount) {
         this.peersCount = peersCount;
     }
-
 
     /**
      * Return current generation of partition maps.

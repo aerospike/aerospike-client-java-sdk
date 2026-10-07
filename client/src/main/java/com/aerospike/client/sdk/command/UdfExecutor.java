@@ -32,7 +32,6 @@ public class UdfExecutor extends SyncExecutor {
     public UdfExecutor(Cluster cluster, UdfCommand cmd) {
         super(cluster, cmd);
         this.udf = cmd;
-        cluster.addCommandCount();
     }
 
     @Override
@@ -60,11 +59,9 @@ public class UdfExecutor extends SyncExecutor {
     @Override
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
-        rp.parseFields(cmd.txn, udf.key, true);
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        rp.parseFields(cmd.txn, udf.key, true);
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
 
         if (rp.resultCode == ResultCode.OK) {
             rec = rp.parseRecord(false);

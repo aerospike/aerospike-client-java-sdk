@@ -56,11 +56,9 @@ public final class TxnMarkRollForward extends SyncExecutor {
     @Override
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
-        rp.skipFields();
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        rp.skipFields();
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
 
         // MRT_COMMITTED is considered a success because it means a previous attempt already
         // succeeded in notifying the server that the transaction will be rolled forward.

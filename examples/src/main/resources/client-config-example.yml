@@ -6,57 +6,57 @@ system:
   # Default settings apply to all clusters unless overridden
   DEFAULT:
     connections:
-      minimumConnectionsPerNode: 200
-      maximumConnectionsPerNode: 500
+      minimum_connections_per_node: 200
+      maximum_connections_per_node: 500
   # Cluster-specific settings for cluster named "bncluster"
   bncluster:
     connections:
-      minimumConnectionsPerNode: 400
-      maximumConnectionsPerNode: 600
+      minimum_connections_per_node: 400
+      maximum_connections_per_node: 600
 
 
 # Behavior definitions for operation policies
 behaviors:
   # High-performance configuration with aggressive timeouts
   fast-operations:
-    allOperations:
-      abandonCallAfter: 1s
-      maximumNumberOfCallAttempts: 2
-      delayBetweenRetries: 25ms
-      waitForCallToComplete: 3s
-    retryableWrites:
-      useDurableDelete: false
-      maximumNumberOfCallAttempts: 3
-    batchReads:
-      maxConcurrentServers: 8
-      allowInlineMemoryAccess: true
+    all_operations:
+      abandon_call_after: 1s
+      maximum_number_of_call_attempts: 2
+      delay_between_retries: 25ms
+      wait_for_call_to_complete: 3s
+    retryable_writes:
+      use_durable_delete: false
+      maximum_number_of_call_attempts: 3
+    batch_reads:
+      max_concurrent_servers: 8
+      allow_inline_memory_access: true
     query:
-      recordQueueSize: 5000
-      maxConcurrentServers: 8
+      record_queue_size: 5000
+      max_concurrent_servers: 8
 
   # Conservative configuration for critical operations
   safe-operations:
-    allOperations:
-      abandonCallAfter: 10s
-      maximumNumberOfCallAttempts: 5
-      delayBetweenRetries: 500ms
-      waitForCallToComplete: 30s
-    retryableWrites:
-      useDurableDelete: true
-      maximumNumberOfCallAttempts: 5
-      delayBetweenRetries: 1s
-    consistencyModeReads:
-      readConsistency: SESSION
-      abandonCallAfter: 8s
+    all_operations:
+      abandon_call_after: 10s
+      maximum_number_of_call_attempts: 5
+      delay_between_retries: 500ms
+      wait_for_call_to_complete: 30s
+    retryable_writes:
+      use_durable_delete: true
+      maximum_number_of_call_attempts: 5
+      delay_between_retries: 1s
+    consistency_mode_reads:
+      read_consistency: SESSION
+      abandon_call_after: 8s
 
   # Child behavior inheriting from fast-operations with batch optimizations
   batch-fast:
     parent: fast-operations
-    batchReads:
-      maxConcurrentServers: 16
-      allowInlineMemoryAccess: true
-      allowInlineSsdAccess: true
-      abandonCallAfter: 3s
-    batchWrites:
-      maxConcurrentServers: 12
-      abandonCallAfter: 5s
+    batch_reads:
+      max_concurrent_servers: 16
+      allow_inline_memory_access: true
+      allow_inline_ssd_access: true
+      abandon_call_after: 3s
+    batch_writes:
+      max_concurrent_servers: 12
+      abandon_call_after: 5s

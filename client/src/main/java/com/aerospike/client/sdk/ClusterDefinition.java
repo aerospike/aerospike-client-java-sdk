@@ -16,11 +16,12 @@
  */
 package com.aerospike.client.sdk;
 
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -55,6 +56,9 @@ import com.aerospike.client.sdk.policy.Behavior;
 public class ClusterDefinition {
     private static final String CONFIG_PATH_ENV = "AEROSPIKE_SDK_CONFIG_URL";
     private static final Logger log = LoggerFactory.getLogger(Loggers.BEHAVIOR);
+    private static final String CLIENT_VERSION_RESOURCE =
+        "/com/aerospike/client/sdk/client-version.properties";
+    private static final String CLIENT_VERSION = loadClientVersion();
 
     private SystemSettings userSuppliedSystemSettings;
     String clientVersion;
@@ -78,6 +82,7 @@ public class ClusterDefinition {
     int errorRateWindow = 1;
     boolean failIfNotConnected = true;
     boolean useServicesAlternate;
+    boolean isDynamicConfigEnabled;
     boolean forceSingleNode;
 
     private final Host[] hosts;
@@ -146,14 +151,45 @@ public class ClusterDefinition {
         this.errorRateWindow = other.errorRateWindow;
         this.failIfNotConnected = other.failIfNotConnected;
         this.useServicesAlternate = other.useServicesAlternate;
+        this.isDynamicConfigEnabled = other.isDynamicConfigEnabled;
         this.forceSingleNode = other.forceSingleNode;
         this.hosts = other.hosts;
     }
 
     private void setup() {
-        this.clientVersion = Optional.ofNullable(getClass().getPackage())
-            .map(Package::getImplementationVersion)
-            .orElse("n/a");
+        this.clientVersion = CLIENT_VERSION;
+    }
+
+    /**
+     * Load the client library version.
+     *
+     * <p>The version is read from {@code client-version.properties}, which Maven populates from
+     * {@code project.version} at build time. That resource is bundled with the client classes, so
+     * the version is available when running from {@code target/classes}, the client jar or a fat
+     * jar that includes the client. The jar manifest {@code Implementation-Version} is used as a
+     * fallback.</p>
+     */
+    private static String loadClientVersion() {
+        try (InputStream in = ClusterDefinition.class.getResourceAsStream(CLIENT_VERSION_RESOURCE)) {
+            if (in != null) {
+                Properties props = new Properties();
+                props.load(in);
+
+                String version = props.getProperty("version");
+
+                // Skip an unfiltered placeholder, e.g. when resources were copied without filtering.
+                if (version != null && !version.isBlank() && !version.contains("${")) {
+                    return version.trim();
+                }
+            }
+        }
+        catch (Throwable e) {
+            // Fall through to manifest version.
+        }
+
+        Package pkg = ClusterDefinition.class.getPackage();
+        String version = (pkg != null)? pkg.getImplementationVersion() : null;
+        return (version != null)? version : "n/a";
     }
 
     /**
@@ -406,7 +442,8 @@ public class ClusterDefinition {
     public ClusterDefinition withSystemSettings(Consumer<SystemSettings.Builder> configurator) {
         SystemSettings.Builder builder = SystemSettings.builder();
         configurator.accept(builder);
-        SystemSettings settings = builder.build();
+        SystemSettings settings = builder.build().mergeWith(SystemSettings.DEFAULT);
+        //System.out.println("SystemSettings= " + settings);
         return withSystemSettings(settings);
     }
 
@@ -521,6 +558,8 @@ public class ClusterDefinition {
         String configPath = System.getenv(CONFIG_PATH_ENV);
 
         if (configPath != null && !configPath.isEmpty()) {
+            this.isDynamicConfigEnabled = true;
+
             try {
                 Behavior.startMonitoring(configPath);
             }
@@ -803,6 +842,15 @@ public class ClusterDefinition {
      */
     public boolean isUseServicesAlternate() {
         return useServicesAlternate;
+    }
+
+    /**
+     * Checks whether dynamic file configuration is enabled.
+     *
+     * @return true if dynamic config is enabled, false otherwise
+     */
+    public boolean isDynamicConfigEnabled() {
+        return isDynamicConfigEnabled;
     }
 
     /**

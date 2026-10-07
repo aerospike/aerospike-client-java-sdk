@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,8 +39,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.aerospike.client.sdk.policy.Behavior;
-import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.task.RegisterTask;
 
 public class UdfTest extends ClusterTest {
@@ -560,6 +557,10 @@ public class UdfTest extends ClusterTest {
         assertFalse(rs.hasNext());
     }
 
+    /* By default, the server no longer allows access to the lua global variable "os".
+     * "os" is called to sleep in order to induce the timeout. The only way for this test to
+     * work is to set "allow-unsafe-lua" to true in the server config which is something that
+     * we should not rely on. Therefore, disable the test.
     @Test
     public void batchUdfLongWaitFailsWithClientTimeoutMarksInDoubt() {
         long secsToWait = 1;
@@ -597,6 +598,7 @@ public class UdfTest extends ClusterTest {
         assertTrue(ae.inDoubt, "expected inDoubt after client write timeout: " + ae.inDoubt);
         assertEquals(ResultCode.TIMEOUT, ae.resultCode, "expected TIMEOUT, got " + ae + ": " + ae.getMessage());
     }
+    */
 
     @Test
     public void typedUdfSingleKeyCarriesReadMappingForUdfResultAsObject() {

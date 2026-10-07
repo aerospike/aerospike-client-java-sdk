@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.ClusterTest;
 import com.aerospike.client.sdk.DataSet;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.query.plan.QueryPlan;
 import com.aerospike.client.sdk.query.plan.QuerySelection;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
@@ -107,13 +109,12 @@ public class QuerySelectionHintFlagsTest extends ClusterTest {
 
     /**
      * {@code HARD_HINT} + matching {@code forIndex} selects that index. {@code REQUIRE_INDEX}
-     * rides along because the query behavior default is {@code allowScansWithWhere(false)} — so an
-     * explicit {@code disallowScansWithWhere().hardHint()} adds no distinct wire shape.
+     * rides along because the session behavior sets {@code allowScansWithWhere(false)}.
      *
      * <p>The hint states no scan policy, so the behavior supplies it and this is the one case here
-     * whose expected flags depend on the session. It explains through the suite session rather than
-     * the {@code plan(DataSet, ...)} convenience, which permits scans so that primary-index plans
-     * stay reachable for the tests that assert them.</p>
+     * whose expected flags depend on the session. The query behavior default is
+     * {@code allowScansWithWhere(true)}, so the test explains through a session that disallows
+     * scans to pin the behavior-supplied {@code REQUIRE_INDEX} path.</p>
      */
     @Test
     void hardHintWithMatchingIndexSelectsHintedIndex() {
@@ -121,7 +122,7 @@ public class QuerySelectionHintFlagsTest extends ClusterTest {
             .where("$.age == 25")
             .withHint(hint -> hint.forIndex(indexName).hardHint());
 
-        QueryPlan queryPlan = plan(session, dataSet, qb);
+        QueryPlan queryPlan = plan(sessionDisallowingScansWithWhere(), dataSet, qb);
 
         assertAll(
             () -> assertEquals(QuerySelection.SECONDARY_INDEX, queryPlan.getSelection()),
@@ -130,6 +131,16 @@ public class QuerySelectionHintFlagsTest extends ClusterTest {
                 QueryWhereWire.FLAG_EXPLAIN | QueryWhereWire.FLAG_REQUIRE_INDEX
                     | QueryWhereWire.FLAG_HARD_HINT,
                 QueryWhereWire.flags(queryPlan.getExplainWhereBytes())));
+    }
+
+    /**
+     * A session derived from the suite session whose behavior forbids primary-index scan
+     * fallback for queries with a where clause.
+     */
+    private static Session sessionDisallowingScansWithWhere() {
+        return cluster.createSession(session.getBehavior().deriveWithChanges(
+            "disallowScansWithWhere",
+            b -> b.on(Selectors.reads().query(), ops -> ops.allowScansWithWhere(false))));
     }
 
     /**

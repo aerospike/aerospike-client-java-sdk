@@ -17,23 +17,39 @@
 package com.aerospike.client.sdk;
 
 import java.io.Closeable;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.aerospike.client.sdk.metrics.IMetricsExporter;
+import com.aerospike.client.sdk.metrics.MetricsExporterType;
+import com.aerospike.client.sdk.metrics.MetricsExtended;
+import com.aerospike.client.sdk.metrics.MetricsSettings;
+import com.aerospike.client.sdk.metrics.MetricsSnapshot;
+import com.aerospike.client.sdk.metrics.MetricsWriter;
+import com.aerospike.client.sdk.metrics.NodeMetricsSnapshot;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.Partitions;
+import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Represents a connection to an Aerospike cluster.
@@ -57,32 +73,51 @@ import org.slf4j.LoggerFactory;
 public class Cluster implements Closeable {
     public static final String CONTEXT = "aerospike.cluster";
     private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+    private static final Logger logMetrics = LoggerFactory.getLogger(Loggers.METRICS);
 
     ClusterDefinition def;
     ClusterTend tend;
     volatile Node[] nodes;
     volatile HashMap<String,Partitions> partitionMap;
+    private final CopyOnWriteArrayList<NodeMetricsSnapshot> nodesDeparted;
     private final ThreadFactory threadFactory;
-    private final AtomicLong commandCount;
-    private final AtomicLong retryCount;
+    private final LongAdder commandCount;
+    private final LongAdder blockingCount;   // feature.api.blocking
+    private final LongAdder deferredCount;   // feature.api.deferred
+    private final LongAdder backgroundCount; // feature.api.background
+    private final LongAdder tranCount;       // feature.api.transaction
+    private final LongAdder retryCount;
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
     private final AtomicBoolean closed;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
-    private Version version;
-    private boolean versionGE8;
-    private boolean versionGE812;
-    private boolean versionGE82;
+    private MetricsSettings metricsSettings;
+    private final Object metricsLock = new Object();
+    private final ReentrantLock metricsSleepLock = new ReentrantLock();
+    private final Condition metricsSleepCondition = metricsSleepLock.newCondition();
+    private volatile Thread metricsThread;
+    private List<IMetricsExporter> metricsExporters;
+    private Version serverVersion;
+    private boolean serverVersionGE8;
+    private boolean serverVersionGE812;
+    private boolean serverVersionGE82;
     private boolean metricsEnabled;
+    private boolean metricsOperationalEnabled;
+    private boolean metricsUsageEnabled;
 
     Cluster(ClusterDefinition def, SystemSettings effectiveSettings) {
         this.def = def;
         nodes = new Node[0];
         partitionMap = new HashMap<String,Partitions>();
+        nodesDeparted = new CopyOnWriteArrayList<>();
         threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
-        commandCount = new AtomicLong();
-        retryCount = new AtomicLong();
+        commandCount = new LongAdder();
+        blockingCount = new LongAdder();
+        deferredCount = new LongAdder();
+        backgroundCount = new LongAdder();
+        tranCount = new LongAdder();
+        retryCount = new LongAdder();
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
         closed = new AtomicBoolean();
@@ -269,6 +304,7 @@ public class Cluster implements Closeable {
             return;
         }
 
+        //System.out.println("FINAL SYSTEM SETTINGS=" + settings.toString());
         this.effectiveSystemSettings = settings;
 
         if (settings.getMinimumConnectionsPerNode() != null) {
@@ -293,6 +329,21 @@ public class Cluster implements Closeable {
 
         if (settings.getMaximumSocketIdleTime() != null) {
             this.def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
+        }
+
+        if (settings.getMetrics() != null) {
+            MetricsSettings metrics = settings.getMetrics();
+
+            if (metrics.getEnabled()) {
+                synchronized(metricsLock) {
+                    enableMetricsInternal(metrics);
+                }
+            }
+            else if (metricsEnabled) {
+                synchronized(metricsLock) {
+                    disableMetricsInternal();
+                }
+            }
         }
 
         // Currently, the Aerospike Java client does not support dynamic updates
@@ -328,6 +379,168 @@ public class Cluster implements Closeable {
                     this.def.maxSocketIdleNanosTrim
             );
         }
+    }
+
+    public final void enableMetrics(MetricsSettings settings) {
+        if (def.isDynamicConfigEnabled && !metricsEnabled) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Metrics can not be enabled via enableMetrics() when they are disabled by dynamic config.");
+        }
+
+        if (! settings.getEnabled()) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Can't enable metrics when MetricsSettings.enabled is false");
+        }
+
+        synchronized(metricsLock) {
+            enableMetricsInternal(settings);
+        }
+    }
+
+    private void enableMetricsInternal(MetricsSettings settings) {
+        if (metricsEnabled && metricsSettings != null && metricsSettings.equals(settings)) {
+            return; // Metrics already enabled with the same settings.
+        }
+
+        if (metricsEnabled && metricsExporters != null) {
+            for (IMetricsExporter exporter : metricsExporters) {
+                if (exporter instanceof MetricsWriter mw) {
+                    mw.onDisable();
+                }
+            }
+        }
+
+        List<IMetricsExporter> exporters;
+        MetricsExporterType exporterType = settings.getExporterType();
+
+        switch (exporterType) {
+            default:
+            case FILE: {
+                String reportDir = settings.getReportDir();
+
+                if (reportDir != null && !reportDir.isBlank()) {
+                    IMetricsExporter exporter = new MetricsWriter(settings);
+                    exporters = List.of(exporter);
+                }
+                else {
+                    // Do not export.
+                    exporters = null;
+
+                    if (log.isWarnEnabled()) {
+                        log.atWarn()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Metrics FILE exporter chosen, but reportDir is empty. Snapshots are not exported.");
+                    }
+                }
+                break;
+            }
+
+            case CUSTOM: {
+                List<IMetricsExporter> list = settings.getExporters();
+
+                if (list != null && list.size() > 0) {
+                    // Shallow copy exporters.
+                    exporters = new ArrayList<IMetricsExporter>(list);
+                }
+                else {
+                    // Do not export.
+                    exporters = null;
+
+                    if (log.isWarnEnabled()) {
+                        log.atWarn()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Metrics CUSTOM exporter chosen, but no exporters were defined. Snapshots are not exported.");
+                    }
+                }
+                break;
+            }
+
+            case NONE: {
+                // Do not export. No need to log warning when NONE is explicitly chosen.
+                exporters = null;
+                break;
+            }
+        }
+
+        this.metricsExporters = exporters;
+        this.metricsSettings = settings;
+
+        MetricsExtended me = settings.getExtended();
+
+        if (me.getOperational().getEnabled()) {
+            Node[] nodeArray = nodes;
+
+            for (Node node : nodeArray) {
+                node.enableMetrics(settings);
+            }
+        }
+
+        this.metricsEnabled = true;
+        this.metricsOperationalEnabled = me.getOperational().getEnabled();
+        this.metricsUsageEnabled = me.getUsage().getEnabled();
+
+        // Start metrics thread if not already running. If metrics are re-enabled with
+        // new settings, the running thread picks up the new interval on its next cycle.
+        if (metricsThread == null) {
+            startMetricsThread();
+        }
+
+        if (logMetrics.isInfoEnabled()) {
+            logMetrics.info("Metrics enabled.");
+        }
+    }
+
+    public final void disableMetrics() {
+        if (def.isDynamicConfigEnabled && metricsEnabled) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "Metrics can not be disabled via disableMetrics() when they are enabled by dynamic config.");
+        }
+
+        synchronized(metricsLock) {
+            disableMetricsInternal();
+        }
+    }
+
+    private void disableMetricsInternal() {
+        if (metricsEnabled) {
+            metricsEnabled = false;
+            metricsOperationalEnabled = false;
+            metricsUsageEnabled = false;
+
+            stopMetricsThread();
+
+            // Flush final metrics.
+            metricsExport();
+
+            // Call onDisable() for default MetricsWriter only.
+            if (metricsExporters != null) {
+                for (IMetricsExporter exporter : metricsExporters) {
+                    if (exporter instanceof MetricsWriter mw) {
+                        mw.onDisable();
+                    }
+                }
+            }
+
+            if (log.isInfoEnabled()) {
+                log.atInfo()
+                    .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                    .log("Metrics disabled");
+            }
+        }
+    }
+
+    /**
+     * Return the current metrics snapshot.
+     */
+    public final MetricsSnapshot getMetricsSnapshot() {
+        return new MetricsSnapshot(this, metricsSettings);
+    }
+
+    /**
+     * Return if extended metrics is enabled.
+     */
+    public boolean isMetricsOperationalEnabled() {
+        return metricsOperationalEnabled;
     }
 
     /**
@@ -504,11 +717,11 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment command count when metrics are enabled.
+     * Increment single key command count when usage metrics are enabled. For internal use only.
      */
     public final void addCommandCount() {
-        if (metricsEnabled) {
-            commandCount.getAndIncrement();
+        if (metricsOperationalEnabled) {
+            commandCount.increment();
         }
     }
 
@@ -516,28 +729,103 @@ public class Cluster implements Closeable {
      * Return command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getCommandCount() {
-        return commandCount.get();
+        return commandCount.longValue();
     }
 
     /**
      * Increment command retry count. There can be multiple retries for a single command.
+     * For internal use only.
      */
-    public final void addRetry() {
-        retryCount.getAndIncrement();
-    }
-
-    /**
-     * Add command retry count. There can be multiple retries for a single command.
-     */
-    public final void addRetries(int count) {
-        retryCount.getAndAdd(count);
+    public final void addRetryCount() {
+        if (metricsOperationalEnabled) {
+            retryCount.increment();
+        }
     }
 
     /**
      * Return command retry count. The value is cumulative and not reset per metrics interval.
      */
     public final long getRetryCount() {
-        return retryCount.get();
+        return retryCount.longValue();
+    }
+
+    /**
+     * Increment sync command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addBlockingCount() {
+        if (metricsUsageEnabled) {
+            blockingCount.increment();
+        }
+    }
+
+    /**
+     * Return sync command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getBlockingCount() {
+        return blockingCount.longValue();
+    }
+
+    /**
+     * Increment async command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addDeferredCount() {
+        if (metricsUsageEnabled) {
+            deferredCount.increment();
+        }
+    }
+
+    /**
+     * Return async command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getDeferredCount() {
+        return deferredCount.longValue();
+    }
+
+    /**
+     * Increment background command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addBackgroundCount() {
+        if (metricsUsageEnabled) {
+            backgroundCount.increment();
+        }
+    }
+
+    /**
+     * Return background command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getBackgroundCount() {
+        return backgroundCount.longValue();
+    }
+
+    /**
+     * Increment transaction count when usage metrics are enabled. For internal use only.
+     */
+    public final void addTranCount() {
+        if (metricsUsageEnabled) {
+            tranCount.increment();
+        }
+    }
+
+    /**
+     * Return transaction count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getTranCount() {
+        return tranCount.longValue();
+    }
+
+    /**
+     * Return connection recoverQueue size. The queue contains connections that have timed out and
+     * need to be drained before returning the connection to a connection pool.
+     */
+    public final int getRecoverQueueSize() {
+        return tend.getRecoverQueueSize();
+    }
+
+    /**
+     * Return count of add node failures in the most recent cluster tend iteration.
+     */
+    public final int getInvalidNodeCount() {
+        return tend.getInvalidNodeCount();
     }
 
     /**
@@ -577,7 +865,7 @@ public class Cluster implements Closeable {
      *         {@code false} otherwise
      */
     public boolean allowImplicitBatchWriteTransactions() {
-        return versionGE8 && effectiveSystemSettings.getImplicitBatchWriteTransactions();
+        return serverVersionGE8 && effectiveSystemSettings.getImplicitBatchWriteTransactions();
     }
 
     /**
@@ -597,21 +885,21 @@ public class Cluster implements Closeable {
      * @see Version
      * @see #setVersion(Version)
      */
-    public Version getVersion() {
-        return version;
+    public Version getServerVersion() {
+        return serverVersion;
     }
 
     /**
      * Whether this cluster allows server-side parsing of textual AEL for filters, expression reads,
      * and expression writes (wire form {@code [128, utf8]}).
      *
-     * <p>True when the cluster's {@linkplain #getVersion() minimum server version} is
+     * <p>True when the cluster's {@linkplain #getServerVersion() minimum server version} is
      * {@link Version#SERVER_VERSION_8_2} or newer.</p>
      *
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsAel() {
-        return versionGE82;
+        return serverVersionGE82;
     }
 
     /**
@@ -620,7 +908,7 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_2} or newer.</p>
      */
     public boolean supportsQueryOperations() {
-        return versionGE812;
+        return serverVersionGE812;
     }
 
     /**
@@ -629,7 +917,7 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsStringOperations() {
-        return versionGE82;
+        return serverVersionGE82;
     }
 
     /**
@@ -638,7 +926,7 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsQuerySelection() {
-        return versionGE82;
+        return serverVersionGE82;
     }
 
     /**
@@ -656,13 +944,13 @@ public class Cluster implements Closeable {
      *
      * @param version the minimum server version to set for the cluster
      * @see Version
-     * @see #getVersion()
+     * @see #getServerVersion()
      */
     public void setVersion(Version version) {
-        this.version = version;
-        this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
-        this.versionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
-        this.versionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
+        this.serverVersion = version;
+        this.serverVersionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
+        this.serverVersionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
+        this.serverVersionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
     }
 
     /**
@@ -712,6 +1000,181 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Start the metrics virtual thread. The thread exports a metrics snapshot every
+     * MetricsSettings.exportInterval while metrics are enabled.
+     * Must be called while holding metricsLock.
+     */
+    private void startMetricsThread() {
+        metricsThread = Thread.ofVirtual().name("metrics").unstarted(this::runMetrics);
+        metricsThread.start();
+    }
+
+    /**
+     * Signal the metrics thread to stop. The thread is not joined because it may be
+     * waiting on metricsLock, which the caller holds. Exports only run under metricsLock,
+     * so no export can be in progress when this method is called.
+     * Must be called while holding metricsLock.
+     */
+    private void stopMetricsThread() {
+        if (metricsThread == null) {
+            return;
+        }
+
+        metricsThread = null;
+
+        metricsSleepLock.lock();
+        try {
+            metricsSleepCondition.signalAll();
+        }
+        finally {
+            metricsSleepLock.unlock();
+        }
+    }
+
+    /**
+     * Return true if the current thread is the active metrics thread.
+     */
+    private boolean isMetricsThread() {
+        return Thread.currentThread() == metricsThread;
+    }
+
+    private void runMetrics() {
+        while (isMetricsThread()) {
+            long sleepMillis;
+
+            synchronized(metricsLock) {
+                if (! isMetricsThread()) {
+                    break;
+                }
+                sleepMillis = getMetricsIntervalMillis();
+            }
+
+            if (! metricsSleep(sleepMillis)) {
+                break;
+            }
+
+            try {
+                metricsSnapshot();
+            }
+            catch (Throwable e) {
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Metrics snapshot failed: " + Util.getErrorMessage(e));
+                }
+            }
+        }
+    }
+
+    /**
+     * Return metrics export interval in milliseconds. If exportInterval is not set or
+     * not positive, the tend interval is used. Must be called while holding metricsLock.
+     */
+    private long getMetricsIntervalMillis() {
+        Duration interval = metricsSettings.getExportInterval();
+
+        if (interval == null || interval.isNegative() || interval.isZero()) {
+            return def.getTendInterval();
+        }
+        return interval.toMillis();
+    }
+
+    /**
+     * Sleep until the interval expires or stopMetricsThread() signals the condition.
+     * A lock/condition is used instead of Thread.sleep() and interrupt, so the thread
+     * can be woken without interrupting an exporter that is writing a file. It also
+     * avoids pinning the virtual thread's carrier, which Object.wait() does on JDK 21.
+     *
+     * @return false if the thread should exit
+     */
+    private boolean metricsSleep(long millis) {
+        long nanos = TimeUnit.MILLISECONDS.toNanos(Math.max(millis, 1L));
+
+        metricsSleepLock.lock();
+        try {
+            while (nanos > 0 && isMetricsThread()) {
+                nanos = metricsSleepCondition.awaitNanos(nanos);
+            }
+            return isMetricsThread();
+        }
+        catch (InterruptedException ie) {
+            return false;
+        }
+        finally {
+            metricsSleepLock.unlock();
+        }
+    }
+
+    /**
+     * Export metrics snapshot if metrics are enabled. Called periodically from the
+     * metrics thread. For internal use only.
+     */
+    public void metricsSnapshot() {
+        synchronized(metricsLock) {
+            // A metrics thread that was stopped (and possibly replaced by a new thread when
+            // metrics were re-enabled) must not export.
+            if (metricsEnabled && isMetricsThread()) {
+                metricsExport();
+            }
+        }
+    }
+
+    private void metricsExport() {
+        if (metricsExporters == null || metricsExporters.size() == 0) {
+            return;
+        }
+
+        MetricsSnapshot snapshot = new MetricsSnapshot(this, metricsSettings);
+        nodesDeparted.clear();
+
+        for (IMetricsExporter exporter : metricsExporters) {
+            try {
+                exporter.export(snapshot);
+            }
+            catch(Throwable t) {
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Metrics export snapshot failed: " + Util.getErrorMessage(t));
+                }
+            }
+        }
+    }
+
+    /**
+     * Flush metrics for closing nodes and then run removeAction, which removes the nodes
+     * from the cluster. Both steps run while holding metricsLock, so the metrics thread
+     * never sees a node in both the active nodes and departed nodes lists.
+     * For internal use only.
+     */
+    public void metricsNodeClose(HashSet<Node> nodesToRemove, Runnable removeAction) {
+        synchronized(metricsLock) {
+            if (metricsEnabled) {
+                try {
+                    ArrayList<NodeMetricsSnapshot> list = new ArrayList<>(nodesToRemove.size());
+
+                    for (Node node : nodesToRemove) {
+                        list.add(new NodeMetricsSnapshot(node));
+                    }
+                    nodesDeparted.addAll(list);
+                }
+                catch (Throwable e) {
+                    if (log.isWarnEnabled()) {
+                        log.atWarn()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Failed to add nodesDeparted: " + Util.getErrorMessage(e));
+                    }
+                }
+            }
+            removeAction.run();
+        }
+    }
+
+    public List<NodeMetricsSnapshot> getNodesDeparted() {
+        return nodesDeparted;
+    }
+
+    /**
      * Close the cluster connection and releases all associated resources.
      *
      * <p>This method closes the underlying client connection. It should be called when the
@@ -733,20 +1196,20 @@ public class Cluster implements Closeable {
 
         tend.close();
 
-        /* TODO Handle metrics close.
         synchronized(metricsLock) {
             try {
-                disableMetricsInternal();
+                if (metricsEnabled) {
+                    disableMetricsInternal();
+                }
             }
             catch (Throwable e) {
                 if (log.isWarnEnabled()) {
                     log.atWarn()
                         .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                        .log("DisableMetrics failed: " + Util.getErrorMessage(e));
+                        .log("Metrics close failed: " + Util.getErrorMessage(e));
                 }
             }
         }
-        */
 
         Node[] nodeArray = nodes;
 
