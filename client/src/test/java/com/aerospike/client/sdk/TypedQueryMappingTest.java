@@ -534,7 +534,7 @@ public class TypedQueryMappingTest extends ClusterTest {
     @Test
     public void typedDatasetQueryBinBuilderOnDataset() {
         assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
+            cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
             "dataset bin projection requires server 8.1.2+");
 
         installCustomerMapper();

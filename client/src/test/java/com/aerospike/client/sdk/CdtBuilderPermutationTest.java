@@ -71,7 +71,7 @@ public class CdtBuilderPermutationTest extends ClusterTest {
     @BeforeAll
     public static void seed() {
         Assumptions.assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(8, 1, 1, 0),
+            cluster.getServerVersion().isGreaterOrEqual(8, 1, 1, 0),
             "CDT builder permutation coverage requires server 8.1.1+");
 
         key = args.set.id("cdt-perm-seed");
@@ -536,7 +536,7 @@ public class CdtBuilderPermutationTest extends ClusterTest {
         @Test
         void mapAndListNavigations() {
             Assumptions.assumeTrue(
-                cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
+                cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
                 "dataset query read operations require server 8.1.2+");
             Record rec = first(dataset()
                 .bin(SMAP).onMapKey("c").getValues()

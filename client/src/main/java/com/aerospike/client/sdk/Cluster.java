@@ -98,10 +98,10 @@ public class Cluster implements Closeable {
     private final Condition metricsSleepCondition = metricsSleepLock.newCondition();
     private volatile Thread metricsThread;
     private List<IMetricsExporter> metricsExporters;
-    private Version version;
-    private boolean versionGE8;
-    private boolean versionGE812;
-    private boolean versionGE82;
+    private Version serverVersion;
+    private boolean serverVersionGE8;
+    private boolean serverVersionGE812;
+    private boolean serverVersionGE82;
     private boolean metricsEnabled;
     private boolean metricsOperationalEnabled;
     private boolean metricsUsageEnabled;
@@ -865,7 +865,7 @@ public class Cluster implements Closeable {
      *         {@code false} otherwise
      */
     public boolean allowImplicitBatchWriteTransactions() {
-        return versionGE8 && effectiveSystemSettings.getImplicitBatchWriteTransactions();
+        return serverVersionGE8 && effectiveSystemSettings.getImplicitBatchWriteTransactions();
     }
 
     /**
@@ -885,21 +885,21 @@ public class Cluster implements Closeable {
      * @see Version
      * @see #setVersion(Version)
      */
-    public Version getVersion() {
-        return version;
+    public Version getServerVersion() {
+        return serverVersion;
     }
 
     /**
      * Whether this cluster allows server-side parsing of textual AEL for filters, expression reads,
      * and expression writes (wire form {@code [128, utf8]}).
      *
-     * <p>True when the cluster's {@linkplain #getVersion() minimum server version} is
+     * <p>True when the cluster's {@linkplain #getServerVersion() minimum server version} is
      * {@link Version#SERVER_VERSION_8_2} or newer.</p>
      *
      * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
      */
     public boolean supportsAel() {
-        return versionGE82;
+        return serverVersionGE82;
     }
 
     /**
@@ -908,7 +908,7 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_1_2} or newer.</p>
      */
     public boolean supportsQueryOperations() {
-        return versionGE812;
+        return serverVersionGE812;
     }
 
     /**
@@ -917,7 +917,7 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsStringOperations() {
-        return versionGE82;
+        return serverVersionGE82;
     }
 
     /**
@@ -926,7 +926,7 @@ public class Cluster implements Closeable {
      * <p>Requires cluster minimum version {@link Version#SERVER_VERSION_8_2} or newer.</p>
      */
     public boolean supportsQuerySelection() {
-        return versionGE82;
+        return serverVersionGE82;
     }
 
     /**
@@ -944,13 +944,13 @@ public class Cluster implements Closeable {
      *
      * @param version the minimum server version to set for the cluster
      * @see Version
-     * @see #getVersion()
+     * @see #getServerVersion()
      */
     public void setVersion(Version version) {
-        this.version = version;
-        this.versionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
-        this.versionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
-        this.versionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
+        this.serverVersion = version;
+        this.serverVersionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
+        this.serverVersionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
+        this.serverVersionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
     }
 
     /**

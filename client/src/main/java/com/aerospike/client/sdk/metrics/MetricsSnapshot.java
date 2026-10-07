@@ -63,7 +63,7 @@ public final class MetricsSnapshot {
         this.timestamp = LocalDateTime.now();
         this.clusterName = (cluster.getClusterName() != null)? cluster.getClusterName() : "";
         this.clientType = "java-sdk";
-        this.clientVersion = cluster.getVersion().toString();
+        this.clientVersion = cluster.getClusterDefinition().getClientVersion();
 
         ClusterDefinition def = cluster.getClusterDefinition();
 
