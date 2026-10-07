@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.stream.Stream;
@@ -42,7 +43,10 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWire;
  * <p>{@code REQUIRE_INDEX} is what makes the server answer {@code INDEX_NOTFOUND} instead of
  * falling back to a primary-index scan, so it must be set exactly when the effective policy is
  * "no scans". Before the fix a hintless query returned early and never set it, which turned a
- * dropped or missing index into a silent full scan under the shipped default.</p>
+ * dropped or missing index into a silent full scan when the behavior forbade scans.</p>
+ *
+ * <p>The shipped default is {@code allowScansWithWhere=true}, so {@code REQUIRE_INDEX} is only
+ * set when a behavior or hint forbids scans.</p>
  *
  * <p>No cluster is required: {@link Behavior} resolves its settings client-side.</p>
  */
@@ -82,8 +86,8 @@ public class IndexProbePlannerWhereFlagsTest {
     static Stream<Arguments> scanPolicyMatrix() {
         return Stream.of(
             //          label,                    behavior setting, hint,           expect REQUIRE_INDEX
-            Arguments.of("DEFAULT, no hint",      null,             null,           true),
-            Arguments.of("DEFAULT, neutral hint", null,             neutralHint(),  true),
+            Arguments.of("DEFAULT, no hint",      null,             null,           false),
+            Arguments.of("DEFAULT, neutral hint", null,             neutralHint(),  false),
             Arguments.of("DEFAULT, allow hint",   null,             allowHint(),    false),
             Arguments.of("DEFAULT, deny hint",    null,             denyHint(),     true),
 
@@ -110,11 +114,11 @@ public class IndexProbePlannerWhereFlagsTest {
             label + ": REQUIRE_INDEX should be " + expectRequireIndex);
     }
 
-    /** The shipped default forbids scans, so the protection must apply with no configuration at all. */
+    /** The shipped default allows scans, so a hintless query must not require an index. */
     @Test
-    void hintlessQueryUnderDefaultBehaviorRequiresAnIndex() {
-        assertTrue(requiresIndex(settings(null), null),
-            "Behavior.DEFAULT carries allowScansWithWhere=false, so a hintless query must require an index");
+    void hintlessQueryUnderDefaultBehaviorDoesNotRequireAnIndex() {
+        assertFalse(requiresIndex(settings(null), null),
+            "Behavior.DEFAULT carries allowScansWithWhere=true, so a hintless query must not require an index");
     }
 
     /** EXPLAIN is unconditional; the fix must not disturb it or set HARD_HINT without a hint. */
@@ -130,9 +134,17 @@ public class IndexProbePlannerWhereFlagsTest {
     @Test
     void hardHintSetsHardHintFlag() {
         QueryHint.Result hint = QueryHint.create().forIndex("age_idx").hardHint();
+
+        // DEFAULT allows scans: HARD_HINT without REQUIRE_INDEX.
         int flags = IndexProbePlanner.explainWhereFlags(settings(null), hint);
 
         assertEquals(QueryWhereWire.FLAG_HARD_HINT, flags & QueryWhereWire.FLAG_HARD_HINT, "HARD_HINT");
-        assertTrue((flags & QueryWhereWire.FLAG_REQUIRE_INDEX) != 0, "REQUIRE_INDEX under DEFAULT");
+        assertEquals(0, flags & QueryWhereWire.FLAG_REQUIRE_INDEX, "REQUIRE_INDEX under DEFAULT");
+
+        // A behavior that forbids scans: HARD_HINT with REQUIRE_INDEX.
+        flags = IndexProbePlanner.explainWhereFlags(settings(Boolean.FALSE), hint);
+
+        assertEquals(QueryWhereWire.FLAG_HARD_HINT, flags & QueryWhereWire.FLAG_HARD_HINT, "HARD_HINT");
+        assertTrue((flags & QueryWhereWire.FLAG_REQUIRE_INDEX) != 0, "REQUIRE_INDEX when scans forbidden");
     }
 }
