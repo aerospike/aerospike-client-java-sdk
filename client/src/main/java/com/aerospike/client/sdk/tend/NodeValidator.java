@@ -409,7 +409,7 @@ public final class NodeValidator {
 
                         try {
                             if (this.sessionToken != null) {
-                                if (! AdminCommand.authenticate(def, conn, this.sessionToken)) {
+                                if (! AdminCommand.authenticate(null, def, conn, this.sessionToken)) {
                                     throw new AerospikeException("Authentication failed");
                                 }
                             }
@@ -481,7 +481,7 @@ public final class NodeValidator {
 
                             try {
                                 if (sessionToken != null) {
-                                    if (! AdminCommand.authenticate(def, clearConn, sessionToken)) {
+                                    if (! AdminCommand.authenticate(null, def, clearConn, sessionToken)) {
                                         throw new AerospikeException("Authentication failed");
                                     }
                                 }

@@ -98,9 +98,11 @@ public final class Connection implements Closeable {
             }
         }
         catch (AerospikeException ae) {
+            incrementError(node, false);
             throw ae;
         }
         catch (Throwable e) {
+            incrementError(node, false);
             throw new AerospikeException.Connection(e);
         }
     }
@@ -116,6 +118,8 @@ public final class Connection implements Closeable {
         Pool pool
     ) throws AerospikeException.Connection {
         this.pool = pool;
+
+        boolean inHandshake = false;
 
         try {
             SSLContext context = tls.getCustomSslContext();
@@ -160,12 +164,15 @@ public final class Connection implements Closeable {
 
                 sslSocket.setUseClientMode(true);
                 sslSocket.connect(address, timeoutMillis);
+
+                inHandshake = true;
                 sslSocket.startHandshake();
 
                 X509Certificate cert = (X509Certificate)sslSocket.getSession()
                     .getPeerCertificates()[0];
 
                 validateServerCertificate(tls, tlsName, cert);
+                inHandshake = false;
 
                 in = socket.getInputStream();
                 out = socket.getOutputStream();
@@ -182,10 +189,23 @@ public final class Connection implements Closeable {
             }
         }
         catch (AerospikeException ae) {
+            incrementError(node, inHandshake);
             throw ae;
         }
         catch (Throwable e) {
+            incrementError(node, inHandshake);
             throw new AerospikeException.Connection(e);
+        }
+    }
+
+    private static void incrementError(Node node, boolean inHandshake) {
+        if (node != null) {
+            if (inHandshake) {
+                node.addTlsHandshakeFailures();
+            }
+            else {
+                node.addConnOpenFailure();
+            }
         }
     }
 

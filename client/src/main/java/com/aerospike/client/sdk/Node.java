@@ -24,6 +24,7 @@ import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,9 @@ public class Node implements Closeable {
     final AtomicInteger connsOpened;
     final AtomicInteger connsClosed;
     private AtomicInteger errorRateCount;
+    private final LongAdder connOpenFailures;
+    private final LongAdder connAuthFailures;
+    private final LongAdder tlsHandshakeFailures;
     protected int maxErrorRate;
     protected int connectionIter;
     private int peersGeneration;
@@ -115,6 +119,9 @@ public class Node implements Closeable {
         this.connsOpened = new AtomicInteger(1);
         this.connsClosed = new AtomicInteger(0);
         this.errorRateCount = new AtomicInteger(0);
+        this.connOpenFailures = new LongAdder();
+        this.connAuthFailures = new LongAdder();
+        this.tlsHandshakeFailures = new LongAdder();
         this.maxErrorRate = def.maxErrorRate;
         this.peersGeneration = -1;
         this.partitionGeneration = -1;
@@ -206,7 +213,7 @@ public class Node implements Closeable {
                         login();
                     }
                     else {
-                        if (! AdminCommand.authenticate(def, tendConnection, token)) {
+                        if (! AdminCommand.authenticate(this, def, tendConnection, token)) {
                             // Authentication failed. Session token probably expired.
                             // Login again to get new session token.
                             login();
@@ -629,7 +636,7 @@ public class Node implements Closeable {
 
             if (token != null) {
                 try {
-                    if (! AdminCommand.authenticate(cluster.def, conn, token)) {
+                    if (! AdminCommand.authenticate(this, cluster.def, conn, token)) {
                         throw new AerospikeException("Authentication failed");
                     }
                 }
@@ -768,7 +775,7 @@ public class Node implements Closeable {
 
                     if (token != null) {
                         try {
-                            if (! AdminCommand.authenticate(cluster.def, conn, token)) {
+                            if (! AdminCommand.authenticate(this, cluster.def, conn, token)) {
                                 signalLogin();
                                 throw new AerospikeException("Authentication failed");
                             }
@@ -974,6 +981,57 @@ public class Node implements Closeable {
                 maxErrorRate = 1;
             }
         }
+    }
+
+    /**
+     * Increment connection open failure count. If the error is retryable, multiple errors per
+     * transaction may occur. For internal use only.
+     */
+    public void addConnOpenFailure() {
+        if (cluster.isMetricsOperationalEnabled()) {
+            connOpenFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection open failure count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnOpenFailure() {
+        return connOpenFailures.sum();
+    }
+
+    /**
+     * Increment connection authorization failure count. If the error is retryable, multiple errors per
+     * transaction may occur. For internal use only.
+     */
+    public void addConnAuthFailure() {
+        if (cluster.isMetricsOperationalEnabled()) {
+            connAuthFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection authorization failure count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnAuthFailure() {
+        return connAuthFailures.sum();
+    }
+
+    /**
+     * Increment TLS handshake failure count. If the error is retryable, multiple errors per
+     * transaction may occur. For internal use only.
+     */
+    public void addTlsHandshakeFailures() {
+        if (cluster.isMetricsOperationalEnabled()) {
+            tlsHandshakeFailures.increment();
+        }
+    }
+
+    /**
+     * Return TLS handshake failure count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getTlsHandshakeFailures() {
+        return tlsHandshakeFailures.sum();
     }
 
     /**

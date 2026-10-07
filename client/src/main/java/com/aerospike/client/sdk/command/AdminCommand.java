@@ -28,6 +28,7 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Loggers;
+import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.AuthMode;
 
@@ -163,10 +164,18 @@ public class AdminCommand {
         }
     }
 
-    public static boolean authenticate(ClusterDefinition def, Connection conn, byte[] sessionToken)
+    public static boolean authenticate(Node node, ClusterDefinition def, Connection conn, byte[] sessionToken)
         throws IOException {
-        AdminCommand command = new AdminCommand();
-        return command.authenticateSession(def, conn, sessionToken);
+        try {
+            AdminCommand command = new AdminCommand();
+            return command.authenticateSession(def, conn, sessionToken);
+        }
+        catch(Throwable t) {
+            if (node != null) {
+                node.addConnAuthFailure();
+            }
+            throw t;
+        }
     }
 
     private boolean authenticateSession(ClusterDefinition def, Connection conn, byte[] sessionToken)

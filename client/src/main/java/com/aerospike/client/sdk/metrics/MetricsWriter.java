@@ -123,7 +123,7 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.append(" header(5)");
 		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,nodes[]]");
 		sb.append(" labels[name,value]");
-		sb.append(" nodes[name,address,port,conns_in_use,conns_in_pool,conns_opened,conns_closed,namespaces[]]");
+		sb.append(" nodes[name,address,port,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,conns_in_use,conns_in_pool,conns_opened,conns_closed,namespaces[]]");
 		sb.append(" namespaces[name,errors,timeouts,key_busy,bytes_in,bytes_out,latency[]]");
 		sb.append(" latency(");
         sb.append(latencyUnit);
@@ -216,6 +216,12 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.append(node.nodeAddress);
 		sb.append(',');
 		sb.append(node.nodePort);
+        sb.append(',');
+        sb.append(node.connectionOpenFailure);
+        sb.append(',');
+        sb.append(node.connectionTlsHandshakeFailure);
+        sb.append(',');
+        sb.append(node.connectionAuthFailure);
 
 		ConnectionMetricsSnapshot cms = node.connections;
 
