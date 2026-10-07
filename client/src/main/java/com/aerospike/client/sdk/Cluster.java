@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.metrics.IMetricsExporter;
+import com.aerospike.client.sdk.metrics.MetricsExporterType;
 import com.aerospike.client.sdk.metrics.MetricsExtended;
 import com.aerospike.client.sdk.metrics.MetricsSettings;
 import com.aerospike.client.sdk.metrics.MetricsSnapshot;
@@ -409,13 +410,56 @@ public class Cluster implements Closeable {
             }
         }
 
-        List<IMetricsExporter> exporters = settings.getExporters();
+        List<IMetricsExporter> exporters;
+        MetricsExporterType exporterType = settings.getExporterType();
 
-        if (exporters == null) {
-            IMetricsExporter exporter = new MetricsWriter(settings);
+        switch (exporterType) {
+            default:
+            case FILE: {
+                String reportDir = settings.getReportDir();
 
-            exporters = new ArrayList<IMetricsExporter>(1);
-            exporters.add(exporter);
+                if (reportDir != null && !reportDir.isBlank()) {
+                    IMetricsExporter exporter = new MetricsWriter(settings);
+                    exporters = List.of(exporter);
+                }
+                else {
+                    // Do not export.
+                    exporters = null;
+
+                    if (log.isWarnEnabled()) {
+                        log.atWarn()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Metrics FILE exporter chosen, but reportDir is empty. Snapshots are not exported.");
+                    }
+                }
+                break;
+            }
+
+            case CUSTOM: {
+                List<IMetricsExporter> list = settings.getExporters();
+
+                if (list != null && list.size() > 0) {
+                    // Shallow copy exporters.
+                    exporters = new ArrayList<IMetricsExporter>(list);
+                }
+                else {
+                    // Do not export.
+                    exporters = null;
+
+                    if (log.isWarnEnabled()) {
+                        log.atWarn()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Metrics CUSTOM exporter chosen, but no exporters were defined. Snapshots are not exported.");
+                    }
+                }
+                break;
+            }
+
+            case NONE: {
+                // Do not export. No need to log warning when NONE is explicitly chosen.
+                exporters = null;
+                break;
+            }
         }
 
         this.metricsExporters = exporters;
@@ -469,9 +513,11 @@ public class Cluster implements Closeable {
             metricsExport();
 
             // Call onDisable() for default MetricsWriter only.
-            for (IMetricsExporter exporter : metricsExporters) {
-                if (exporter instanceof MetricsWriter mw) {
-                    mw.onDisable();
+            if (metricsExporters != null) {
+                for (IMetricsExporter exporter : metricsExporters) {
+                    if (exporter instanceof MetricsWriter mw) {
+                        mw.onDisable();
+                    }
                 }
             }
 
@@ -1074,6 +1120,10 @@ public class Cluster implements Closeable {
     }
 
     private void metricsExport() {
+        if (metricsExporters == null || metricsExporters.size() == 0) {
+            return;
+        }
+
         MetricsSnapshot snapshot = new MetricsSnapshot(this, metricsSettings);
         nodesDeparted.clear();
 

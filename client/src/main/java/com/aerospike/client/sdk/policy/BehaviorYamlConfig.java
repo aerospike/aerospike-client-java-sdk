@@ -324,6 +324,7 @@ public class BehaviorYamlConfig {
     }
 
     public static class SystemMetricsConfig {
+        private String exporter;
         private Map<String,String> labels;
         private String reportDir;
         private String reportSizeLimit;
@@ -337,6 +338,13 @@ public class BehaviorYamlConfig {
         }
         public void setLabels(Map<String, String> labels) {
             this.labels = labels;
+        }
+
+        public String getExporter() {
+            return exporter;
+        }
+        public void setExporter(String exporter) {
+            this.exporter = exporter;
         }
 
         public String getReportDir() {

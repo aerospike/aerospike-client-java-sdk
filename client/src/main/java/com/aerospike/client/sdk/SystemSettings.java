@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.metrics.MetricsExporterType;
 import com.aerospike.client.sdk.metrics.MetricsSettings;
 import com.aerospike.client.sdk.metrics.MetricsSettings.MetricsTweaks;
 
@@ -118,6 +119,7 @@ public class SystemSettings {
             .numberOfAttempts(10)
         )
         .metrics(ops -> ops
+            .exporter(MetricsExporterType.FILE)
             .labels(new HashMap<>())
             .reportDir("")
             .reportSizeLimit(0L)

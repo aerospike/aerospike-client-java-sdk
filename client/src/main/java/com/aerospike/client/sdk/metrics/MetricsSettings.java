@@ -31,6 +31,7 @@ import com.aerospike.client.sdk.util.Util;
  * Metrics settings that apply to an entire Cluster instance.
  */
 public class MetricsSettings {
+    private final MetricsExporterType exporterType;
     private final List<IMetricsExporter> exporters;
     private final Map<String,String> labels;
     private final String reportDir;
@@ -41,6 +42,7 @@ public class MetricsSettings {
     private final MetricsExtended extended;
 
     public MetricsSettings(Builder builder) {
+        this.exporterType = builder.exporterType;
         this.exporters = builder.exporters;
         this.labels = builder.labels;
         this.reportDir = builder.reportDir;
@@ -68,6 +70,8 @@ public class MetricsSettings {
     public Builder mergeWith(MetricsSettings base) {
         Builder merged = builder();
 
+        merged.exporterType = this.exporterType != null
+            ? this.exporterType : base.exporterType;
         merged.exporters = this.exporters != null
             ? this.exporters : base.exporters;
         merged.labels = this.labels != null
@@ -89,6 +93,7 @@ public class MetricsSettings {
     }
 
     // Getters
+    public MetricsExporterType getExporterType() { return exporterType; }
     public List<IMetricsExporter> getExporters() { return exporters; }
     public Map<String,String> getLabels() { return labels; }
     public String getReportDir() { return reportDir; }
@@ -108,6 +113,7 @@ public class MetricsSettings {
         }
         MetricsSettings that = (MetricsSettings) o;
         return
+            Objects.equals(exporterType, that.exporterType) &&
             Objects.equals(exporters, that.exporters) &&
             Objects.equals(labels, that.labels) &&
             Objects.equals(reportDir, that.reportDir) &&
@@ -120,7 +126,7 @@ public class MetricsSettings {
 
     @Override
     public int hashCode() {
-        return Objects.hash(exporters, labels, reportDir, reportSizeLimit, exportSampleRate,
+        return Objects.hash(exporterType, exporters, labels, reportDir, reportSizeLimit, exportSampleRate,
             exportInterval, enabled, extended);
     }
 
@@ -132,6 +138,7 @@ public class MetricsSettings {
                     .map(e -> (e != null)? e.getClass().getName() : "null")
                     .collect(Collectors.joining(", ", "[", "]"))
                 : "null") +
+            ", exporterType=" + exporterType +
             ", labels=" + labels +
             ", reportDir=" + reportDir +
             ", reportSizeLimit=" + reportSizeLimit +
@@ -146,6 +153,7 @@ public class MetricsSettings {
      * Builder for metrics settings with lambda-based configuration.
      */
     public static class Builder {
+        private MetricsExporterType exporterType;
         private List<IMetricsExporter> exporters;
         private Map<String,String> labels;
         private String reportDir;
@@ -172,6 +180,7 @@ public class MetricsSettings {
      */
     public interface MetricsTweaks {
         MetricsTweaks addExporter(IMetricsExporter exporter);
+        MetricsTweaks exporter(MetricsExporterType exporter);
         MetricsTweaks labels(Map<String,String> labels);
         MetricsTweaks reportDir(String dir);
         MetricsTweaks reportSizeLimit(Long limit);
@@ -204,6 +213,12 @@ public class MetricsSettings {
                 builder.exporters = new ArrayList<>();
             }
             builder.exporters.add(exporter);
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks exporter(MetricsExporterType exporter) {
+            builder.exporterType = exporter;
             return this;
         }
 

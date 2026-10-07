@@ -23,7 +23,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -40,6 +42,7 @@ import org.yaml.snakeyaml.nodes.Tag;
 
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
+import com.aerospike.client.sdk.metrics.MetricsExporterType;
 import com.aerospike.client.sdk.util.Util;
 
 /**
@@ -496,6 +499,19 @@ public class BehaviorYamlLoader {
      *
      * @param config The YAML configuration containing system settings
      */
+    /**
+     * Convert a metrics exporter name to {@link MetricsExporterType}, ignoring case.
+     */
+    static MetricsExporterType parseExporterType(String value) {
+        try {
+            return MetricsExporterType.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid metrics exporter: '" + value +
+                "'. Expected one of " + Arrays.toString(MetricsExporterType.values()), e);
+        }
+    }
+
     private static void loadSystemSettings(BehaviorYamlConfig config) {
         if (config.getSystem() == null) {
             return;
@@ -588,6 +604,9 @@ public class BehaviorYamlLoader {
             builder.metrics (ops -> {
                 if (metricsConfig.getLabels() != null) {
                     ops.labels(metricsConfig.getLabels());
+                }
+                if (metricsConfig.getExporter() != null) {
+                    ops.exporter(parseExporterType(metricsConfig.getExporter()));
                 }
                 if (metricsConfig.getReportDir() != null) {
                     ops.reportDir(metricsConfig.getReportDir());
