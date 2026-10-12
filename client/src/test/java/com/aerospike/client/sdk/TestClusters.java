@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk;
 
+import java.lang.reflect.Field;
+
 import com.aerospike.client.sdk.util.Version;
 
 /** Helpers for unit tests that need a {@link Cluster} without a live server. */
@@ -29,7 +31,30 @@ public final class TestClusters {
         ClusterDefinition def = new ClusterDefinition("host", 3000)
             .failIfNotConnected(false);
         Cluster cluster = new Cluster(def, SystemSettings.DEFAULT);
-        cluster.setVersion(version);
+        setServerVersion(cluster, version);
         return cluster;
+    }
+
+    /**
+     * Force the cluster's minimum server version (and derived feature flags) for testing.
+     * {@code Cluster} derives this privately from its nodes, so tests set the fields via reflection.
+     * A later {@code setNodes()} call from cluster tend may recompute and overwrite it.
+     */
+    public static void setServerVersion(Cluster cluster, Version version) {
+        set(cluster, "serverVersion", version);
+        set(cluster, "serverVersionGE8", version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_0));
+        set(cluster, "serverVersionGE812", version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2));
+        set(cluster, "serverVersionGE82", version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_2));
+    }
+
+    private static void set(Cluster cluster, String name, Object value) {
+        try {
+            Field f = Cluster.class.getDeclaredField(name);
+            f.setAccessible(true);
+            f.set(cluster, value);
+        }
+        catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Unable to set Cluster." + name, e);
+        }
     }
 }

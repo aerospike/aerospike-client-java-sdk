@@ -80,7 +80,7 @@
     <flatten-maven-plugin.version>1.7.3</flatten-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
 
-    <bcprov-jdk18on.version>1.85</bcprov-jdk18on.version>
+    <bcprov-jdk18on.version>1.86</bcprov-jdk18on.version>
     <snakeyaml.version>2.6</snakeyaml.version>
     <jbcrypt.version>0.4</jbcrypt.version>
     <commons-cli.version>1.11.0</commons-cli.version>

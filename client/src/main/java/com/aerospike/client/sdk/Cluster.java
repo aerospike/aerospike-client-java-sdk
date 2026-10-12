@@ -839,6 +839,7 @@ public class Cluster implements Closeable {
      */
     public final void setNodes(Node[] nodes) {
         this.nodes = nodes;
+        setMinServerVersion();
     }
 
     /**
@@ -883,7 +884,6 @@ public class Cluster implements Closeable {
      * @return the minimum server version in the cluster, or {@code null} if
      *         no version has been set yet
      * @see Version
-     * @see #setVersion(Version)
      */
     public Version getServerVersion() {
         return serverVersion;
@@ -937,20 +937,28 @@ public class Cluster implements Closeable {
      * version across all nodes. Setting a lower version than the current
      * cluster version will update the cluster to use the lower version,
      * ensuring feature compatibility across all nodes.</p>
-     *
-     * <p>This method should generally not be called directly by application
-     * code, as the cluster tend mechanism automatically manages the version
-     * based on the nodes in the cluster.</p>
-     *
-     * @param version the minimum server version to set for the cluster
-     * @see Version
-     * @see #getServerVersion()
      */
-    public void setVersion(Version version) {
-        this.serverVersion = version;
-        this.serverVersionGE8 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
-        this.serverVersionGE812 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
-        this.serverVersionGE82 = version.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
+    private void setMinServerVersion() {
+        if (nodes.length == 0) {
+            return;
+        }
+
+        Version min = null;
+
+        for (Node node : nodes) {
+            if (min == null || node.getVersion().isLessThan(min)) {
+                min = node.getVersion();
+            }
+        }
+
+        if (serverVersion != null && min.equals(serverVersion)) {
+            return;
+        }
+
+        this.serverVersion = min;
+        this.serverVersionGE8 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
+        this.serverVersionGE812 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
+        this.serverVersionGE82 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
     }
 
     /**
