@@ -50,6 +50,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.TestClusters;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.CommandBuffer;
@@ -537,7 +538,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
         Version saved = cluster.getServerVersion();
 
         try {
-            cluster.setVersion(Version.SERVER_VERSION_8_1_2);
+            TestClusters.setServerVersion(cluster, Version.SERVER_VERSION_8_1_2);
             assumeFalse(cluster.supportsQuerySelection(),
                 "server version below 8.2.0 should not use query selection");
             assumeFalse(cluster.supportsAel(),
@@ -552,7 +553,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
         }
         finally {
-            cluster.setVersion(saved);
+            TestClusters.setServerVersion(cluster, saved);
         }
     }
 

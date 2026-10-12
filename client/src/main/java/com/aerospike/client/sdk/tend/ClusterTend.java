@@ -520,11 +520,6 @@ public class ClusterTend implements Runnable {
     }
 
     private void addNode(Node node) {
-        // Set minimum cluster version.
-        if (cluster.getServerVersion() == null || node.getVersion().isLessThan(cluster.getServerVersion())) {
-            cluster.setVersion(node.getVersion());
-        }
-
         if (log.isInfoEnabled()) {
             log.atInfo()
                 .addKeyValue(Cluster.CONTEXT, def.getClusterName())
