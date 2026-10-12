@@ -121,7 +121,7 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
 		sb.append(" header(5)");
-		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,nodes[]]");
+		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,nodes[]]");
 		sb.append(" labels[name,value]");
 		sb.append(" nodes[name,address,port,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,conns_in_use,conns_in_pool,conns_opened,conns_closed,namespaces[]]");
 		sb.append(" namespaces[name,errors,timeouts,key_busy,bytes_in,bytes_out,latency[]]");
@@ -185,6 +185,12 @@ public final class MetricsWriter implements IMetricsExporter {
 
         sb.append(',');
 		sb.append(ms.commandRetries);
+        sb.append(',');
+        sb.append(ms.connectionOpenFailure);
+        sb.append(',');
+        sb.append(ms.connectionTlsHandshakeFailure);
+        sb.append(',');
+        sb.append(ms.connectionAuthFailure);
 		sb.append(",[");
 
 		int count = 0;

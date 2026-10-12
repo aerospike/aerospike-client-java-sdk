@@ -44,6 +44,9 @@ public final class MetricsSnapshot {
     public final int invalidNodeCount;
     public final long commandCount;
     public final long commandRetries;
+    public final long connectionOpenFailure;
+    public final long connectionTlsHandshakeFailure;
+    public final long connectionAuthFailure;
     public final double cpuPercent;
     public final long memoryBytes;
     public final boolean metricsEnabled;
@@ -86,6 +89,9 @@ public final class MetricsSnapshot {
         this.invalidNodeCount = cluster.getInvalidNodeCount();
         this.commandCount = cluster.getCommandCount();
         this.commandRetries = cluster.getRetryCount();
+        this.connectionOpenFailure = cluster.getConnOpenFailure();
+        this.connectionAuthFailure = cluster.getConnAuthFailure();
+        this.connectionTlsHandshakeFailure = cluster.getTlsHandshakeFailures();
         this.cpuPercent = Util.getProcessCpuLoad();
         this.memoryBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         this.metricsEnabled = settings.getEnabled();

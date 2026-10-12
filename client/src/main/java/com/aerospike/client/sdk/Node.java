@@ -416,7 +416,7 @@ public class Node implements Closeable {
                     try {
                         // Attempt connection to host.
                         NodeValidator nv = new NodeValidator();
-                        nv.validateNode(cluster.def, host);
+                        nv.validateNode(cluster, host);
 
                         if (! peer.nodeName.equals(nv.name)) {
                             // Must look for new node name in the unlikely event that node names do not agree.

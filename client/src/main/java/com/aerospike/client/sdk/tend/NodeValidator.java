@@ -73,14 +73,12 @@ public final class NodeValidator {
         Throwable exception = null;
 
         for (InetAddress address : addresses) {
-            ClusterDefinition def = cluster.getClusterDefinition();
-
             try {
-                validateAddress(def, address, host.tlsName, host.port, true);
+                validateAddress(cluster, address, host.tlsName, host.port, true);
 
                 Node node = new Node(cluster, this);
 
-                if (validatePeers(def, peers, node)) {
+                if (validatePeers(cluster, peers, node)) {
                     return node;
                 }
             }
@@ -88,7 +86,7 @@ public final class NodeValidator {
                 // Log exception and continue to next alias.
                 if (log.isDebugEnabled()) {
                     log.atDebug()
-                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .addKeyValue(Cluster.CONTEXT, cluster.getClusterDefinition().getClusterName())
                         .log("Address " + address + ' ' + host.port + " failed: " +
                             Util.getErrorMessage(e));
                 }
@@ -110,7 +108,7 @@ public final class NodeValidator {
         throw exception;
     }
 
-    private boolean validatePeers(ClusterDefinition def, Peers peers, Node node) {
+    private boolean validatePeers(Cluster cluster, Peers peers, Node node) {
         if (peers == null) {
             return true;
         }
@@ -139,7 +137,7 @@ public final class NodeValidator {
         if (fallback != null) {
             if (log.isInfoEnabled()) {
                 log.atInfo()
-                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .addKeyValue(Cluster.CONTEXT, cluster.getClusterDefinition().getClusterName())
                     .log("Skip orphan node: " + fallback);
             }
             fallback.close();
@@ -151,20 +149,20 @@ public final class NodeValidator {
     /**
      * Verify that a host alias references a valid node.
      */
-    public void validateNode(ClusterDefinition def, Host host) throws Throwable {
+    public void validateNode(Cluster cluster, Host host) throws Throwable {
         InetAddress[] addresses = getAddresses(host);
         Throwable exception = null;
 
         for (InetAddress address : addresses) {
             try {
-                validateAddress(def, address, host.tlsName, host.port, false);
+                validateAddress(cluster, address, host.tlsName, host.port, false);
                 return;
             }
             catch (Throwable e) {
                 // Log exception and continue to next alias.
                 if (log.isDebugEnabled()) {
                     log.atDebug()
-                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .addKeyValue(Cluster.CONTEXT, cluster.getClusterDefinition().getClusterName())
                         .log("Address " + address + ' ' + host.port + " failed: " +
                             Util.getErrorMessage(e));
                 }
@@ -196,14 +194,15 @@ public final class NodeValidator {
     }
 
     private void validateAddress(
-        ClusterDefinition def, InetAddress address, String tlsName, int port, boolean detectLoadBalancer
+        Cluster cluster, InetAddress address, String tlsName, int port, boolean detectLoadBalancer
     ) throws Exception {
+        ClusterDefinition def = cluster.getClusterDefinition();
         TlsBuilder tls = def.getTlsBuilder();
 
         InetSocketAddress socketAddress = new InetSocketAddress(address, port);
         Connection conn = (tls != null) ?
-            new Connection(tls, tlsName, socketAddress, def.getTendTimeout()) :
-            new Connection(socketAddress, def.getTendTimeout());
+            new Connection(tls, tlsName, socketAddress, def.getTendTimeout(), cluster) :
+            new Connection(socketAddress, def.getTendTimeout(), cluster);
 
         try {
             if (def.isAuthEnabled()) {
@@ -214,7 +213,7 @@ public final class NodeValidator {
 
                 if (def.getTlsBuilder() != null && def.getTlsBuilder().isForLoginOnly()) {
                     // Switch to using non-TLS socket.
-                    SwitchClear sc = new SwitchClear(def, conn, sessionToken);
+                    SwitchClear sc = new SwitchClear(cluster, conn, sessionToken);
                     conn.close();
                     address = sc.clearAddress;
                     socketAddress = sc.clearSocketAddress;
@@ -269,7 +268,7 @@ public final class NodeValidator {
             processClusterName(def, map);
 
             if (addressCommand != null) {
-                setAddress(def, map, addressCommand, tlsName);
+                setAddress(cluster, map, addressCommand, tlsName);
             }
         }
         catch (Throwable e) {
@@ -353,7 +352,7 @@ public final class NodeValidator {
     }
 
     private void setAddress(
-        ClusterDefinition def, HashMap<String,String> map, String addressCommand, String tlsName
+        Cluster cluster, HashMap<String,String> map, String addressCommand, String tlsName
     ) {
         String result = map.get(addressCommand);
 
@@ -363,6 +362,7 @@ public final class NodeValidator {
             return;
         }
 
+        ClusterDefinition def = cluster.getClusterDefinition();
         List<Host> hosts = Host.parseServiceHosts(result);
         Host h;
 
@@ -404,8 +404,8 @@ public final class NodeValidator {
                     try {
                         InetSocketAddress socketAddress = new InetSocketAddress(address, h.port);
                         Connection conn = (def.getTlsBuilder() != null) ?
-                            new Connection(def.getTlsBuilder(), tlsName, socketAddress, def.getTendTimeout()) :
-                            new Connection(socketAddress, def.getTendTimeout());
+                            new Connection(def.getTlsBuilder(), tlsName, socketAddress, def.getTendTimeout(), cluster) :
+                            new Connection(socketAddress, def.getTendTimeout(), cluster);
 
                         try {
                             if (this.sessionToken != null) {
@@ -451,8 +451,9 @@ public final class NodeValidator {
         private Connection clearConn;
 
         // Switch from TLS connection to non-TLS connection.
-        private SwitchClear(ClusterDefinition def, Connection conn, byte[] sessionToken) throws Exception {
+        private SwitchClear(Cluster cluster, Connection conn, byte[] sessionToken) throws Exception {
             // Obtain non-TLS addresses.
+            ClusterDefinition def = cluster.getClusterDefinition();
             String command = def.isUseServicesAlternate() ? "service-clear-alt" : "service-clear-std";
             String result = Info.request(conn, command);
             List<Host> hosts = Host.parseServiceHosts(result);
@@ -477,7 +478,7 @@ public final class NodeValidator {
                         try {
                             clearAddress = ia;
                             clearSocketAddress = new InetSocketAddress(clearAddress, clearHost.port);
-                            clearConn = new Connection(clearSocketAddress, def.getTendTimeout());
+                            clearConn = new Connection(clearSocketAddress, def.getTendTimeout(), cluster);
 
                             try {
                                 if (sessionToken != null) {

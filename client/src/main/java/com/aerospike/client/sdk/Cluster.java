@@ -87,6 +87,9 @@ public class Cluster implements Closeable {
     private final LongAdder backgroundCount; // feature.api.background
     private final LongAdder tranCount;       // feature.api.transaction
     private final LongAdder retryCount;
+    private final LongAdder connOpenFailures;
+    private final LongAdder connAuthFailures;
+    private final LongAdder tlsHandshakeFailures;
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
     private final AtomicBoolean closed;
@@ -118,6 +121,9 @@ public class Cluster implements Closeable {
         backgroundCount = new LongAdder();
         tranCount = new LongAdder();
         retryCount = new LongAdder();
+        connOpenFailures = new LongAdder();
+        connAuthFailures = new LongAdder();
+        tlsHandshakeFailures = new LongAdder();
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
         closed = new AtomicBoolean();
@@ -729,7 +735,7 @@ public class Cluster implements Closeable {
      * Return command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getCommandCount() {
-        return commandCount.longValue();
+        return commandCount.sum();
     }
 
     /**
@@ -746,7 +752,61 @@ public class Cluster implements Closeable {
      * Return command retry count. The value is cumulative and not reset per metrics interval.
      */
     public final long getRetryCount() {
-        return retryCount.longValue();
+        return retryCount.sum();
+    }
+
+    /**
+     * Increment connection open failure count for failed connections without an assigned node.
+     * For internal use only.
+     */
+    public void addConnOpenFailure() {
+        if (metricsOperationalEnabled) {
+            connOpenFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection open failure count for connection validation without an assigned node.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnOpenFailure() {
+        return connOpenFailures.sum();
+    }
+
+    /**
+     * Increment connection authorization failure count for failed connections without an assigned node.
+     * For internal use only.
+     */
+    public void addConnAuthFailure() {
+        if (metricsOperationalEnabled) {
+            connAuthFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection authorization failure count.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnAuthFailure() {
+        return connAuthFailures.sum();
+    }
+
+    /**
+     * Increment TLS handshake failure count for failed connections without an assigned node.
+     * For internal use only.
+     */
+    public void addTlsHandshakeFailures() {
+        if (metricsOperationalEnabled) {
+            tlsHandshakeFailures.increment();
+        }
+    }
+
+    /**
+     * Return TLS handshake failure count.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getTlsHandshakeFailures() {
+        return tlsHandshakeFailures.sum();
     }
 
     /**
@@ -762,7 +822,7 @@ public class Cluster implements Closeable {
      * Return sync command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getBlockingCount() {
-        return blockingCount.longValue();
+        return blockingCount.sum();
     }
 
     /**
@@ -778,7 +838,7 @@ public class Cluster implements Closeable {
      * Return async command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getDeferredCount() {
-        return deferredCount.longValue();
+        return deferredCount.sum();
     }
 
     /**
@@ -794,7 +854,7 @@ public class Cluster implements Closeable {
      * Return background command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getBackgroundCount() {
-        return backgroundCount.longValue();
+        return backgroundCount.sum();
     }
 
     /**
@@ -810,7 +870,7 @@ public class Cluster implements Closeable {
      * Return transaction count. The value is cumulative and not reset per metrics interval.
      */
     public final long getTranCount() {
-        return tranCount.longValue();
+        return tranCount.sum();
     }
 
     /**
