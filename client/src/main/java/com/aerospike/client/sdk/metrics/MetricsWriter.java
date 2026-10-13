@@ -132,7 +132,7 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.append(',');
 		sb.append(latencyShift);
 		sb.append(')');
-		sb.append("[type[l1,l2,l3...]]");
+		sb.append("[type[min,max,sum,count,[l1,l2,l3...]]]");
 		writeLine();
 	}
 
@@ -280,6 +280,15 @@ public final class MetricsWriter implements IMetricsExporter {
 
                 sb.append(ls.type.getLabel());
                 sb.append('[');
+                sb.append(ls.min);
+                sb.append(',');
+                sb.append(ls.max);
+                sb.append(',');
+                sb.append(ls.sum);
+                sb.append(',');
+                sb.append(ls.count);
+                sb.append(',');
+                sb.append('[');
 
                 long[] buckets = ls.bucketCounts;
 
@@ -289,7 +298,7 @@ public final class MetricsWriter implements IMetricsExporter {
                     }
                     sb.append(buckets[k]);
                 }
-                sb.append(']');
+                sb.append("]]");
             }
             sb.append("]]");
         }

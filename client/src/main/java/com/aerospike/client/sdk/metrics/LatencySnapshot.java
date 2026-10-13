@@ -22,26 +22,51 @@ import java.util.Arrays;
  * Latency snapshot.
  */
 public final class LatencySnapshot {
+    /**
+     * Latency command type.
+     */
     public final LatencyType type;
-    // TODO Support these fields.
-    //public final long min; smallest latency value. cumulative
-    //public final long max; largest latency value. cumulative
-    //public final long sum; sum of all latency values. cumulative
-    //public final long count; total number of entries in latency buckets. cumulative
+
+    /**
+     * Smallest latency value. Cumulative.
+     */
+    public final long min;
+
+    /**
+     * Largest latency value. Cumulative.
+     */
+    public final long max;
+
+    /**
+     * Sum of all latency values. Cumulative.
+     */
+    public final long sum;
+
+    /**
+     * Total number of entries in latency buckets. Cumulative.
+     */
+    public final long count;
+
+    /**
+     * Latency bucket count. Cumulative.
+     */
     public final long[] bucketCounts;
 
-	public LatencySnapshot(LatencyType type, LatencyBuckets buckets) {
+	public LatencySnapshot(LatencyType type, Histogram histogram) {
 		this.type = type;
-		//this.min = min;
-		//this.max = max;
-        //this.sum = sum;
-        //this.count = count;
 
-        int bucketMax = buckets.getMax();
+		LatencyBuckets buckets = histogram.getBuckets(type);
 
-        this.bucketCounts = new long[bucketMax];
+		this.min = buckets.getMin();
+		this.max = buckets.getMax();
+        this.sum = buckets.getSum();
+        this.count = buckets.getCount();
 
-        for (int i = 0; i < bucketMax; i++) {
+        int columns = buckets.getColumns();
+
+        this.bucketCounts = new long[columns];
+
+        for (int i = 0; i < columns; i++) {
             this.bucketCounts[i] = buckets.getBucket(i);
         }
 	}
@@ -50,10 +75,10 @@ public final class LatencySnapshot {
     public String toString() {
         return "LatencySnapshot{"
             + "type=" + type
-            //+ ", min=" + min
-            //+ ", max=" + max
-            //+ ", sum=" + sum
-            //+ ", count=" + count
+            + ", min=" + min
+            + ", max=" + max
+            + ", sum=" + sum
+            + ", count=" + count
             + ", bucketCounts=" + Arrays.toString(bucketCounts)
             + '}';
     }

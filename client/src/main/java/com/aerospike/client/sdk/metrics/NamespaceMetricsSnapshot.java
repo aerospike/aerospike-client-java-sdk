@@ -36,7 +36,6 @@ public final class NamespaceMetricsSnapshot {
     public final LatencySnapshot[] latencies;
 
 	public NamespaceMetricsSnapshot(Node node, String namespace) {
-
         this.namespace = namespace;
 		this.errors = node.getErrorCount(namespace);
 		this.clientTimeouts = node.getClientTimeoutCount(namespace);
@@ -48,16 +47,19 @@ public final class NamespaceMetricsSnapshot {
         this.bytesOut = node.getBytesOut(namespace);
 
         NodeMetrics nodeMetrics = node.getMetrics();
+        Histogram histogram = (nodeMetrics != null) ?
+            nodeMetrics.getHistograms().getHistogram(namespace) : null;
 
-        if (nodeMetrics != null) {
-            LatencyBuckets[] latencyBuckets = nodeMetrics.getHistograms().getBuckets(namespace);
+        // Histogram is null when metrics are disabled or no command has completed
+        // on this namespace yet.
+        if (histogram != null) {
             LatencyType[] types = LatencyType.values();
             int max = LatencyType.getMax();
 
             this.latencies = new LatencySnapshot[max];
 
             for (int i = 0; i < max; i++) {
-                this.latencies[i] = new LatencySnapshot(types[i], latencyBuckets[i]);
+                this.latencies[i] = new LatencySnapshot(types[i], histogram);
             }
         }
         else {
