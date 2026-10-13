@@ -1052,20 +1052,36 @@ public class Node implements Closeable {
     }
 
     /**
-     * Increment transaction timeout count. If the timeout is retryable (ie socketTimeout),
+     * Increment client timeout count. If the timeout is retryable (ie socketTimeout),
      * multiple timeouts per transaction may occur. For internal use only.
      */
-    public void addTimeout(String namespace) {
+    public void addClientTimeout(String namespace) {
         if (cluster.isMetricsOperationalEnabled()) {
-            metrics.timeoutCounter.increment(namespace);
+            metrics.clientTimeoutCounter.increment(namespace);
         }
     }
 
     /**
-     * Return timeout count. The value is cumulative and not reset per metrics interval.
+     * Return client timeout count. The value is cumulative and not reset per metrics interval.
      */
-    public long getTimeoutCount(String namespace) {
-        return (metrics != null)? metrics.timeoutCounter.getCountByNS(namespace) : 0;
+    public long getClientTimeoutCount(String namespace) {
+        return (metrics != null)? metrics.clientTimeoutCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Increment server timeout count. For internal use only.
+     */
+    public void addServerTimeout(String namespace) {
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.serverTimeoutCounter.increment(namespace);
+        }
+    }
+
+    /**
+     * Return server timeout count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getServerTimeoutCount(String namespace) {
+        return (metrics != null)? metrics.serverTimeoutCounter.getCountByNS(namespace) : 0;
     }
 
     /**
@@ -1082,6 +1098,40 @@ public class Node implements Closeable {
      */
     public long getKeyBusyCount(String namespace) {
         return (metrics != null)? metrics.keyBusyCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Increment record too big error counter. For internal use only.
+     */
+    public void addRecordTooBig(String namespace) {
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.recordTooBigCounter.increment(namespace);
+        }
+    }
+
+    /**
+     * Return record too big error counter for a given namespace.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getRecordTooBig(String namespace) {
+        return (metrics != null)? metrics.recordTooBigCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Increment device overload error counter. For internal use only.
+     */
+    public void addDeviceOverload(String namespace) {
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.deviceOverloadCounter.increment(namespace);
+        }
+    }
+
+    /**
+     * Return device overload error counter for a given namespace.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getDeviceOverload(String namespace) {
+        return (metrics != null)? metrics.deviceOverloadCounter.getCountByNS(namespace) : 0;
     }
 
     /**

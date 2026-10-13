@@ -27,11 +27,10 @@ public final class NamespaceMetricsSnapshot {
     public final String namespace;
     public final long errors;
     public final long clientTimeouts;
-    // TODO Support new error counters.
-    //public final long serverTimeouts;
+    public final long serverTimeouts;
     public final long keyBusy;
-    //public final long recordTooBig;
-    //public final long deviceOverload;
+    public final long recordTooBig;
+    public final long deviceOverload;
     public final long bytesIn;
     public final long bytesOut;
     public final LatencySnapshot[] latencies;
@@ -40,11 +39,11 @@ public final class NamespaceMetricsSnapshot {
 
         this.namespace = namespace;
 		this.errors = node.getErrorCount(namespace);
-		this.clientTimeouts = node.getTimeoutCount(namespace);
-        //this.serverTimeouts = serverTimeouts;
+		this.clientTimeouts = node.getClientTimeoutCount(namespace);
+        this.serverTimeouts = node.getServerTimeoutCount(namespace);
         this.keyBusy = node.getKeyBusyCount(namespace);
-        //this.recordTooBig = recordTooBig;
-        //this.deviceOverload = deviceOverload;
+        this.recordTooBig = node.getRecordTooBig(namespace);
+        this.deviceOverload = node.getDeviceOverload(namespace);
         this.bytesIn = node.getBytesIn(namespace);
         this.bytesOut = node.getBytesOut(namespace);
 
@@ -72,10 +71,10 @@ public final class NamespaceMetricsSnapshot {
             + "namespace=" + namespace
             + ", errors=" + errors
             + ", clientTimeouts=" + clientTimeouts
-            //+ ", serverTimeouts=" + serverTimeouts
+            + ", serverTimeouts=" + serverTimeouts
             + ", keyBusy=" + keyBusy
-            //+ ", recordTooBig=" + recordTooBig
-            //+ ", deviceOverload=" + deviceOverload
+            + ", recordTooBig=" + recordTooBig
+            + ", deviceOverload=" + deviceOverload
             + ", bytesIn=" + bytesIn
             + ", bytesOut=" + bytesOut
             + ", latencies=" + Arrays.toString(latencies)

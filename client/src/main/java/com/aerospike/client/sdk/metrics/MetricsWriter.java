@@ -120,11 +120,11 @@ public final class MetricsWriter implements IMetricsExporter {
 		// Must use separate StringBuilder instance to avoid conflicting with metrics detail write.
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
-		sb.append(" header(5)");
+		sb.append(" header(6)");
 		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,nodes[]]");
 		sb.append(" labels[name,value]");
 		sb.append(" nodes[name,address,port,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,conns_in_use,conns_in_pool,conns_opened,conns_closed,namespaces[]]");
-		sb.append(" namespaces[name,errors,timeouts,key_busy,bytes_in,bytes_out,latency[]]");
+		sb.append(" namespaces[name,errors,client_timeouts,server_timeouts,key_busy,record_too_big,device_overload,bytes_in,bytes_out,latency[]]");
 		sb.append(" latency(");
         sb.append(latencyUnit);
         sb.append(',');
@@ -256,7 +256,13 @@ public final class MetricsWriter implements IMetricsExporter {
             sb.append(',');
             sb.append(ns.clientTimeouts);
             sb.append(',');
+            sb.append(ns.serverTimeouts);
+            sb.append(',');
             sb.append(ns.keyBusy);
+            sb.append(',');
+            sb.append(ns.recordTooBig);
+            sb.append(',');
+            sb.append(ns.deviceOverload);
             sb.append(',');
             sb.append(ns.bytesIn);
             sb.append(',');

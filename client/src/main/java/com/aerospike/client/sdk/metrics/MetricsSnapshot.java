@@ -137,6 +137,9 @@ public final class MetricsSnapshot {
             + ", invalidNodeCount=" + invalidNodeCount
             + ", commandCount=" + commandCount
             + ", commandRetries=" + commandRetries
+            + ", connectionOpenFailure=" + connectionOpenFailure
+            + ", connectionTlsHandshakeFailure=" + connectionTlsHandshakeFailure
+            + ", connectionAuthFailure=" + connectionAuthFailure
             + ", cpuPercent=" + cpuPercent
             + ", memoryBytes=" + memoryBytes
             + ", metricsEnabled=" + metricsEnabled

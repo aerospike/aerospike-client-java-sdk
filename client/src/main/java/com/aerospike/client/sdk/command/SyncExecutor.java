@@ -118,28 +118,34 @@ public abstract class SyncExecutor {
                         node.closeConnection(conn);
                     }
 
-                    if (ae.getResultCode() == ResultCode.TIMEOUT) {
-                        // Retry on server timeout.
-                        // Log.info("Server timeout: " + tranId + ',' + node + ',' + sequence + ',' + iteration);
+                    switch(ae.getResultCode()) {
+                    case ResultCode.TIMEOUT: // Server timeout. Retry.
                         exception = new AerospikeException.Timeout(cmd, false);
                         isClientTimeout = false;
                         node.incrErrorRate();
-                        node.addTimeout(cmd.namespace);
-                    }
-                    else if (ae.getResultCode() == ResultCode.DEVICE_OVERLOAD) {
-                        // Add to circuit breaker error count and retry.
-                        exception = ae;
-                        isClientTimeout = false;
-                        node.incrErrorRate();
-                        node.addError(cmd.namespace);
-                    }
-                    else if (ae.getResultCode() == ResultCode.KEY_BUSY) {
+                        node.addServerTimeout(cmd.namespace);
+                        break;
+
+                    case ResultCode.KEY_BUSY: // Retry
                         exception = ae;
                         isClientTimeout = false;
                         node.incrErrorRate();
                         node.addKeyBusy(cmd.namespace);
-                    }
-                    else {
+                        break;
+
+                    case ResultCode.DEVICE_OVERLOAD: // Retry
+                        exception = ae;
+                        isClientTimeout = false;
+                        node.incrErrorRate();
+                        node.addDeviceOverload(cmd.namespace);
+                        break;
+
+                    case ResultCode.RECORD_TOO_BIG: // Fatal
+                        node.addRecordTooBig(cmd.namespace);
+                        prepareException(node, ae, subExceptions);
+                        throw ae;
+
+                    default: // Fatal
                         node.addError(cmd.namespace);
                         prepareException(node, ae, subExceptions);
                         throw ae;
@@ -154,7 +160,7 @@ public abstract class SyncExecutor {
                     }
                     exception = new AerospikeException.Timeout(cmd, true);
                     isClientTimeout = true;
-                    node.addTimeout(cmd.namespace);
+                    node.addClientTimeout(cmd.namespace);
                 }
                 catch (SocketTimeoutException ste) {
                     // Full timeout has been reached.
@@ -162,7 +168,7 @@ public abstract class SyncExecutor {
                     node.closeConnection(conn);
                     exception = new AerospikeException.Timeout(cmd, true);
                     isClientTimeout = true;
-                    node.addTimeout(cmd.namespace);
+                    node.addClientTimeout(cmd.namespace);
                 }
                 catch (IOException ioe) {
                     // IO errors are considered temporary anomalies.  Retry.
@@ -187,7 +193,7 @@ public abstract class SyncExecutor {
                 // Connection already handled.
                 exception = new AerospikeException.Timeout(cmd, true);
                 isClientTimeout = true;
-                node.addTimeout(cmd.namespace);
+                node.addClientTimeout(cmd.namespace);
             }
             catch (AerospikeException.Connection ce) {
                 // Socket connection error has occurred. Retry.

@@ -26,8 +26,11 @@ public final class NodeMetrics {
 	public final Counter bytesInCounter;
 	public final Counter bytesOutCounter;
 	public final Counter errorCounter;
-	public final Counter timeoutCounter;
+    public final Counter clientTimeoutCounter;
+    public final Counter serverTimeoutCounter;
     public final Counter keyBusyCounter;
+    public final Counter recordTooBigCounter;
+    public final Counter deviceOverloadCounter;
 
 	/**
 	 * Initialize extended node metrics.
@@ -36,8 +39,11 @@ public final class NodeMetrics {
 		this.bytesInCounter = new Counter();
 		this.bytesOutCounter = new Counter();
         this.errorCounter = new Counter();
-        this.timeoutCounter = new Counter();
+        this.clientTimeoutCounter = new Counter();
+        this.serverTimeoutCounter = new Counter();
         this.keyBusyCounter = new Counter();
+        this.recordTooBigCounter = new Counter();
+        this.deviceOverloadCounter = new Counter();
 		histograms = new Histograms(settings.getExtended().getOperational());
 	}
 
