@@ -40,7 +40,7 @@ public final class LatencySnapshot {
     /**
      * Sum of all latency values. Cumulative.
      */
-    public final long sum;
+    public final double sum;
 
     /**
      * Total number of entries in latency buckets. Cumulative.

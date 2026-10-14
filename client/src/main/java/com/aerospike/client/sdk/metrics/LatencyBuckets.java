@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.metrics;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
@@ -28,8 +29,10 @@ import java.util.concurrent.atomic.LongAdder;
  * <p>{@link #add} is on the command hot path and is called concurrently by every command
  * thread, so each statistic is updated lock-free and independently:</p>
  * <ul>
- *   <li>Bucket counts, {@code sum} and {@code count} use {@link LongAdder}, which stripes
- *       updates across cells and avoids CAS contention on a single shared counter.</li>
+ *   <li>Bucket counts and {@code count} use {@link LongAdder}, and {@code sum} uses
+ *       {@link DoubleAdder}. Both stripe updates across cells and avoid CAS contention on a
+ *       single shared counter. {@code sum} is a double so cumulative nanoseconds cannot
+ *       overflow; precision loss is negligible relative to the total.</li>
  *   <li>{@code min} and {@code max} use {@link AtomicLong} with a CAS loop that exits
  *       without writing when the new value does not improve the current extreme. Once
  *       latencies settle, nearly every call is a single volatile read.</li>
@@ -44,7 +47,7 @@ public final class LatencyBuckets {
 	private final LongAdder[] buckets;
 	private final AtomicLong min = new AtomicLong(Long.MAX_VALUE);
 	private final AtomicLong max = new AtomicLong(Long.MIN_VALUE);
-	private final LongAdder sum = new LongAdder();
+	private final DoubleAdder sum = new DoubleAdder();
 	private final LongAdder count = new LongAdder();
 	private final int latencyShift;
     private final TimeUnit latencyUnit;
@@ -132,7 +135,7 @@ public final class LatencyBuckets {
 	/**
 	 * Return sum of all latencies in nanoseconds.
 	 */
-	public long getSum() {
+	public double getSum() {
 		return sum.sum();
 	}
 

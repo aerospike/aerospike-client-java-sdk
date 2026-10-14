@@ -19,6 +19,7 @@ package com.aerospike.client.sdk.metrics;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
@@ -284,7 +285,8 @@ public final class MetricsWriter implements IMetricsExporter {
                 sb.append(',');
                 sb.append(ls.max);
                 sb.append(',');
-                sb.append(ls.sum);
+                // Plain integer form; StringBuilder.append(double) would use exponent notation.
+                sb.append(new BigDecimal(ls.sum).toPlainString());
                 sb.append(',');
                 sb.append(ls.count);
                 sb.append(',');
