@@ -37,7 +37,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aerospike.client.sdk.metrics.Histogram;
 import com.aerospike.client.sdk.metrics.IMetricsExporter;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.metrics.MetricsExporterType;
 import com.aerospike.client.sdk.metrics.MetricsExtended;
 import com.aerospike.client.sdk.metrics.MetricsSettings;
@@ -101,6 +103,7 @@ public class Cluster implements Closeable {
     private final Condition metricsSleepCondition = metricsSleepLock.newCondition();
     private volatile Thread metricsThread;
     private List<IMetricsExporter> metricsExporters;
+    private Histogram histogram;
     private Version serverVersion;
     private boolean serverVersionGE8;
     private boolean serverVersionGE812;
@@ -479,6 +482,8 @@ public class Cluster implements Closeable {
             for (Node node : nodeArray) {
                 node.enableMetrics(settings);
             }
+
+            histogram = new Histogram(me.getOperational());
         }
 
         this.metricsEnabled = true;
@@ -547,6 +552,20 @@ public class Cluster implements Closeable {
      */
     public boolean isMetricsOperationalEnabled() {
         return metricsOperationalEnabled;
+    }
+
+    /**
+     * Add command latency. For internal use only.
+     */
+    public void addLatency(LatencyType type, long elapsedNanos) {
+        histogram.addLatency(type, elapsedNanos);
+    }
+
+    /**
+     * Return latency histogram for all latency types.
+     */
+    public Histogram getHistogram() {
+        return histogram;
     }
 
     /**

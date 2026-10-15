@@ -47,7 +47,7 @@ public abstract class SyncExecutor {
         this.totalTimeout = cmd.totalTimeout;
     }
 
-    public final void execute() {
+    public void execute() {
         if (totalTimeout > 0) {
             deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(totalTimeout);
         }

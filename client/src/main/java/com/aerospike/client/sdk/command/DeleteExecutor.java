@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
-public class DeleteExecutor extends SyncExecutor {
+public final class DeleteExecutor extends SingleExecutor {
     private final WriteCommand delete;
     private boolean existed;
 

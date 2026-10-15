@@ -25,7 +25,7 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
-public class UdfExecutor extends SyncExecutor {
+public final class UdfExecutor extends SingleExecutor {
     private final UdfCommand udf;
     private Record rec;
 

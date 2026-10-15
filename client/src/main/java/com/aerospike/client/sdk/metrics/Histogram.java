@@ -24,6 +24,10 @@ import java.util.concurrent.TimeUnit;
 public class Histogram {
     private final LatencyBuckets[] buckets;
 
+    public Histogram(MetricsOperational settings) {
+        this(settings.getLatencyUnit(), settings.getLatencyColumns(), settings.getLatencyShift());
+    }
+
     public Histogram(TimeUnit latencyUnit, int latencyColumns, int latencyShift) {
         int maxType = LatencyType.getMax();
 

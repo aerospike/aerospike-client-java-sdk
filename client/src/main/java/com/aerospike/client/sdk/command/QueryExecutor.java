@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.AsyncRecordStream;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.util.RandomShift;
 import com.aerospike.client.sdk.util.Util;
 
@@ -60,6 +61,8 @@ public final class QueryExecutor implements IQueryExecutor {
     }
 
     public void execute() {
+        boolean latencyEnabled = cluster.isMetricsOperationalEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
         long taskId = random.nextLong();
 
         while (true) {
@@ -128,6 +131,11 @@ public final class QueryExecutor implements IQueryExecutor {
 
             // taskId must be reset on next pass to avoid server duplicate query detection.
             taskId = random.nextLong();
+        }
+
+        if (latencyEnabled) {
+            long elapsed = System.nanoTime() - begin;
+            cluster.addLatency(LatencyType.QUERY, elapsed);
         }
     }
 

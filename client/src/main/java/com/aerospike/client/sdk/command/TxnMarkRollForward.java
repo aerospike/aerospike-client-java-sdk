@@ -43,7 +43,7 @@ public final class TxnMarkRollForward extends SyncExecutor {
 
     @Override
     protected final LatencyType getLatencyType() {
-        return LatencyType.WRITE;
+        return LatencyType.NONE;
     }
 
     @Override

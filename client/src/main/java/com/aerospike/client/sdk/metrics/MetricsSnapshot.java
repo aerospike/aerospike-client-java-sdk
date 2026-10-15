@@ -52,6 +52,7 @@ public final class MetricsSnapshot {
     public final boolean metricsEnabled;
     public final boolean operationalMetricsEnabled;
     public final boolean usageMetricsEnabled;
+    public final LatencySnapshot[] latencies; // per command (including retries)
     public final NodeMetricsSnapshot[] nodes;
     public final NodeMetricsSnapshot[] nodesDeparted;
     public final UsageMetricsSnapshot usage;
@@ -121,6 +122,23 @@ public final class MetricsSnapshot {
 
         this.usageMetricsEnabled = mu.getEnabled();
         this.usage = new UsageMetricsSnapshot(cluster);
+
+        Histogram histogram = cluster.getHistogram();
+
+        if (histogram != null) {
+            LatencyType[] types = LatencyType.values();
+            int max = LatencyType.getMax();
+
+            this.latencies = new LatencySnapshot[max - 1];
+
+            // Skip LatencyType.CONN because connections are per attempt only.
+            for (int i = 1; i < max; i++) {
+                this.latencies[i - 1] = new LatencySnapshot(types[i], histogram);
+            }
+        }
+        else {
+            this.latencies = new LatencySnapshot[0];
+        }
     }
 
     @Override
@@ -145,6 +163,7 @@ public final class MetricsSnapshot {
             + ", metricsEnabled=" + metricsEnabled
             + ", operationalMetricsEnabled=" + operationalMetricsEnabled
             + ", usageMetricsEnabled=" + usageMetricsEnabled
+            + ", latencies=" + Arrays.toString(latencies)
             + ", nodes=" + Arrays.toString(nodes)
             + ", nodesDeparted=" + Arrays.toString(nodesDeparted)
             + ", usage=" + usage

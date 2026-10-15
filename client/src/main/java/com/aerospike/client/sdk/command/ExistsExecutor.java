@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
-public final class ExistsExecutor extends SyncExecutor {
+public final class ExistsExecutor extends SingleExecutor {
     private final ReadCommand read;
     private boolean exists;
 

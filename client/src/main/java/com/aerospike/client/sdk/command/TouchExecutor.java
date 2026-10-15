@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
-public class TouchExecutor extends SyncExecutor {
+public final class TouchExecutor extends SingleExecutor {
     private final WriteCommand touch;
     private boolean touched;
 

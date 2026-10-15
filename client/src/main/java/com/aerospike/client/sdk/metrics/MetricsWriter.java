@@ -122,7 +122,7 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
 		sb.append(" header(6)");
-		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,nodes[]]");
+		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,latency[],nodes[]]");
 		sb.append(" labels[name,value]");
 		sb.append(" nodes[name,address,port,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,conns_in_use,conns_in_pool,conns_opened,conns_closed,namespaces[]]");
 		sb.append(" namespaces[name,errors,client_timeouts,server_timeouts,key_busy,record_too_big,device_overload,bytes_in,bytes_out,latency[]]");
@@ -192,7 +192,9 @@ public final class MetricsWriter implements IMetricsExporter {
         sb.append(ms.connectionTlsHandshakeFailure);
         sb.append(',');
         sb.append(ms.connectionAuthFailure);
-		sb.append(",[");
+        sb.append(',');
+        writeLatencies(ms.latencies);
+        sb.append(",[");
 
 		int count = 0;
 
@@ -268,43 +270,47 @@ public final class MetricsWriter implements IMetricsExporter {
             sb.append(ns.bytesIn);
             sb.append(',');
             sb.append(ns.bytesOut);
-            sb.append(",[");
+            sb.append(',');
+            writeLatencies(ns.latencies);
+            sb.append(']');
+        }
+        sb.append("]]");
+	}
 
-            LatencySnapshot[] latencies = ns.latencies;
+	private void writeLatencies(LatencySnapshot[] latencies) {
+        sb.append('[');
 
-            for (int j = 0; j < latencies.length; j++) {
-                if (j > 0) {
+        for (int j = 0; j < latencies.length; j++) {
+            if (j > 0) {
+                sb.append(',');
+            }
+
+            LatencySnapshot ls = latencies[j];
+
+            sb.append(ls.type.getLabel());
+            sb.append('[');
+            sb.append(ls.min);
+            sb.append(',');
+            sb.append(ls.max);
+            sb.append(',');
+            // Plain integer form; StringBuilder.append(double) would use exponent notation.
+            sb.append(new BigDecimal(ls.sum).toPlainString());
+            sb.append(',');
+            sb.append(ls.count);
+            sb.append(',');
+            sb.append('[');
+
+            long[] buckets = ls.bucketCounts;
+
+            for (int k = 0; k < buckets.length; k++) {
+                if (k > 0) {
                     sb.append(',');
                 }
-
-                LatencySnapshot ls = latencies[j];
-
-                sb.append(ls.type.getLabel());
-                sb.append('[');
-                sb.append(ls.min);
-                sb.append(',');
-                sb.append(ls.max);
-                sb.append(',');
-                // Plain integer form; StringBuilder.append(double) would use exponent notation.
-                sb.append(new BigDecimal(ls.sum).toPlainString());
-                sb.append(',');
-                sb.append(ls.count);
-                sb.append(',');
-                sb.append('[');
-
-                long[] buckets = ls.bucketCounts;
-
-                for (int k = 0; k < buckets.length; k++) {
-                    if (k > 0) {
-                        sb.append(',');
-                    }
-                    sb.append(buckets[k]);
-                }
-                sb.append("]]");
+                sb.append(buckets[k]);
             }
             sb.append("]]");
         }
-        sb.append("]]");
+        sb.append(']');
 	}
 
 	private void writeLine() {
