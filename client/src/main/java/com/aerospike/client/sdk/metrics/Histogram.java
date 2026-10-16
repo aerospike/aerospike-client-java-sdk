@@ -29,23 +29,23 @@ public class Histogram {
     }
 
     public Histogram(TimeUnit latencyUnit, int latencyColumns, int latencyShift) {
-        int maxType = LatencyType.getMax();
+        int max = LatencyType.commandTypes.length;
 
-        buckets = new LatencyBuckets[maxType];
+        buckets = new LatencyBuckets[max];
 
-        for (int i = 0; i < maxType; i++) {
+        for (int i = 0; i < max; i++) {
             buckets[i] = new LatencyBuckets(latencyUnit, latencyColumns, latencyShift);
         }
     }
 
     public void addLatency(LatencyType type, long elapsed) {
-        buckets[type.ordinal()].add(elapsed);
+        buckets[type.getCommandOrdinal()].add(elapsed);
     }
 
     /**
      * Return latency buckets for the given command type.
      */
     public LatencyBuckets getBuckets(LatencyType type) {
-        return buckets[type.ordinal()];
+        return buckets[type.getCommandOrdinal()];
     }
 }

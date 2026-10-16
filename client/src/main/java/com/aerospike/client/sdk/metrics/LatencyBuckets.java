@@ -52,7 +52,14 @@ public final class LatencyBuckets {
 	private final int latencyShift;
     private final TimeUnit latencyUnit;
 
-	/**
+    /**
+     * Initialize latency buckets.
+     */
+    public LatencyBuckets(MetricsOperational settings) {
+        this(settings.getLatencyUnit(), settings.getLatencyColumns(), settings.getLatencyShift());
+    }
+
+    /**
 	 * Initialize latency buckets.
 	 *
 	 * @param latencyColumns	number of latency buckets

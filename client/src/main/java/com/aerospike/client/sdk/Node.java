@@ -666,7 +666,7 @@ public class Node implements Closeable {
                 new Connection(address, timeout, this, pool);
 
             long elapsed = System.nanoTime() - begin;
-            metrics.addLatency(null, LatencyType.CONN, elapsed);
+            metrics.addConnLatency(elapsed);
         }
         else {
             conn = (tls != null && !tls.isForLoginOnly()) ?

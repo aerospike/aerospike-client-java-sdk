@@ -25,7 +25,16 @@ public final class UsageMetricsSnapshot {
     public final long blocking;
     public final long deferred;
     public final long background;
-    public final long transactions;
+    public final long transactions;  // Why is this not in the metrics exporter spec?
+    /* TODO Add these fields
+    public final long shapePoint;
+    public final long shapeBatch;
+    public final long shapeQuery;
+    public final long objectMappingRead;
+    public final long objectMappingWrite;
+    public final long filterAel;
+    public final long filterExp;
+    */
 
 	public UsageMetricsSnapshot(Cluster cluster) {
 		this.blocking = cluster.getBlockingCount();
@@ -40,6 +49,7 @@ public final class UsageMetricsSnapshot {
             + "blocking=" + blocking
             + ", deferred=" + deferred
             + ", background=" + background
+            + ", transactions=" + transactions
             + '}';
     }
 }

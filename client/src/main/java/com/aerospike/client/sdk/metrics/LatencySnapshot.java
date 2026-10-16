@@ -71,6 +71,26 @@ public final class LatencySnapshot {
         }
 	}
 
+	public static LatencySnapshot connLatencySnapshot(LatencyBuckets buckets) {
+	    return new LatencySnapshot(buckets);
+	}
+
+    private LatencySnapshot(LatencyBuckets buckets) {
+        this.type = LatencyType.CONN;
+        this.min = buckets.getMin();
+        this.max = buckets.getMax();
+        this.sum = buckets.getSum();
+        this.count = buckets.getCount();
+
+        int columns = buckets.getColumns();
+
+        this.bucketCounts = new long[columns];
+
+        for (int i = 0; i < columns; i++) {
+            this.bucketCounts[i] = buckets.getBucket(i);
+        }
+    }
+
     @Override
     public String toString() {
         return "LatencySnapshot{"

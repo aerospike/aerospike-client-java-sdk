@@ -44,21 +44,23 @@ public final class MetricsSnapshot {
     public final int invalidNodeCount;
     public final long commandCount;
     public final long commandRetries;
-    public final long connectionOpenFailure;
-    public final long connectionTlsHandshakeFailure;
-    public final long connectionAuthFailure;
+    public final long validationOpenFailure;
+    public final long validationTlsHandshakeFailure;
+    public final long validationAuthFailure;
     public final double cpuPercent;
     public final long memoryBytes;
     public final boolean metricsEnabled;
     public final boolean operationalMetricsEnabled;
     public final boolean usageMetricsEnabled;
-    public final LatencySnapshot[] latencies; // per command (including retries)
+    public final LatencySnapshot[] clusterLatencies; // per command (including retries)
     public final NodeMetricsSnapshot[] nodes;
     public final NodeMetricsSnapshot[] nodesDeparted;
     public final UsageMetricsSnapshot usage;
     public final TimeUnit latencyUnit;
     public final int latencyColumns;
     public final int latencyShift;
+    // public final long openConnections; This is a rollup. Why is it in the spec?
+    // public final long batchPartialFailure;
 
     /**
      * Metrics snapshot constructor.
@@ -90,9 +92,9 @@ public final class MetricsSnapshot {
         this.invalidNodeCount = cluster.getInvalidNodeCount();
         this.commandCount = cluster.getCommandCount();
         this.commandRetries = cluster.getRetryCount();
-        this.connectionOpenFailure = cluster.getConnOpenFailure();
-        this.connectionAuthFailure = cluster.getConnAuthFailure();
-        this.connectionTlsHandshakeFailure = cluster.getTlsHandshakeFailures();
+        this.validationOpenFailure = cluster.getConnOpenFailure();
+        this.validationAuthFailure = cluster.getConnAuthFailure();
+        this.validationTlsHandshakeFailure = cluster.getTlsHandshakeFailures();
         this.cpuPercent = Util.getProcessCpuLoad();
         this.memoryBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         this.metricsEnabled = settings.getEnabled();
@@ -126,18 +128,16 @@ public final class MetricsSnapshot {
         Histogram histogram = cluster.getHistogram();
 
         if (histogram != null) {
-            LatencyType[] types = LatencyType.values();
-            int max = LatencyType.getMax();
+            int max = LatencyType.commandTypes.length;
 
-            this.latencies = new LatencySnapshot[max - 1];
+            this.clusterLatencies = new LatencySnapshot[max];
 
-            // Skip LatencyType.CONN because connections are per attempt only.
-            for (int i = 1; i < max; i++) {
-                this.latencies[i - 1] = new LatencySnapshot(types[i], histogram);
+            for (int i = 0; i < max; i++) {
+                this.clusterLatencies[i] = new LatencySnapshot(LatencyType.commandTypes[i], histogram);
             }
         }
         else {
-            this.latencies = new LatencySnapshot[0];
+            this.clusterLatencies = new LatencySnapshot[0];
         }
     }
 
@@ -155,15 +155,15 @@ public final class MetricsSnapshot {
             + ", invalidNodeCount=" + invalidNodeCount
             + ", commandCount=" + commandCount
             + ", commandRetries=" + commandRetries
-            + ", connectionOpenFailure=" + connectionOpenFailure
-            + ", connectionTlsHandshakeFailure=" + connectionTlsHandshakeFailure
-            + ", connectionAuthFailure=" + connectionAuthFailure
+            + ", connectionOpenFailure=" + validationOpenFailure
+            + ", connectionTlsHandshakeFailure=" + validationTlsHandshakeFailure
+            + ", connectionAuthFailure=" + validationAuthFailure
             + ", cpuPercent=" + cpuPercent
             + ", memoryBytes=" + memoryBytes
             + ", metricsEnabled=" + metricsEnabled
             + ", operationalMetricsEnabled=" + operationalMetricsEnabled
             + ", usageMetricsEnabled=" + usageMetricsEnabled
-            + ", latencies=" + Arrays.toString(latencies)
+            + ", latencies=" + Arrays.toString(clusterLatencies)
             + ", nodes=" + Arrays.toString(nodes)
             + ", nodesDeparted=" + Arrays.toString(nodesDeparted)
             + ", usage=" + usage

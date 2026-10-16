@@ -53,13 +53,12 @@ public final class NamespaceMetricsSnapshot {
         // Histogram is null when metrics are disabled or no command has completed
         // on this namespace yet.
         if (histogram != null) {
-            LatencyType[] types = LatencyType.values();
-            int max = LatencyType.getMax();
+            int max = LatencyType.commandTypes.length;
 
             this.latencies = new LatencySnapshot[max];
 
             for (int i = 0; i < max; i++) {
-                this.latencies[i] = new LatencySnapshot(types[i], histogram);
+                this.latencies[i] = new LatencySnapshot(LatencyType.commandTypes[i], histogram);
             }
         }
         else {

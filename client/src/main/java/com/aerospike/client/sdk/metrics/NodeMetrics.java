@@ -22,7 +22,8 @@ import com.aerospike.client.sdk.util.Counter;
  * Optional extended node metrics. Used when extended metrics is enabled.
  */
 public final class NodeMetrics {
-	private final Histograms histograms;
+    private final Histograms histograms;
+    private final LatencyBuckets connLatency;
 	public final Counter bytesInCounter;
 	public final Counter bytesOutCounter;
 	public final Counter errorCounter;
@@ -44,7 +45,10 @@ public final class NodeMetrics {
         this.keyBusyCounter = new Counter();
         this.recordTooBigCounter = new Counter();
         this.deviceOverloadCounter = new Counter();
-		histograms = new Histograms(settings.getExtended().getOperational());
+
+        MetricsOperational mo = settings.getExtended().getOperational();
+		histograms = new Histograms(mo);
+		connLatency = new LatencyBuckets(mo);
 	}
 
 	/**
@@ -54,7 +58,21 @@ public final class NodeMetrics {
 		histograms.addLatency(namespace, type, elapsed);
 	}
 
-	/**
+    /**
+     * Add connection elapsed time in nanoseconds.
+     */
+    public void addConnLatency(long elapsed) {
+        connLatency.add(elapsed);
+    }
+
+    /**
+     * Return connection latency buckets.
+     */
+    public LatencyBuckets getConnLatency() {
+        return connLatency;
+    }
+
+    /**
 	 * Returns the available Histograms (Containers for namespace-aggregated latency buckets)
 	 * @return the Histograms object
 	 */
