@@ -260,7 +260,7 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         Cluster cluster = session.getCluster();
         Node[] nodes = cluster.validateNodes();
 
-        cluster.addCommandCount();
+        cluster.addQueryCount();
         cluster.addBackgroundCount();
 
         ResolvedSettings settings = session.getBehavior().getSettings(

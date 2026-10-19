@@ -25,8 +25,6 @@ public final class UsageMetricsSnapshot {
     public final long blocking;
     public final long deferred;
     public final long background;
-    public final long transaction;
-    /* TODO Add these fields
     public final long shapePoint;
     public final long shapeBatch;
     public final long shapeQuery;
@@ -34,13 +32,20 @@ public final class UsageMetricsSnapshot {
     public final long objectMappingWrite;
     public final long filterAel;
     public final long filterExp;
-    */
+    public final long transaction;
 
 	public UsageMetricsSnapshot(Cluster cluster) {
 		this.blocking = cluster.getBlockingCount();
 		this.deferred = cluster.getDeferredCount();
 		this.background = cluster.getBackgroundCount();
-		this.transaction = cluster.getTransactionCount();
+        this.shapePoint = cluster.getPointCount();
+        this.shapeBatch = cluster.getBatchCount();
+        this.shapeQuery = cluster.getQueryCount();
+        this.objectMappingRead = cluster.getObjectMapperReadCount();
+        this.objectMappingWrite = cluster.getObjectMapperWriteCount();
+        this.filterAel = cluster.getAelFilterCount();
+        this.filterExp = cluster.getExpFilterCount();
+        this.transaction = cluster.getTransactionCount();
 	}
 
     @Override
@@ -49,6 +54,13 @@ public final class UsageMetricsSnapshot {
             + "blocking=" + blocking
             + ", deferred=" + deferred
             + ", background=" + background
+            + ", shapePoint=" + shapePoint
+            + ", shapeBatch=" + shapeBatch
+            + ", shapeQuery=" + shapeQuery
+            + ", objectMappingRead=" + objectMappingRead
+            + ", objectMappingWrite=" + objectMappingWrite
+            + ", filterAel=" + filterAel
+            + ", filterExp=" + filterExp
             + ", transaction=" + transaction
             + '}';
     }

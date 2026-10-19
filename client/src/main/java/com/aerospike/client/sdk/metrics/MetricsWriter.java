@@ -122,7 +122,7 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
 		sb.append(" header(6)");
-		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,transaction,command_retries,validation_open_failure,validation_tls_handshake_failure,validation_auth_failure,cluster_latencies[],nodes[]]");
+		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,shape_point,shape_batch,shape_query,object_mapping_read,object_mapping_write,filter_ael,filter_exp,transaction,command_retries,validation_open_failure,validation_tls_handshake_failure,validation_auth_failure,cluster_latencies[],nodes[]]");
 		sb.append(" labels[name,value]");
 		sb.append(" nodes[name,address,port,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,conns_in_use,conns_in_pool,conns_opened,conns_closed,conn_latency[],namespaces[]]");
 		sb.append(" namespaces[name,errors,client_timeouts,server_timeouts,key_busy,record_too_big,device_overload,bytes_in,bytes_out,latency[]]");
@@ -181,6 +181,20 @@ public final class MetricsWriter implements IMetricsExporter {
         sb.append(usage.deferred);
         sb.append(',');
         sb.append(usage.background);
+        sb.append(',');
+        sb.append(usage.shapePoint);
+        sb.append(',');
+        sb.append(usage.shapeBatch);
+        sb.append(',');
+        sb.append(usage.shapeQuery);
+        sb.append(',');
+        sb.append(usage.objectMappingRead);
+        sb.append(',');
+        sb.append(usage.objectMappingWrite);
+        sb.append(',');
+        sb.append(usage.filterAel);
+        sb.append(',');
+        sb.append(usage.filterExp);
         sb.append(',');
         sb.append(usage.transaction);
 

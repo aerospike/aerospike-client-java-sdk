@@ -774,6 +774,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
             currentSpec.setWhereClause(processor.toFilterExpression(session));
+            session.getCluster().addAelFilterCount();
         }
         return this;
     }
@@ -784,6 +785,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        session.getCluster().addAelFilterCount();
         return this;
     }
 
@@ -793,6 +795,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        session.getCluster().addAelFilterCount();
         return this;
     }
 
@@ -802,6 +805,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        session.getCluster().addExpFilterCount();
         return this;
     }
 
@@ -811,6 +815,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(e);
         currentSpec.setWhereClause(processor.toFilterExpression(session));
+        session.getCluster().addExpFilterCount();
         return this;
     }
 
@@ -834,6 +839,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         WhereClauseProcessor processor = createWhereClauseProcessor(ael, params);
         if (processor != null) {
             this.defaultWhereClause = processor.toFilterExpression(session);
+            session.getCluster().addAelFilterCount();
         }
         return this;
     }
@@ -855,6 +861,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
         this.defaultWhereClause = processor.toFilterExpression(session);
+        session.getCluster().addAelFilterCount();
         return this;
     }
 
@@ -876,6 +883,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael, params);
         this.defaultWhereClause = processor.toFilterExpression(session);
+        session.getCluster().addAelFilterCount();
         return this;
     }
 
@@ -896,6 +904,7 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
 
         WhereClauseProcessor processor = WhereClauseProcessor.from(exp);
         this.defaultWhereClause = processor.toFilterExpression(session);
+        session.getCluster().addExpFilterCount();
         return this;
     }
 
