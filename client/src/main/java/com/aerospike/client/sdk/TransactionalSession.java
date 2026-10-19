@@ -144,7 +144,7 @@ public class TransactionalSession extends Session{
             else {
                 // Outermost transaction, commit when complete.
                 Cluster cluster = getCluster();
-                cluster.addTranCount();
+                cluster.addTransactionCount();
 
                 SystemSettings settings = cluster.getSystemSettings();
                 int maxAttempts = settings.getNumberOfAttempts();
@@ -236,7 +236,7 @@ public class TransactionalSession extends Session{
             else {
                 // Outermost transaction, commit when complete.
                 Cluster cluster = getCluster();
-                cluster.addTranCount();
+                cluster.addTransactionCount();
 
                 SystemSettings settings = cluster.getSystemSettings();
                 int maxAttempts = settings.getNumberOfAttempts();

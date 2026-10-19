@@ -84,10 +84,10 @@ public class Cluster implements Closeable {
     private final CopyOnWriteArrayList<NodeMetricsSnapshot> nodesDeparted;
     private final ThreadFactory threadFactory;
     private final LongAdder commandCount;
-    private final LongAdder blockingCount;   // feature.api.blocking
-    private final LongAdder deferredCount;   // feature.api.deferred
-    private final LongAdder backgroundCount; // feature.api.background
-    private final LongAdder tranCount;       // feature.api.transaction
+    private final LongAdder blockingCount;    // feature.api.blocking
+    private final LongAdder deferredCount;    // feature.api.deferred
+    private final LongAdder backgroundCount;  // feature.api.background
+    private final LongAdder transactionCount; // feature.transaction
     private final LongAdder retryCount;
     private final LongAdder connOpenFailures;
     private final LongAdder connAuthFailures;
@@ -122,7 +122,7 @@ public class Cluster implements Closeable {
         blockingCount = new LongAdder();
         deferredCount = new LongAdder();
         backgroundCount = new LongAdder();
-        tranCount = new LongAdder();
+        transactionCount = new LongAdder();
         retryCount = new LongAdder();
         connOpenFailures = new LongAdder();
         connAuthFailures = new LongAdder();
@@ -879,17 +879,17 @@ public class Cluster implements Closeable {
     /**
      * Increment transaction count when usage metrics are enabled. For internal use only.
      */
-    public final void addTranCount() {
+    public final void addTransactionCount() {
         if (metricsUsageEnabled) {
-            tranCount.increment();
+            transactionCount.increment();
         }
     }
 
     /**
      * Return transaction count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getTranCount() {
-        return tranCount.sum();
+    public final long getTransactionCount() {
+        return transactionCount.sum();
     }
 
     /**
