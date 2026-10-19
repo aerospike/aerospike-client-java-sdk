@@ -83,7 +83,7 @@ public final class MetricsSnapshot {
                 this.appId = Buffer.utf8ToString(userBytes, 0, userBytes.length);
             }
             else {
-                this.appId = "";
+                this.appId = "not-set";
             }
         }
 
