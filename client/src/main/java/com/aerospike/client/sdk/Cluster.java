@@ -1212,19 +1212,24 @@ public class Cluster implements Closeable {
         }
 
         MetricsSnapshot snapshot = new MetricsSnapshot(this, metricsSettings);
-        nodesDeparted.clear();
+        boolean success = true;
 
         for (IMetricsExporter exporter : metricsExporters) {
             try {
                 exporter.export(snapshot);
             }
             catch(Throwable t) {
+                success = false;
                 if (log.isWarnEnabled()) {
                     log.atWarn()
                         .addKeyValue(Cluster.CONTEXT, def.getClusterName())
                         .log("Metrics export snapshot failed: " + Util.getErrorMessage(t));
                 }
             }
+        }
+
+        if (success) {
+            nodesDeparted.clear();
         }
     }
 
@@ -1239,11 +1244,22 @@ public class Cluster implements Closeable {
             if (metricsEnabled) {
                 try {
                     ArrayList<NodeMetricsSnapshot> list = new ArrayList<>(nodesToRemove.size());
+                    int size = nodesDeparted.size();
 
                     for (Node node : nodesToRemove) {
-                        list.add(new NodeMetricsSnapshot(node));
+                        // Cap nodesDeparted at 256.
+                        if (size < 256) {
+                            list.add(new NodeMetricsSnapshot(node));
+                            size++;
+                        }
+                        else {
+                            break;
+                        }
                     }
-                    nodesDeparted.addAll(list);
+
+                    if (list.size() > 0) {
+                        nodesDeparted.addAll(list);
+                    }
                 }
                 catch (Throwable e) {
                     if (log.isWarnEnabled()) {
