@@ -227,19 +227,17 @@ public final class Connection implements Closeable {
 
     private static void incrementError(Cluster cluster, Node node, boolean inHandshake) {
         if (node != null) {
+            node.addConnOpenFailure();
+
             if (inHandshake) {
                 node.addTlsHandshakeFailures();
             }
-            else {
-                node.addConnOpenFailure();
-            }
         }
         else if (cluster != null) {
+            cluster.addConnOpenFailure();
+
             if (inHandshake) {
                 cluster.addTlsHandshakeFailures();
-            }
-            else {
-                cluster.addConnOpenFailure();
             }
         }
     }

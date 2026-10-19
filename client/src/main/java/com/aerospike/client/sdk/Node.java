@@ -213,7 +213,7 @@ public class Node implements Closeable {
                         login();
                     }
                     else {
-                        if (! AdminCommand.authenticate(this, def, tendConnection, token)) {
+                        if (! AdminCommand.authenticate(cluster, this, tendConnection, token)) {
                             // Authentication failed. Session token probably expired.
                             // Login again to get new session token.
                             login();
@@ -636,7 +636,7 @@ public class Node implements Closeable {
 
             if (token != null) {
                 try {
-                    if (! AdminCommand.authenticate(this, cluster.def, conn, token)) {
+                    if (! AdminCommand.authenticate(cluster, this, conn, token)) {
                         throw new AerospikeException("Authentication failed");
                     }
                 }
@@ -775,7 +775,7 @@ public class Node implements Closeable {
 
                     if (token != null) {
                         try {
-                            if (! AdminCommand.authenticate(this, cluster.def, conn, token)) {
+                            if (! AdminCommand.authenticate(cluster, this, conn, token)) {
                                 signalLogin();
                                 throw new AerospikeException("Authentication failed");
                             }

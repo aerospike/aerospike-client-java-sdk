@@ -164,15 +164,20 @@ public class AdminCommand {
         }
     }
 
-    public static boolean authenticate(Node node, ClusterDefinition def, Connection conn, byte[] sessionToken)
+    public static boolean authenticate(Cluster cluster, Node node, Connection conn, byte[] sessionToken)
         throws IOException {
         try {
             AdminCommand command = new AdminCommand();
-            return command.authenticateSession(def, conn, sessionToken);
+            return command.authenticateSession(cluster.getClusterDefinition(), conn, sessionToken);
         }
         catch(Throwable t) {
             if (node != null) {
+                node.addConnOpenFailure();
                 node.addConnAuthFailure();
+            }
+            else if (cluster != null) {
+                cluster.addConnOpenFailure();
+                cluster.addConnAuthFailure();
             }
             throw t;
         }
