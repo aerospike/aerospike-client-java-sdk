@@ -32,9 +32,10 @@ public final class Expression implements Serializable {
     public static final int SERVER_COMPILED_AEL_EXPRESSION_OP = 128;
 
     private final byte[] bytes;
+    private final boolean fromAelString;
 
     /**
-     * Expression constructor used by {@link Exp#build(Exp)}
+     * Expression constructor.
      */
     Expression(Exp exp) {
         Packer packer = new Packer();
@@ -42,6 +43,19 @@ public final class Expression implements Serializable {
         packer.createBuffer();
         exp.pack(packer);
         bytes = packer.getBuffer();
+        this.fromAelString = false;
+    }
+
+    /**
+     * Expression constructor with AEL string indicator.
+     */
+    Expression(Exp exp, boolean fromAelString) {
+        Packer packer = new Packer();
+        exp.pack(packer);
+        packer.createBuffer();
+        exp.pack(packer);
+        bytes = packer.getBuffer();
+        this.fromAelString = fromAelString;
     }
 
     /**
@@ -49,6 +63,7 @@ public final class Expression implements Serializable {
      */
     Expression(byte[] bytes) {
         this.bytes = bytes;
+        this.fromAelString = false;
     }
 
     /**
@@ -112,6 +127,13 @@ public final class Expression implements Serializable {
      */
     public byte[] getBytes() {
         return bytes;
+    }
+
+    /**
+     * Return if expression was derived from an AEL string.
+     */
+    public boolean isFromAelString() {
+        return fromAelString;
     }
 
     /**

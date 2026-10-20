@@ -133,7 +133,7 @@ public final class QueryExecutor implements IQueryExecutor {
             taskId = random.nextLong();
         }
 
-        if (latencyEnabled) {
+        if (latencyEnabled && exception == null) {
             long elapsed = System.nanoTime() - begin;
             cluster.addLatency(LatencyType.QUERY, elapsed);
         }

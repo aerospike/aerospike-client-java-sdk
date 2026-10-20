@@ -168,16 +168,24 @@ public class AdminCommand {
         throws IOException {
         try {
             AdminCommand command = new AdminCommand();
-            return command.authenticateSession(cluster.getClusterDefinition(), conn, sessionToken);
+            boolean rv = command.authenticateSession(cluster.getClusterDefinition(), conn, sessionToken);
+
+            if (!rv) {
+                if (node != null) {
+                    node.addConnAuthFailure();
+                }
+                else if (cluster != null) {
+                    cluster.addConnAuthFailure();
+                }
+            }
+            return rv;
         }
         catch(Throwable t) {
             if (node != null) {
                 node.addConnOpenFailure();
-                node.addConnAuthFailure();
             }
             else if (cluster != null) {
                 cluster.addConnOpenFailure();
-                cluster.addConnAuthFailure();
             }
             throw t;
         }

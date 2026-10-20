@@ -256,9 +256,11 @@ public final class MetricsWriter implements IMetricsExporter {
         sb.append(cms.opened);
         sb.append(',');
         sb.append(cms.closed);
-
         sb.append(",[");
-        writeLatency(node.connLatency);
+
+        if (node.connLatency != null) {
+            writeLatency(node.connLatency);
+        }
 		sb.append("],[");
 
 		NamespaceMetricsSnapshot[] nms = node.namespaces;

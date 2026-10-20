@@ -73,6 +73,13 @@ public abstract class Exp {
     }
 
     /**
+     * Create final expression that contains packed byte instructions used in the wire protocol.
+     */
+    public static Expression build(Exp exp, boolean fromAelString) {
+        return new Expression(exp, fromAelString);
+    }
+
+    /**
      * Helper method to create Exp objects from unpacked objects
      */
     public static Exp get(Object obj) {

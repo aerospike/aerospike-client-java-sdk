@@ -326,6 +326,15 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
             ? ael.toFilterExpression(session)
             : null;
 
+        if (filterExp != null) {
+            if (filterExp.isFromAelString()) {
+                cluster.addAelFilterCount();
+            }
+            else {
+                cluster.addExpFilterCount();
+            }
+        }
+
         return new BackgroundQueryCommand(cluster, dataset, taskId, opType,
             ops, getExpirationAsInt(), filter, filterExp, settings, recordsPerSecond, durableDeleteDefault);
     }

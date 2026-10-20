@@ -87,6 +87,17 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = qb.getAel();
 
+        if (where != null) {
+            Cluster cluster = session.getCluster();
+
+            if (where.hasStringAel()) {
+                cluster.addAelFilterCount();
+            }
+            else {
+                cluster.addExpFilterCount();
+            }
+        }
+
         QueryCommand cmd = IndexProbePlanner.buildCommand(
             session, dataSet, where, qb.getQueryHint(), policy, qb);
 
@@ -123,6 +134,15 @@ public class IndexQueryBuilderImpl extends QueryImpl {
 
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = qb.getAel();
+
+        if (where != null) {
+            if (where.hasStringAel()) {
+                cluster.addAelFilterCount();
+            }
+            else {
+                cluster.addExpFilterCount();
+            }
+        }
 
         AsyncRecordStream stream = newStream(policy, handler);
         CompletableFuture<QueryCommand> planned = new CompletableFuture<>();

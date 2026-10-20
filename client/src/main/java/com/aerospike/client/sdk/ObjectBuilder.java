@@ -53,6 +53,7 @@ import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.tend.Partitions;
 
 /**
@@ -1030,7 +1031,7 @@ public class ObjectBuilder<T> {
             records.add(new BatchWrite(key, null, attr, opBuilder.getOpType(), ops, generation, ttl));
         }
 
-        final Expression filterExp = getFilterExp(namespace, dataSet.getSet());
+        final Expression filterExp = getFilterExp(cluster, namespace);
 
         return new BatchCommand(cluster, partitions, txnToUse, namespace,
             records, filterExp, opBuilder.includeMissingKeys, opBuilder.failOnFilteredOut, false, settings);
@@ -1079,7 +1080,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
+        final Expression filterExp = getFilterExp(cluster, firstKey.namespace);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
         if (txnToUse != null) {
@@ -1153,7 +1154,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
+        final Expression filterExp = getFilterExp(cluster, firstKey.namespace);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
         AsyncRecordStream stream = newAsyncStream(elements.size(), errorHandler);
@@ -1185,7 +1186,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(key.namespace, key.setName);
+        final Expression filterExp = getFilterExp(cluster, key.namespace);
 
         if (txnToUse != null) {
             // Assume all operations are write operations.
@@ -1230,7 +1231,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(key.namespace, key.setName);
+        final Expression filterExp = getFilterExp(cluster, key.namespace);
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         AsyncRecordStream stream = newAsyncStream(1, errorHandler);
@@ -1317,9 +1318,21 @@ public class ObjectBuilder<T> {
         return partitions;
     }
 
-    private Expression getFilterExp(String namespace, String querySet) {
-        if (opBuilder.getAel() != null && !elements.isEmpty()) {
-            return opBuilder.getAel().toFilterExpression(opBuilder.getSession());
+    private Expression getFilterExp(Cluster cluster, String namespace) {
+        WhereClauseProcessor processor = opBuilder.getAel();
+
+        if (processor != null && !elements.isEmpty()) {
+            Expression expression = processor.toFilterExpression(opBuilder.getSession());
+
+            if (expression != null) {
+                if (expression.isFromAelString()) {
+                    cluster.addAelFilterCount();
+                }
+                else {
+                    cluster.addExpFilterCount();
+                }
+            }
+            return expression;
         }
         return null;
     }

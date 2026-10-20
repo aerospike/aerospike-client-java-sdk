@@ -758,6 +758,15 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Increment command count when operational metrics are enabled. For internal use only.
+     */
+    public final void addCommandCount() {
+        if (metricsOperationalEnabled) {
+            commandCount.increment();
+        }
+    }
+
+    /**
      * Return command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getCommandCount() {
@@ -770,8 +779,8 @@ public class Cluster implements Closeable {
     public final void addPointCount() {
         if (metricsUsageEnabled) {
             pointCount.increment();
-            commandCount.increment();
         }
+        addCommandCount();
     }
 
     /**
@@ -787,8 +796,8 @@ public class Cluster implements Closeable {
     public final void addBatchCount() {
         if (metricsUsageEnabled) {
             batchCount.increment();
-            commandCount.increment();
         }
+        addCommandCount();
     }
 
     /**
@@ -804,8 +813,8 @@ public class Cluster implements Closeable {
     public final void addQueryCount() {
         if (metricsUsageEnabled) {
             queryCount.increment();
-            commandCount.increment();
         }
+        addCommandCount();
     }
 
     /**
@@ -991,6 +1000,15 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Add AEL filter usage counts when usage metrics are enabled. For internal use only.
+     */
+    public final void addAelFilterCount(long count) {
+        if (metricsUsageEnabled) {
+            aelFilterCount.add(count);
+        }
+    }
+
+    /**
      * Return AEL filter usage count. The value is cumulative and not reset per metrics interval.
      */
     public final long getAelFilterCount() {
@@ -1003,6 +1021,15 @@ public class Cluster implements Closeable {
     public final void addExpFilterCount() {
         if (metricsUsageEnabled) {
             expFilterCount.increment();
+        }
+    }
+
+    /**
+     * Add Exp filter usage counts when usage metrics are enabled. For internal use only.
+     */
+    public final void addExpFilterCount(int count) {
+        if (metricsUsageEnabled) {
+            expFilterCount.add(count);
         }
     }
 

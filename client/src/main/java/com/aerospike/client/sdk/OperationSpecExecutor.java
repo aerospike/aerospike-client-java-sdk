@@ -122,6 +122,8 @@ class OperationSpecExecutor {
             return new RecordStream();
         }
 
+        Cluster cluster = session.getCluster();
+
         // Single-key optimization: bypass batch infrastructure for single-spec, single-key operations
         if (specs.size() == 1) {
             OperationSpec spec = specs.get(0);
@@ -132,6 +134,15 @@ class OperationSpecExecutor {
                 Expression filterExp = spec.getWhereClause() != null ?
                     spec.getWhereClause() : defaultWhereClause;
 
+                if (filterExp != null) {
+                    if (filterExp.isFromAelString()) {
+                        cluster.addAelFilterCount();
+                    }
+                    else {
+                        cluster.addExpFilterCount();
+                    }
+                }
+
                 return executeSingleKey(session, spec, key, filterExp, defaultExpirationInSeconds,
                     txn, disposition, durableDeleteDefault);
             }
@@ -140,7 +151,6 @@ class OperationSpecExecutor {
         // TODO Track count of keys in builders, so it can be used here.
         List<BatchRecord> records = new ArrayList<>(512);
         List<Class<?>> readMappingPerRecord = new ArrayList<>(512);
-        Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
         // TODO: Put in hashmap
         BatchAttr attr = new BatchAttr();
@@ -160,6 +170,19 @@ class OperationSpecExecutor {
 
             if (spec.isFailOnFilteredOut()) {
                 failOnFilteredOut = true;
+            }
+
+            Expression filterExp = spec.getWhereClause();
+
+            if (filterExp != null) {
+                int size = spec.getKeys().size();
+
+                if (filterExp.isFromAelString()) {
+                    cluster.addAelFilterCount(size);
+                }
+                else {
+                    cluster.addExpFilterCount(size);
+                }
             }
 
             // Create BatchRecord(s) for each key in this spec

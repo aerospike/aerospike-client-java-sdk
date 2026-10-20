@@ -54,7 +54,7 @@ public abstract class WhereClauseProcessor {
 
     public final Expression toFilterExpression(Cluster cluster) {
         Exp exp = toFilterExp(cluster);
-        return exp != null ? Exp.build(exp) : null;
+        return exp != null ? Exp.build(exp, hasStringAel()) : null;
     }
 
     private static final class WhereStringImpl extends WhereClauseProcessor {

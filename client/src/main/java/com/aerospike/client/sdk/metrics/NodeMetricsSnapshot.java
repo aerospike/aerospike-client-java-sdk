@@ -33,7 +33,7 @@ public final class NodeMetricsSnapshot {
     public final long connectionOpenFailure;
     public final long connectionTlsHandshakeFailure;
     public final long connectionAuthFailure;
-    public final LatencySnapshot connLatency;
+    public final LatencySnapshot connLatency; // can be null
     public final ConnectionMetricsSnapshot connections;
     public final NamespaceMetricsSnapshot[] namespaces;
 
@@ -44,8 +44,12 @@ public final class NodeMetricsSnapshot {
         this.connectionOpenFailure = node.getConnOpenFailure();
         this.connectionTlsHandshakeFailure = node.getTlsHandshakeFailures();
         this.connectionAuthFailure = node.getConnAuthFailure();
-        this.connLatency = LatencySnapshot.connLatencySnapshot(node.getMetrics().getConnLatency());
         this.connections = new ConnectionMetricsSnapshot(node);
+
+        NodeMetrics nodeMetrics = node.getMetrics();
+
+        this.connLatency = (nodeMetrics != null) ?
+            LatencySnapshot.connLatencySnapshot(nodeMetrics.getConnLatency()) : null;
 
         HashMap<String,Partitions> partitionMap = node.cluster.getPartitionMap();
         Set<String> namespaces = partitionMap.keySet();
