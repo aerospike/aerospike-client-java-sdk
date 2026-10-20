@@ -96,14 +96,14 @@ public final class Expression implements Serializable {
      *
      * @param aelString AEL string (UTF-8)
      */
-    public static Expression fromServerCompiledFilter(String aelString) {
+    public static Expression getCompiledFilter(String aelString) {
         if (aelString == null) {
             throw new AerospikeException("Server-compiled AEL source must not be null");
         }
-        return new Expression(encodeServerCompiledFilterPayload(aelString));
+        return new Expression(encodeCompiledFilterPayload(aelString));
     }
 
-    private static byte[] encodeServerCompiledFilterPayload(String aelString) {
+    private static byte[] encodeCompiledFilterPayload(String aelString) {
         try {
             Packer packer = new Packer();
             packPayload(packer, aelString);

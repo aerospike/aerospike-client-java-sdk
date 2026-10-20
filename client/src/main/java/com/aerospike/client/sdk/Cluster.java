@@ -1139,7 +1139,7 @@ public class Cluster implements Closeable {
      * <p>True when the cluster's {@linkplain #getServerVersion() minimum server version} is
      * {@link Version#SERVER_VERSION_8_2} or newer.</p>
      *
-     * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
+     * @see com.aerospike.client.sdk.exp.Expression#getCompiledFilter(String)
      */
     public boolean supportsAel() {
         return serverVersionGE82;
