@@ -273,6 +273,15 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
 
         if (ael != null) {
             filterExp = ael.toFilterExpression(session);
+
+            if (filterExp != null) {
+                if (filterExp.isFromAelString()) {
+                    cluster.addAelFilterCount();
+                }
+                else {
+                    cluster.addExpFilterCount();
+                }
+            }
         }
 
         int ttl = getExpirationAsInt();

@@ -207,7 +207,7 @@ public final class NodeValidator {
         try {
             if (def.isAuthEnabled()) {
                 // Login
-                LoginCommand admin = new LoginCommand(def, conn);
+                LoginCommand admin = new LoginCommand(cluster, null, conn);
                 sessionToken = admin.sessionToken;
                 sessionExpiration = admin.sessionExpiration;
 

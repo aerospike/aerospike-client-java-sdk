@@ -270,7 +270,7 @@ public class Node implements Closeable {
         }
 
         try {
-            LoginCommand login = new LoginCommand(cluster.def, tendConnection);
+            LoginCommand login = new LoginCommand(cluster, this, tendConnection);
             sessionToken = login.sessionToken;
             sessionExpiration = login.sessionExpiration;
             performLogin = false;
