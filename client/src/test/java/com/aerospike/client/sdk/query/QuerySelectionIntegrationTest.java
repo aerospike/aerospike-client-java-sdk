@@ -727,7 +727,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         ResolvedSettings settings = session.getBehavior().getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
-        QueryCommand cmd = QueryCommand.forPlan(cluster, dataSet, plan, settings, qb);
+        QueryCommand cmd = QueryCommand.forPlan(cluster, dataSet, plan, settings, qb, false);
         CommandBuffer cb = encodeExecuteQuery(cmd);
 
         assertArrayEquals(plan.getExecuteWhereBytes(), fieldBytes(cb, FieldType.WHERE));
@@ -745,14 +745,14 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
 
         byte[] serverLed44 = fieldBytes(
-            encodeExecuteQuery(QueryCommand.forPlan(cluster, dataSet, plan, settings, serverLedQb)),
+            encodeExecuteQuery(QueryCommand.forPlan(cluster, dataSet, plan, settings, serverLedQb, false)),
             FieldType.WHERE);
 
         QueryBuilder legacyQb = session.query(dataSet)
             .where(where)
             .withHint(hint -> hint.forBin(AGE_BIN));
         QueryCommand legacyCmd = IndexProbePlanner.buildCommand(
-            session, dataSet, legacyQb.getAel(), legacyQb.getQueryHint(), settings, legacyQb);
+            session, dataSet, legacyQb.getAel(), legacyQb.getQueryHint(), settings, legacyQb, false);
         byte[] legacy43 = fieldBytes(encodeExecuteQuery(legacyCmd), FieldType.FILTER_EXP);
 
         assertArrayEquals(plan.getExecuteWhereBytes(), serverLed44);

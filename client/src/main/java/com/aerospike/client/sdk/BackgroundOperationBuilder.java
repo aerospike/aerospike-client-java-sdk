@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.command.BackgroundQueryNodeExecutor;
 import com.aerospike.client.sdk.command.NodeStatus;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
@@ -295,9 +296,12 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         }
 
         long taskId = new Random().nextLong();
-        BackgroundQueryCommand cmd = buildCommand(cluster, settings, taskId);
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        BackgroundQueryCommand cmd = buildCommand(cluster, settings, taskId, latencyEnabled);
 
         final NodeStatus status = new NodeStatus();
+
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
 
         try (ExecutorService es = cluster.getExecutorService()) {
             for (Node node : nodes) {
@@ -318,10 +322,17 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
 
         status.checkException();
 
+        if (latencyEnabled) {
+            long elapsed = System.nanoTime() - begin;
+            cluster.addLatency(LatencyType.QUERY, elapsed);
+        }
+
         return new ExecuteTask(cluster, taskId, cmd.socketTimeout);
     }
 
-    BackgroundQueryCommand buildCommand(Cluster cluster, ResolvedSettings settings, long taskId) {
+    BackgroundQueryCommand buildCommand(
+        Cluster cluster, ResolvedSettings settings, long taskId, boolean latencyEnabled
+    ) {
         Expression filterExp = ael != null
             ? ael.toFilterExpression(session)
             : null;
@@ -336,7 +347,8 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         }
 
         return new BackgroundQueryCommand(cluster, dataset, taskId, opType,
-            ops, getExpirationAsInt(), filter, filterExp, settings, recordsPerSecond, durableDeleteDefault);
+            ops, getExpirationAsInt(), filter, filterExp, settings, recordsPerSecond,
+            durableDeleteDefault, latencyEnabled);
     }
 
     // Note: areOperationsRetryable() is inherited from AbstractOperationBuilder

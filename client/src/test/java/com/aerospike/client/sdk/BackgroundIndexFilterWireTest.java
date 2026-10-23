@@ -143,7 +143,7 @@ public class BackgroundIndexFilterWireTest {
                 builder.where(Exp.gt(Exp.intBin("score"), Exp.val(10)));
             }
 
-            BackgroundQueryCommand cmd = builder.buildCommand(cluster, settings(session), 12345L);
+            BackgroundQueryCommand cmd = builder.buildCommand(cluster, settings(session), 12345L, false);
             CommandBuffer cb = new CommandBuffer();
             cb.setBackgroundQuery(cmd);
             assertNotNull(cb.getBuffer());

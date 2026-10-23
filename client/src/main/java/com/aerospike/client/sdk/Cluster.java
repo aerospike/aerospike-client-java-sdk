@@ -27,6 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +43,7 @@ import com.aerospike.client.sdk.metrics.IMetricsExporter;
 import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.metrics.MetricsExporterType;
 import com.aerospike.client.sdk.metrics.MetricsExtended;
+import com.aerospike.client.sdk.metrics.MetricsSampler;
 import com.aerospike.client.sdk.metrics.MetricsSettings;
 import com.aerospike.client.sdk.metrics.MetricsSnapshot;
 import com.aerospike.client.sdk.metrics.MetricsWriter;
@@ -111,6 +113,8 @@ public class Cluster implements Closeable {
     private final Condition metricsSleepCondition = metricsSleepLock.newCondition();
     private volatile Thread metricsThread;
     private List<IMetricsExporter> metricsExporters;
+    private int metricsRange;
+    private int metricsThreshold;
     private Histogram histogram;
     private Version serverVersion;
     private boolean serverVersionGE8;
@@ -506,6 +510,10 @@ public class Cluster implements Closeable {
         this.metricsOperationalEnabled = me.getOperational().getEnabled();
         this.metricsUsageEnabled = me.getUsage().getEnabled();
 
+        MetricsSampler ms = me.getOperational().getSampler();
+        this.metricsRange = ms.getRange();
+        this.metricsThreshold = ms.getThreshold();
+
         // Start metrics thread if not already running. If metrics are re-enabled with
         // new settings, the running thread picks up the new interval on its next cycle.
         if (metricsThread == null) {
@@ -568,6 +576,29 @@ public class Cluster implements Closeable {
      */
     public boolean isMetricsOperationalEnabled() {
         return metricsOperationalEnabled;
+    }
+
+    /**
+     * Return if latency should be captured.
+     */
+    public boolean isLatencyEnabled() {
+        if (!metricsOperationalEnabled || metricsThreshold <= 0) {
+            return false;
+        }
+
+        int range = metricsRange;
+
+        if (metricsThreshold >= range) {
+            // Sample every command. No need for a random draw.
+            return true;
+        }
+
+        // ThreadLocalRandom stores its seed directly in the Thread object, so there is no
+        // contention across threads (unlike a shared java.util.Random, which CASes an
+        // AtomicLong) and no ThreadLocal map lookup or per-thread allocation (unlike a
+        // ThreadLocal<RandomShift>, which is costly with short-lived virtual threads).
+        // nextInt(bound) returns a non-negative, unbiased value in [0, range).
+        return ThreadLocalRandom.current().nextInt(range) < metricsThreshold;
     }
 
     /**

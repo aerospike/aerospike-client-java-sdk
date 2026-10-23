@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.metrics;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -47,5 +48,12 @@ public class Histogram {
      */
     public LatencyBuckets getBuckets(LatencyType type) {
         return buckets[type.getCommandOrdinal()];
+    }
+
+    @Override
+    public String toString() {
+        return "Histogram{"
+            + "buckets=" + Arrays.toString(buckets)
+            + '}';
     }
 }

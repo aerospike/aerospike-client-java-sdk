@@ -55,7 +55,8 @@ public final class NodeMetricsSnapshot {
         Set<String> namespaces = partitionMap.keySet();
         int count = 0;
 
-        this.namespaces = new NamespaceMetricsSnapshot[namespaces.size()];
+        this.namespaces = new NamespaceMetricsSnapshot[namespaces.size() + 1];
+        this.namespaces[count++] = new NamespaceMetricsSnapshot(node, "");
 
         for (String namespace : namespaces) {
             this.namespaces[count++] = new NamespaceMetricsSnapshot(node, namespace);

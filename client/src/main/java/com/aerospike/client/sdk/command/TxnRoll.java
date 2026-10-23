@@ -89,7 +89,7 @@ public final class TxnRoll {
             this.verifyRecords = records;
 
             parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-                records, null, false, false, attr.linearize, verifyPolicy);
+                records, null, false, false, attr.linearize, false, verifyPolicy);
 
             BatchStatus status = new BatchStatus();
 
@@ -132,7 +132,7 @@ public final class TxnRoll {
             if (txn.closeMonitor()) {
                 try {
                     Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-                    WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+                    WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy, false);
                     close(cmd);
                 }
                 catch (Throwable t3) {
@@ -151,7 +151,7 @@ public final class TxnRoll {
 
     public TxnStatus commit(ResolvedSettings rollPolicy) {
         Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-        WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+        WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy, false);
 
         if (txn.monitorExists()) {
             // Tell transaction monitor that a roll-forward will commence.
@@ -259,7 +259,7 @@ public final class TxnRoll {
         if (txn.closeMonitor()) {
             try {
                 Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-                WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+                WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy, false);
                 close(cmd);
             }
             catch (Throwable t) {
@@ -296,7 +296,7 @@ public final class TxnRoll {
         this.rollRecords = records;
 
         BatchCommand parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-            records, null, false, false, attr.linearize, rollPolicy);
+            records, null, false, false, attr.linearize, false, rollPolicy);
 
         BatchStatus status = new BatchStatus();
 

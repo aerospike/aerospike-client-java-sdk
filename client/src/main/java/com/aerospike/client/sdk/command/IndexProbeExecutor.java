@@ -53,7 +53,7 @@ public final class IndexProbeExecutor extends SyncExecutor {
 
     @Override
     protected LatencyType getLatencyType() {
-        return LatencyType.QUERY;
+        return LatencyType.NONE;
     }
 
     @Override

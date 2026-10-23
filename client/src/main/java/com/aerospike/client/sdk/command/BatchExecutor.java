@@ -20,14 +20,10 @@ import java.util.concurrent.ExecutorService;
 
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
-import com.aerospike.client.sdk.metrics.LatencyType;
 
 public final class BatchExecutor {
 
     public static void execute(Cluster cluster, IBatchCommand[] commands, BatchStatus status) {
-        boolean latencyEnabled = cluster.isMetricsOperationalEnabled();
-        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
-
         if (commands.length <= 1) {
             // Run batch request in same thread.
             for (IBatchCommand command : commands) {
@@ -57,10 +53,5 @@ public final class BatchExecutor {
 
         // Throw an exception if an error occurred.
         status.checkException();
-
-        if (latencyEnabled) {
-            long elapsed = System.nanoTime() - begin;
-            cluster.addLatency(LatencyType.BATCH, elapsed);
-        }
     }
 }

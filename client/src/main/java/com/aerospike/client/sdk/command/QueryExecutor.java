@@ -19,6 +19,7 @@ package com.aerospike.client.sdk.command;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,7 +28,6 @@ import com.aerospike.client.sdk.AsyncRecordStream;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.command.PartitionTracker.NodePartitions;
 import com.aerospike.client.sdk.metrics.LatencyType;
-import com.aerospike.client.sdk.util.RandomShift;
 import com.aerospike.client.sdk.util.Util;
 
 public final class QueryExecutor implements IQueryExecutor {
@@ -41,7 +41,6 @@ public final class QueryExecutor implements IQueryExecutor {
     private volatile Throwable exception;
     private int maxConcurrentThreads;
     private final AsyncRecordStream stream;
-    private RandomShift random;
 
     public QueryExecutor(
         Cluster cluster,
@@ -57,13 +56,11 @@ public final class QueryExecutor implements IQueryExecutor {
         this.threads = new ArrayList<QueryThread>(nodeCapacity);
         this.completedCount = new AtomicInteger();
         this.done = new AtomicBoolean();
-        this.random = new RandomShift();
     }
 
     public void execute() {
-        boolean latencyEnabled = cluster.isMetricsOperationalEnabled();
-        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
-        long taskId = random.nextLong();
+        long begin = (cmd.latencyEnabled) ? System.nanoTime() : 0L;
+        long taskId = ThreadLocalRandom.current().nextLong();
 
         while (true) {
             List<NodePartitions> list = tracker.assignPartitionsToNodes(cluster, cmd.namespace);
@@ -130,10 +127,10 @@ public final class QueryExecutor implements IQueryExecutor {
             exception = null;
 
             // taskId must be reset on next pass to avoid server duplicate query detection.
-            taskId = random.nextLong();
+            taskId = ThreadLocalRandom.current().nextLong();
         }
 
-        if (latencyEnabled && exception == null) {
+        if (cmd.latencyEnabled && exception == null) {
             long elapsed = System.nanoTime() - begin;
             cluster.addLatency(LatencyType.QUERY, elapsed);
         }

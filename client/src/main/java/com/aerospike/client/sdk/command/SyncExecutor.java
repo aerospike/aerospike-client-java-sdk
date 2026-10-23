@@ -31,20 +31,22 @@ import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.util.Util;
 
 public abstract class SyncExecutor {
-    Cluster cluster;
-    Command cmd;
+    final Cluster cluster;
+    final Command cmd;
     ArrayList<AerospikeException> subExceptions;
     int socketTimeout;
     int totalTimeout;
     int iteration = 1;
     int commandSentCounter;
     long deadline;
+    final boolean latencyEnabled;
 
     public SyncExecutor(Cluster cluster, Command cmd) {
         this.cluster = cluster;
         this.cmd = cmd;
         this.socketTimeout = cmd.socketTimeout;
         this.totalTimeout = cmd.totalTimeout;
+        this.latencyEnabled = cmd.latencyEnabled;
     }
 
     public void execute() {
@@ -58,7 +60,7 @@ public abstract class SyncExecutor {
         Node node;
         AerospikeException exception = null;
         long begin = 0;
-        final LatencyType latencyType = cluster.isMetricsOperationalEnabled()? getLatencyType() : LatencyType.NONE;
+        final LatencyType latencyType = latencyEnabled? getLatencyType() : LatencyType.NONE;
         boolean isClientTimeout;
 
         // Execute command until successful, timed out or maximum iterations have been reached.
@@ -303,12 +305,6 @@ public abstract class SyncExecutor {
         long elapsed = System.nanoTime() - startTime;
         deadline += elapsed;
     }
-
-    /*
-    @Override
-    protected void sizeBuffer() {
-        dataBuffer = new byte[dataOffset];
-    }*/
 
     protected boolean retryBatch(
         Cluster cluster,

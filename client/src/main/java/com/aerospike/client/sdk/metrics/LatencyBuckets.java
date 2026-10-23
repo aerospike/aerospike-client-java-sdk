@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.metrics;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.DoubleAdder;
@@ -165,4 +166,11 @@ public final class LatencyBuckets {
 		}
 		return lastBucket;
 	}
+
+    @Override
+    public String toString() {
+        return "LatencyBuckets{"
+            + "buckets=" + Arrays.toString(buckets)
+            + '}';
+    }
 }

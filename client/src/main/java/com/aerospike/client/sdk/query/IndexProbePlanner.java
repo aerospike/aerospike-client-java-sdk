@@ -71,14 +71,15 @@ final class IndexProbePlanner {
         WhereClauseProcessor where,
         QueryHint.Result hint,
         ResolvedSettings policy,
-        QueryBuilder qb
+        QueryBuilder qb,
+        boolean latencyEnabled
     ) {
         Cluster cluster = session.getCluster();
         if (!useServerQuerySelection(cluster, where, hint, qb.getFilter())) {
-            return legacyCommand(cluster, dataSet, where, policy, qb);
+            return legacyCommand(cluster, dataSet, where, policy, qb, latencyEnabled);
         }
         QueryPlan plan = plan(session, dataSet, where, hint);
-        return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
+        return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb, latencyEnabled);
     }
 
     /**
@@ -150,15 +151,16 @@ final class IndexProbePlanner {
         DataSet dataSet,
         WhereClauseProcessor where,
         ResolvedSettings policy,
-        QueryBuilder qb
+        QueryBuilder qb,
+        boolean latencyEnabled
     ) {
         Expression filterExp = null;
         if (where != null) {
             filterExp = where.toFilterExpression(cluster);
         }
         if (qb.getFilter() != null) {
-            return QueryCommand.forExplicitFilter(cluster, dataSet, qb.getFilter(), filterExp, policy, qb);
+            return QueryCommand.forExplicitFilter(cluster, dataSet, qb.getFilter(), filterExp, policy, qb, latencyEnabled);
         }
-        return new QueryCommand(cluster, dataSet, null, filterExp, policy, qb);
+        return new QueryCommand(cluster, dataSet, null, filterExp, policy, qb, latencyEnabled);
     }
 }

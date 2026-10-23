@@ -24,7 +24,7 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.metrics.LatencyType;
 
-public final class OperateReadExecutor extends SingleExecutor {
+public final class OperateReadExecutor extends SyncExecutor {
     final OperateReadCommand operate;
     private Record record;
 

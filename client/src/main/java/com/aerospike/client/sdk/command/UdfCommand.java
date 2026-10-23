@@ -33,10 +33,10 @@ public class UdfCommand extends WriteCommand {
     public UdfCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OperationSpec spec,
         int ttl, Expression where, boolean failOnFilteredOut, ResolvedSettings settings,
-        Boolean durableDeleteDefault, Boolean durableDeleteOverride
+        Boolean durableDeleteDefault, Boolean durableDeleteOverride, boolean latencyEnabled
     ) {
         super(cluster, partitions, txn, key, OpType.UDF, 0, ttl, where, failOnFilteredOut, settings,
-            durableDeleteDefault, durableDeleteOverride);
+            durableDeleteDefault, durableDeleteOverride, latencyEnabled);
         this.packageName = spec.getUdfPackageName();
         this.functionName = spec.getUdfFunctionName();
         this.args = (spec.getUdfArguments() != null)? spec.getUdfArguments() : new Value[0];

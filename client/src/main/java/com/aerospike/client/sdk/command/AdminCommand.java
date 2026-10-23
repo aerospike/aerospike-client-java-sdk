@@ -209,9 +209,11 @@ public class AdminCommand {
     private static void handleConnAuthFailure(Cluster cluster, Node node) {
         if (node != null) {
             node.addConnAuthFailure();
+            node.addConnOpenFailure();
         }
         else if (cluster != null) {
             cluster.addConnAuthFailure();
+            cluster.addConnOpenFailure();
         }
     }
 

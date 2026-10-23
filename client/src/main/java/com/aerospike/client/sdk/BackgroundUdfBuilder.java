@@ -17,8 +17,8 @@
 package com.aerospike.client.sdk;
 
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 
 import com.aerospike.client.sdk.ael.BooleanExpression;
 import com.aerospike.client.sdk.command.BackgroundQueryCommand;
@@ -26,6 +26,7 @@ import com.aerospike.client.sdk.command.BackgroundQueryNodeExecutor;
 import com.aerospike.client.sdk.command.NodeStatus;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
@@ -285,13 +286,16 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         }
 
         int ttl = getExpirationAsInt();
-        long taskId = new Random().nextLong();
+        long taskId = ThreadLocalRandom.current().nextLong();
+        boolean latencyEnabled = cluster.isLatencyEnabled();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
             ttl, packageName, functionName, functionArgs, null, filterExp, settings, recordsPerSecond,
-            durableDeleteDefault);
+            durableDeleteDefault, latencyEnabled);
 
         final NodeStatus status = new NodeStatus();
+
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
 
         try (ExecutorService es = cluster.getExecutorService()) {
             for (Node node : nodes) {
@@ -311,6 +315,11 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
         }
 
         status.checkException();
+
+        if (latencyEnabled) {
+            long elapsed = System.nanoTime() - begin;
+            cluster.addLatency(LatencyType.QUERY, elapsed);
+        }
 
         return new ExecuteTask(cluster, taskId, cmd.socketTimeout);
     }
