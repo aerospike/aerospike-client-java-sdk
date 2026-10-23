@@ -62,6 +62,10 @@ public abstract class SyncExecutor {
         long begin = 0;
         final LatencyType latencyType = latencyEnabled? getLatencyType() : LatencyType.NONE;
         boolean isClientTimeout;
+        // A batch node sub-batch records one namespace latency sample that includes its own
+        // retries to the same node. If a retry moves to a different node, restart the timer.
+        final boolean timeRetries = latencyType == LatencyType.BATCH;
+        Node timerNode = null;
 
         // Execute command until successful, timed out or maximum iterations have been reached.
         while (true) {
@@ -81,8 +85,9 @@ public abstract class SyncExecutor {
             try {
                 node.validateErrorCount();
 
-                if (latencyType != LatencyType.NONE) {
+                if (latencyType != LatencyType.NONE && (!timeRetries || node != timerNode)) {
                     begin = System.nanoTime();
+                    timerNode = node;
                 }
 
                 Connection conn = node.getConnection(this, cmd.connectTimeout, socketTimeout, cmd.timeoutDelay);
