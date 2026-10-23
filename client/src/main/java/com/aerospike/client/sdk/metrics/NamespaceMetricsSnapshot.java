@@ -16,7 +16,8 @@
  */
 package com.aerospike.client.sdk.metrics;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.aerospike.client.sdk.Node;
 
@@ -33,7 +34,7 @@ public final class NamespaceMetricsSnapshot {
     public final long deviceOverload;
     public final long bytesIn;
     public final long bytesOut;
-    public final LatencySnapshot[] latencies;
+    public final List<LatencySnapshot> latencies;
 
 	public NamespaceMetricsSnapshot(Node node, String namespace) {
         this.namespace = namespace;
@@ -53,16 +54,19 @@ public final class NamespaceMetricsSnapshot {
         // Histogram is null when metrics are disabled or no command has completed
         // on this namespace yet.
         if (histogram != null) {
-            int max = LatencyType.commandTypes.length;
+            this.latencies = new ArrayList<>(LatencyType.commandTypes.length);
 
-            this.latencies = new LatencySnapshot[max];
+            for (LatencyType type :  LatencyType.commandTypes) {
+                LatencyBuckets buckets = histogram.getBuckets(type);
 
-            for (int i = 0; i < max; i++) {
-                this.latencies[i] = new LatencySnapshot(LatencyType.commandTypes[i], histogram);
+                if (buckets.getCount() > 0) {
+                    LatencySnapshot ls = new LatencySnapshot(type, buckets);
+                    this.latencies.add(ls);
+                }
             }
         }
         else {
-            this.latencies = new LatencySnapshot[0];
+            this.latencies = new ArrayList<>(0);
         }
 	}
 
@@ -78,7 +82,7 @@ public final class NamespaceMetricsSnapshot {
             + ", deviceOverload=" + deviceOverload
             + ", bytesIn=" + bytesIn
             + ", bytesOut=" + bytesOut
-            + ", latencies=" + Arrays.toString(latencies)
+            + ", latencies=" + latencies.toString()
             + '}';
     }
 }

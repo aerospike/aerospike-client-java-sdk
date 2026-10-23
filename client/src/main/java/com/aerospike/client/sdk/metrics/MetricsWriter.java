@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -296,15 +297,20 @@ public final class MetricsWriter implements IMetricsExporter {
         sb.append("]]");
 	}
 
-	private void writeLatencies(LatencySnapshot[] latencies) {
+	private void writeLatencies(List<LatencySnapshot> latencies) {
         sb.append('[');
 
-        for (int i = 0; i < latencies.length; i++) {
-            if (i > 0) {
+        boolean comma = false;
+
+        for (LatencySnapshot latency : latencies) {
+            if (comma) {
                 sb.append(',');
             }
+            else {
+                comma = true;
+            }
 
-            writeLatency(latencies[i]);
+            writeLatency(latency);
         }
         sb.append(']');
 	}

@@ -159,6 +159,8 @@ class OperationSpecExecutor {
         BatchAttr attr = new BatchAttr();
         BatchStatus status = new BatchStatus();
         AerospikeException except = null;
+        String namespace = null;
+        boolean multipleNamespaces = false;
         boolean includeMissingKeys = false;
         boolean failOnFilteredOut = false;
         Mode mode = Mode.AP;
@@ -190,6 +192,16 @@ class OperationSpecExecutor {
 
             // Create BatchRecord(s) for each key in this spec
             for (Key key : spec.getKeys()) {
+                if (!multipleNamespaces) {
+                    if (namespace == null) {
+                        namespace = key.namespace;
+                    }
+                    else if (!namespace.equals(key.namespace)) {
+                        multipleNamespaces = true;
+                        namespace = null;
+                    }
+                }
+
                 Partitions partitions;
 
                 try {
@@ -314,7 +326,8 @@ class OperationSpecExecutor {
         OpKind kind = hasWrite? OpKind.WRITE_NON_RETRYABLE : OpKind.READ;
         ResolvedSettings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
-        BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
+        // Note: latency namespace will be null when at least one key has a different namespace.
+        BatchCommand parent = new BatchCommand(cluster, null, txn, namespace, records,
             defaultWhereClause, includeMissingKeys, failOnFilteredOut, linearize, latencyEnabled,
             settings);
 

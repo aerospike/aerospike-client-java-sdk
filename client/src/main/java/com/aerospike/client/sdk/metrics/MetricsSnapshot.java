@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk.metrics;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -52,7 +53,7 @@ public final class MetricsSnapshot {
     public final boolean metricsEnabled;
     public final boolean operationalMetricsEnabled;
     public final boolean usageMetricsEnabled;
-    public final LatencySnapshot[] clusterLatencies; // per command (including retries)
+    public final List<LatencySnapshot> clusterLatencies; // per command (including retries)
     public final NodeMetricsSnapshot[] nodes;
     public final NodeMetricsSnapshot[] nodesDeparted;
     public final UsageMetricsSnapshot usage;
@@ -128,16 +129,19 @@ public final class MetricsSnapshot {
         Histogram histogram = cluster.getHistogram();
 
         if (histogram != null) {
-            int max = LatencyType.commandTypes.length;
+            this.clusterLatencies = new ArrayList<>(LatencyType.commandTypes.length);
 
-            this.clusterLatencies = new LatencySnapshot[max];
+            for (LatencyType type :  LatencyType.commandTypes) {
+                LatencyBuckets buckets = histogram.getBuckets(type);
 
-            for (int i = 0; i < max; i++) {
-                this.clusterLatencies[i] = new LatencySnapshot(LatencyType.commandTypes[i], histogram);
+                if (buckets.getCount() > 0) {
+                    LatencySnapshot ls = new LatencySnapshot(type, buckets);
+                    this.clusterLatencies.add(ls);
+                }
             }
         }
         else {
-            this.clusterLatencies = new LatencySnapshot[0];
+            this.clusterLatencies = new ArrayList<>(0);
         }
     }
 
@@ -163,7 +167,7 @@ public final class MetricsSnapshot {
             + ", metricsEnabled=" + metricsEnabled
             + ", operationalMetricsEnabled=" + operationalMetricsEnabled
             + ", usageMetricsEnabled=" + usageMetricsEnabled
-            + ", latencies=" + Arrays.toString(clusterLatencies)
+            + ", latencies=" + clusterLatencies.toString()
             + ", nodes=" + Arrays.toString(nodes)
             + ", nodesDeparted=" + Arrays.toString(nodesDeparted)
             + ", usage=" + usage

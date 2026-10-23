@@ -52,11 +52,8 @@ public final class LatencySnapshot {
      */
     public final long[] bucketCounts;
 
-	public LatencySnapshot(LatencyType type, Histogram histogram) {
+	public LatencySnapshot(LatencyType type, LatencyBuckets buckets) {
 		this.type = type;
-
-		LatencyBuckets buckets = histogram.getBuckets(type);
-
 		this.min = buckets.getMin();
 		this.max = buckets.getMax();
         this.sum = buckets.getSum();

@@ -46,12 +46,12 @@ import java.util.concurrent.atomic.LongAdder;
  */
 public final class LatencyBuckets {
 	private final LongAdder[] buckets;
+    private final int latencyShift;
+    private final TimeUnit latencyUnit;
 	private final AtomicLong min = new AtomicLong(Long.MAX_VALUE);
 	private final AtomicLong max = new AtomicLong(Long.MIN_VALUE);
 	private final DoubleAdder sum = new DoubleAdder();
 	private final LongAdder count = new LongAdder();
-	private final int latencyShift;
-    private final TimeUnit latencyUnit;
 
     /**
      * Initialize latency buckets.
