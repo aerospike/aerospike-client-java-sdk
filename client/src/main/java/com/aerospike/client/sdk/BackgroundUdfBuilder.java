@@ -260,8 +260,9 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
     public ExecuteTask execute() {
         Cluster cluster = session.getCluster();
         Node[] nodes = cluster.validateNodes();
+        boolean latencyEnabled = cluster.isLatencyEnabled();
 
-        cluster.addQueryCount();
+        cluster.addQueryCount(latencyEnabled);
         cluster.addBackgroundCount();
 
         ResolvedSettings settings = session.getBehavior().getSettings(
@@ -287,7 +288,6 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
 
         int ttl = getExpirationAsInt();
         long taskId = ThreadLocalRandom.current().nextLong();
-        boolean latencyEnabled = cluster.isLatencyEnabled();
 
         BackgroundQueryCommand cmd = new BackgroundQueryCommand(cluster, dataset, taskId, opType,
             ttl, packageName, functionName, functionArgs, null, filterExp, settings, recordsPerSecond,

@@ -789,15 +789,6 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Increment command count when operational metrics are enabled. For internal use only.
-     */
-    public final void addCommandCount() {
-        if (metricsOperationalEnabled) {
-            commandCount.increment();
-        }
-    }
-
-    /**
      * Return command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getCommandCount() {
@@ -807,11 +798,14 @@ public class Cluster implements Closeable {
     /**
      * Increment single key command count when usage metrics are enabled. For internal use only.
      */
-    public final void addPointCount() {
+    public final void addPointCount(boolean latencyEnabled) {
         if (metricsUsageEnabled) {
             pointCount.increment();
         }
-        addCommandCount();
+
+        if (latencyEnabled) {
+            commandCount.increment();
+        }
     }
 
     /**
@@ -824,11 +818,14 @@ public class Cluster implements Closeable {
     /**
      * Increment batch command count when usage metrics are enabled. For internal use only.
      */
-    public final void addBatchCount() {
+    public final void addBatchCount(boolean latencyEnabled) {
         if (metricsUsageEnabled) {
             batchCount.increment();
         }
-        addCommandCount();
+
+        if (latencyEnabled) {
+            commandCount.increment();
+        }
     }
 
     /**
@@ -841,11 +838,14 @@ public class Cluster implements Closeable {
     /**
      * Increment query command count when usage metrics are enabled. For internal use only.
      */
-    public final void addQueryCount() {
+    public final void addQueryCount(boolean latencyEnabled) {
         if (metricsUsageEnabled) {
             queryCount.increment();
         }
-        addCommandCount();
+
+        if (latencyEnabled) {
+            commandCount.increment();
+        }
     }
 
     /**
@@ -906,8 +906,8 @@ public class Cluster implements Closeable {
      * Increment command retry count. There can be multiple retries for a single command.
      * For internal use only.
      */
-    public final void addRetryCount() {
-        if (metricsOperationalEnabled) {
+    public final void addRetryCount(boolean latencyEnabled) {
+        if (latencyEnabled) {
             retryCount.increment();
         }
     }

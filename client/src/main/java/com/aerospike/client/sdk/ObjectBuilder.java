@@ -1004,6 +1004,9 @@ public class ObjectBuilder<T> {
             }
         }
 
+        cluster.addObjectMapperBatchCount();
+        cluster.addDeferredCount();
+
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
                 TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
@@ -1197,6 +1200,9 @@ public class ObjectBuilder<T> {
         AsyncRecordStream stream = newAsyncStream(elements.size(), errorHandler);
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
 
+        cluster.addObjectMapperWriteCount();
+        cluster.addDeferredCount();
+
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
                 TxnMonitor.addKeys(txnToUse, session, keys);
@@ -1275,6 +1281,9 @@ public class ObjectBuilder<T> {
 
         boolean latencyEnabled = cluster.isLatencyEnabled();
         long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
+        cluster.addObjectMapperWriteCount();
+        cluster.addDeferredCount();
 
         Partitions partitions = getPartitions(cluster, key.namespace);
 

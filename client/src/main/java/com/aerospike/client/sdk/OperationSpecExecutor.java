@@ -355,7 +355,7 @@ class OperationSpecExecutor {
             }
         }
 
-        cluster.addBatchCount();
+        cluster.addBatchCount(latencyEnabled);
         cluster.addBlockingCount();
 
         if (txn != null) {
@@ -505,7 +505,7 @@ class OperationSpecExecutor {
         LatencyType latencyType;
         RecordStream rs;
 
-        cluster.addPointCount();
+        cluster.addPointCount(latencyEnabled);
         cluster.addBlockingCount();
 
         try {

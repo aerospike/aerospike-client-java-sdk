@@ -269,7 +269,7 @@ public abstract class SyncExecutor {
                 }
             }
 
-            cluster.addRetryCount();
+            cluster.addRetryCount(latencyEnabled);
         }
 
         // Retries have been exhausted.  Throw last exception.

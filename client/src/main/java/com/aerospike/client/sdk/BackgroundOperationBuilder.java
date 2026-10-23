@@ -268,8 +268,9 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
     public ExecuteTask execute() {
         Cluster cluster = session.getCluster();
         Node[] nodes = cluster.validateNodes();
+        boolean latencyEnabled = cluster.isLatencyEnabled();
 
-        cluster.addQueryCount();
+        cluster.addQueryCount(latencyEnabled);
         cluster.addBackgroundCount();
 
         boolean retryable = areOperationsRetryable(ops);
@@ -296,7 +297,6 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
         }
 
         long taskId = new Random().nextLong();
-        boolean latencyEnabled = cluster.isLatencyEnabled();
         BackgroundQueryCommand cmd = buildCommand(cluster, settings, taskId, latencyEnabled);
 
         final NodeStatus status = new NodeStatus();
