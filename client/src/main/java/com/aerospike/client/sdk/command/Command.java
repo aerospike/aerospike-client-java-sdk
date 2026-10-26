@@ -100,16 +100,18 @@ public class Command {
     public final byte errorDetailBits;
     public final boolean sendKey;
     public final boolean compress;
+    public final boolean latencyEnabled;
 
     public Command(
         Cluster cluster, String namespace, Txn txn, Expression where, Replica replica,
-        ResolvedSettings settings
+        boolean latencyEnabled, ResolvedSettings settings
     ) {
         this.cluster = cluster;
         this.namespace = namespace;
         this.txn = txn;
         this.where = where;
         this.replica = replica;
+        this.latencyEnabled = latencyEnabled;
 
         connectTimeout = settings.getWaitForConnectionToCompleteMs();
         totalTimeout = settings.getAbandonCallAfterMs();

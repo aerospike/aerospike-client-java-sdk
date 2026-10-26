@@ -113,7 +113,7 @@ public class QueryPlanExecuteWireTest {
         QueryBuilder qb = new QueryBuilder(session, dataSet);
         ResolvedSettings settings = Behavior.DEFAULT.getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
-        return QueryCommand.forPlan(null, dataSet, plan, settings, qb);
+        return QueryCommand.forPlan(null, dataSet, plan, settings, qb, false);
     }
 
     private static CommandBuffer encodeQuery(QueryCommand cmd) {

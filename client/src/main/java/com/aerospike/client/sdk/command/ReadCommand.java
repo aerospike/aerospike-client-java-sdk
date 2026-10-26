@@ -39,9 +39,9 @@ public class ReadCommand extends Command {
     public ReadCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, String[] binNames,
         boolean withNoBins, Expression filterExp, boolean failOnFilteredOut, ResolvedSettings settings,
-        ReadAttr attr
+        ReadAttr attr, boolean latencyEnabled
     ) {
-        super(cluster, key.namespace, txn, filterExp, attr.replica, settings);
+        super(cluster, key.namespace, txn, filterExp, attr.replica, latencyEnabled, settings);
         this.key = key;
         this.partition = new Partition(partitions, key, replica, null, attr.linearize);
         this.readModeAP = attr.readModeAP;

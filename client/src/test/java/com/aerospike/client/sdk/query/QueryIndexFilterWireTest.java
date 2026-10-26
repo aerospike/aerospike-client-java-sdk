@@ -126,9 +126,9 @@ public class QueryIndexFilterWireTest {
                 .withHint(hint -> hint.forIndex("hint_idx"));
 
             CommandBuffer publicCtor = encodeQuery(
-                new QueryCommand(cluster, DATA_SET, filter, null, settings, hinted));
+                new QueryCommand(cluster, DATA_SET, filter, null, settings, hinted, false));
             CommandBuffer explicit = encodeQuery(
-                QueryCommand.forExplicitFilter(cluster, DATA_SET, filter, null, settings, hinted));
+                QueryCommand.forExplicitFilter(cluster, DATA_SET, filter, null, settings, hinted, false));
 
             assertEquals("hint_idx", fieldUtf8(publicCtor, FieldType.INDEX_NAME));
             assertFalse(fieldTypes(explicit).contains(FieldType.INDEX_NAME));
@@ -160,7 +160,7 @@ public class QueryIndexFilterWireTest {
                 qb.withHint(hint);
             }
             return IndexProbePlanner.buildCommand(
-                session, DATA_SET, qb.getAel(), qb.getQueryHint(), settings(session), qb);
+                session, DATA_SET, qb.getAel(), qb.getQueryHint(), settings(session), qb, false);
         }
     }
 

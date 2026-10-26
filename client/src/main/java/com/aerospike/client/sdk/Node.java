@@ -24,6 +24,7 @@ import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,9 @@ public class Node implements Closeable {
     final AtomicInteger connsOpened;
     final AtomicInteger connsClosed;
     private AtomicInteger errorRateCount;
+    private final LongAdder connOpenFailures;
+    private final LongAdder connAuthFailures;
+    private final LongAdder tlsHandshakeFailures;
     protected int maxErrorRate;
     protected int connectionIter;
     private int peersGeneration;
@@ -115,6 +119,9 @@ public class Node implements Closeable {
         this.connsOpened = new AtomicInteger(1);
         this.connsClosed = new AtomicInteger(0);
         this.errorRateCount = new AtomicInteger(0);
+        this.connOpenFailures = new LongAdder();
+        this.connAuthFailures = new LongAdder();
+        this.tlsHandshakeFailures = new LongAdder();
         this.maxErrorRate = def.maxErrorRate;
         this.peersGeneration = -1;
         this.partitionGeneration = -1;
@@ -206,7 +213,7 @@ public class Node implements Closeable {
                         login();
                     }
                     else {
-                        if (! AdminCommand.authenticate(def, tendConnection, token)) {
+                        if (! AdminCommand.authenticate(cluster, this, tendConnection, token)) {
                             // Authentication failed. Session token probably expired.
                             // Login again to get new session token.
                             login();
@@ -263,7 +270,7 @@ public class Node implements Closeable {
         }
 
         try {
-            LoginCommand login = new LoginCommand(cluster.def, tendConnection);
+            LoginCommand login = new LoginCommand(cluster, this, tendConnection);
             sessionToken = login.sessionToken;
             sessionExpiration = login.sessionExpiration;
             performLogin = false;
@@ -409,7 +416,7 @@ public class Node implements Closeable {
                     try {
                         // Attempt connection to host.
                         NodeValidator nv = new NodeValidator();
-                        nv.validateNode(cluster.def, host);
+                        nv.validateNode(cluster, host);
 
                         if (! peer.nodeName.equals(nv.name)) {
                             // Must look for new node name in the unlikely event that node names do not agree.
@@ -629,7 +636,7 @@ public class Node implements Closeable {
 
             if (token != null) {
                 try {
-                    if (! AdminCommand.authenticate(cluster.def, conn, token)) {
+                    if (! AdminCommand.authenticate(cluster, this, conn, token)) {
                         throw new AerospikeException("Authentication failed");
                     }
                 }
@@ -659,7 +666,7 @@ public class Node implements Closeable {
                 new Connection(address, timeout, this, pool);
 
             long elapsed = System.nanoTime() - begin;
-            metrics.addLatency(null, LatencyType.CONN, elapsed);
+            metrics.addConnLatency(elapsed);
         }
         else {
             conn = (tls != null && !tls.isForLoginOnly()) ?
@@ -768,7 +775,7 @@ public class Node implements Closeable {
 
                     if (token != null) {
                         try {
-                            if (! AdminCommand.authenticate(cluster.def, conn, token)) {
+                            if (! AdminCommand.authenticate(cluster, this, conn, token)) {
                                 signalLogin();
                                 throw new AerospikeException("Authentication failed");
                             }
@@ -977,6 +984,57 @@ public class Node implements Closeable {
     }
 
     /**
+     * Increment connection open failure count. If the error is retryable, multiple errors per
+     * transaction may occur. For internal use only.
+     */
+    public void addConnOpenFailure() {
+        if (cluster.isMetricsOperationalEnabled()) {
+            connOpenFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection open failure count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnOpenFailure() {
+        return connOpenFailures.sum();
+    }
+
+    /**
+     * Increment connection authorization failure count. If the error is retryable, multiple errors per
+     * transaction may occur. For internal use only.
+     */
+    public void addConnAuthFailure() {
+        if (cluster.isMetricsOperationalEnabled()) {
+            connAuthFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection authorization failure count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnAuthFailure() {
+        return connAuthFailures.sum();
+    }
+
+    /**
+     * Increment TLS handshake failure count. If the error is retryable, multiple errors per
+     * transaction may occur. For internal use only.
+     */
+    public void addTlsHandshakeFailures() {
+        if (cluster.isMetricsOperationalEnabled()) {
+            tlsHandshakeFailures.increment();
+        }
+    }
+
+    /**
+     * Return TLS handshake failure count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getTlsHandshakeFailures() {
+        return tlsHandshakeFailures.sum();
+    }
+
+    /**
      * Increment transaction error count. If the error is retryable, multiple errors per
      * transaction may occur. For internal use only.
      */
@@ -994,20 +1052,36 @@ public class Node implements Closeable {
     }
 
     /**
-     * Increment transaction timeout count. If the timeout is retryable (ie socketTimeout),
+     * Increment client timeout count. If the timeout is retryable (ie socketTimeout),
      * multiple timeouts per transaction may occur. For internal use only.
      */
-    public void addTimeout(String namespace) {
+    public void addClientTimeout(String namespace) {
         if (cluster.isMetricsOperationalEnabled()) {
-            metrics.timeoutCounter.increment(namespace);
+            metrics.clientTimeoutCounter.increment(namespace);
         }
     }
 
     /**
-     * Return timeout count. The value is cumulative and not reset per metrics interval.
+     * Return client timeout count. The value is cumulative and not reset per metrics interval.
      */
-    public long getTimeoutCount(String namespace) {
-        return (metrics != null)? metrics.timeoutCounter.getCountByNS(namespace) : 0;
+    public long getClientTimeoutCount(String namespace) {
+        return (metrics != null)? metrics.clientTimeoutCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Increment server timeout count. For internal use only.
+     */
+    public void addServerTimeout(String namespace) {
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.serverTimeoutCounter.increment(namespace);
+        }
+    }
+
+    /**
+     * Return server timeout count. The value is cumulative and not reset per metrics interval.
+     */
+    public long getServerTimeoutCount(String namespace) {
+        return (metrics != null)? metrics.serverTimeoutCounter.getCountByNS(namespace) : 0;
     }
 
     /**
@@ -1024,6 +1098,40 @@ public class Node implements Closeable {
      */
     public long getKeyBusyCount(String namespace) {
         return (metrics != null)? metrics.keyBusyCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Increment record too big error counter. For internal use only.
+     */
+    public void addRecordTooBig(String namespace) {
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.recordTooBigCounter.increment(namespace);
+        }
+    }
+
+    /**
+     * Return record too big error counter for a given namespace.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getRecordTooBig(String namespace) {
+        return (metrics != null)? metrics.recordTooBigCounter.getCountByNS(namespace) : 0;
+    }
+
+    /**
+     * Increment device overload error counter. For internal use only.
+     */
+    public void addDeviceOverload(String namespace) {
+        if (cluster.isMetricsOperationalEnabled()) {
+            metrics.deviceOverloadCounter.increment(namespace);
+        }
+    }
+
+    /**
+     * Return device overload error counter for a given namespace.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getDeviceOverload(String namespace) {
+        return (metrics != null)? metrics.deviceOverloadCounter.getCountByNS(namespace) : 0;
     }
 
     /**

@@ -30,10 +30,12 @@ public class OperateReadCommand extends ReadCommand {
     final OperateArgs args;
 
     public OperateReadCommand(
-        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops, OperateArgs args,
-        Expression filterExp, boolean failOnFilteredOut, ResolvedSettings settings, ReadAttr attr
+        Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops,
+        OperateArgs args, Expression filterExp, boolean failOnFilteredOut,
+        ResolvedSettings settings, ReadAttr attr, boolean latencyEnabled
     ) {
-        super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, settings, attr);
+        super(cluster, partitions, txn, key, null, false, filterExp, failOnFilteredOut, settings,
+            attr, latencyEnabled);
         this.ops = ops;
         this.args = args;
     }

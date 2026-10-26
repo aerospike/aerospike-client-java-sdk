@@ -21,12 +21,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class Histograms {
-	private final ConcurrentHashMap<String, LatencyBuckets[]> histoMap = new ConcurrentHashMap<>();
+    private final static String noNSLabel = "";
+
+    private final ConcurrentHashMap<String, Histogram> histoMap = new ConcurrentHashMap<>();
     private final TimeUnit latencyUnit;
     private final int latencyColumns;
 	private final int latencyShift;
-	private final static String noNSLabel = "";
-	private final int max;
 
 	/**
 	 * A Histograms object is a container for a map of namespaces to histograms (as defined by their associated
@@ -36,16 +36,6 @@ public class Histograms {
         this.latencyUnit = settings.getLatencyUnit();
         this.latencyColumns = settings.getLatencyColumns();
 		this.latencyShift = settings.getLatencyShift();
-		max = LatencyType.getMax();
-	}
-
-	private LatencyBuckets[] createBuckets() {
-		LatencyBuckets[] buckets = new LatencyBuckets[max];
-
-		for (int i = 0; i < max; i++) {
-			buckets[i] = new LatencyBuckets(latencyUnit, latencyColumns, latencyShift);
-		}
-		return buckets;
 	}
 
 	/**
@@ -55,26 +45,24 @@ public class Histograms {
 		if (namespace == null) {
 			namespace = noNSLabel;
 		}
-		LatencyBuckets[] buckets = getBuckets(namespace);
-		if (buckets == null) {
-			buckets = createBuckets();
-			LatencyBuckets[] finalBuckets = buckets;
-			histoMap.computeIfAbsent(namespace, k -> finalBuckets);
+
+		// Plain get() first: it is lock-free and covers nearly every call. On a miss,
+		// computeIfAbsent() guarantees that concurrent first callers for the same
+		// namespace share one histogram, so no latencies are lost.
+		Histogram hist = histoMap.get(namespace);
+
+		if (hist == null) {
+			hist = histoMap.computeIfAbsent(namespace,
+				ns -> new Histogram(latencyUnit, latencyColumns, latencyShift));
 		}
-		buckets[type.ordinal()].add(elapsed);
+		hist.addLatency(type, elapsed);
 	}
 
 	/**
-	 * Return the LatencyBuckets for a given namespace
+	 * Return the histogram for the given namespace, or null if no latency has been
+	 * recorded for that namespace yet.
 	 */
-	public LatencyBuckets[] getBuckets(String namespace) {
+	public Histogram getHistogram(String namespace) {
 		return histoMap.get(namespace);
-	}
-
-	/**
-	 * Return the histograms map
-	 */
-	public ConcurrentHashMap<String, LatencyBuckets[]> getMap() {
-		return histoMap;
 	}
 }

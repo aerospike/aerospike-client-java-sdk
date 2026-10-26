@@ -19,10 +19,12 @@ package com.aerospike.client.sdk.metrics;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -120,11 +122,11 @@ public final class MetricsWriter implements IMetricsExporter {
 		// Must use separate StringBuilder instance to avoid conflicting with metrics detail write.
 		sb.setLength(0);
 		sb.append(now.format(TimestampFormat));
-		sb.append(" header(5)");
-		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,tran_count,command_retries,nodes[]]");
+		sb.append(" header(6)");
+		sb.append(" cluster[cluster_name,client_type,client_version,app_id,labels[],cpu,mem,recover_queue_size,nodes_invalid,command_count,blocking_count,deferred_count,background_count,shape_point,shape_batch,shape_query,object_mapping_read,object_mapping_write,filter_ael,filter_exp,transaction,command_retries,validation_open_failure,validation_tls_handshake_failure,validation_auth_failure,cluster_latencies[],nodes[]]");
 		sb.append(" labels[name,value]");
-		sb.append(" nodes[name,address,port,conns_in_use,conns_in_pool,conns_opened,conns_closed,namespaces[]]");
-		sb.append(" namespaces[name,errors,timeouts,key_busy,bytes_in,bytes_out,latency[]]");
+		sb.append(" nodes[name,address,port,connection_open_failure,connection_tls_handshake_failure,connection_auth_failure,conns_in_use,conns_in_pool,conns_opened,conns_closed,conn_latency[],namespaces[]]");
+		sb.append(" namespaces[name,errors,client_timeouts,server_timeouts,key_busy,record_too_big,device_overload,bytes_in,bytes_out,latency[]]");
 		sb.append(" latency(");
         sb.append(latencyUnit);
         sb.append(',');
@@ -132,7 +134,7 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.append(',');
 		sb.append(latencyShift);
 		sb.append(')');
-		sb.append("[type[l1,l2,l3...]]");
+		sb.append("[type[min,max,sum,count,[l1,l2,l3...]]]");
 		writeLine();
 	}
 
@@ -181,11 +183,33 @@ public final class MetricsWriter implements IMetricsExporter {
         sb.append(',');
         sb.append(usage.background);
         sb.append(',');
-        sb.append(usage.transactions);
+        sb.append(usage.shapePoint);
+        sb.append(',');
+        sb.append(usage.shapeBatch);
+        sb.append(',');
+        sb.append(usage.shapeQuery);
+        sb.append(',');
+        sb.append(usage.objectMappingRead);
+        sb.append(',');
+        sb.append(usage.objectMappingWrite);
+        sb.append(',');
+        sb.append(usage.filterAel);
+        sb.append(',');
+        sb.append(usage.filterExp);
+        sb.append(',');
+        sb.append(usage.transaction);
 
         sb.append(',');
 		sb.append(ms.commandRetries);
-		sb.append(",[");
+        sb.append(',');
+        sb.append(ms.validationOpenFailure);
+        sb.append(',');
+        sb.append(ms.validationTlsHandshakeFailure);
+        sb.append(',');
+        sb.append(ms.validationAuthFailure);
+        sb.append(',');
+        writeLatencies(ms.clusterLatencies);
+        sb.append(",[");
 
 		int count = 0;
 
@@ -216,6 +240,12 @@ public final class MetricsWriter implements IMetricsExporter {
 		sb.append(node.nodeAddress);
 		sb.append(',');
 		sb.append(node.nodePort);
+        sb.append(',');
+        sb.append(node.connectionOpenFailure);
+        sb.append(',');
+        sb.append(node.connectionTlsHandshakeFailure);
+        sb.append(',');
+        sb.append(node.connectionAuthFailure);
 
 		ConnectionMetricsSnapshot cms = node.connections;
 
@@ -227,7 +257,12 @@ public final class MetricsWriter implements IMetricsExporter {
         sb.append(cms.opened);
         sb.append(',');
         sb.append(cms.closed);
-		sb.append(",[");
+        sb.append(",[");
+
+        if (node.connLatency != null) {
+            writeLatency(node.connLatency);
+        }
+		sb.append("],[");
 
 		NamespaceMetricsSnapshot[] nms = node.namespaces;
 
@@ -244,41 +279,68 @@ public final class MetricsWriter implements IMetricsExporter {
             sb.append(',');
             sb.append(ns.clientTimeouts);
             sb.append(',');
+            sb.append(ns.serverTimeouts);
+            sb.append(',');
             sb.append(ns.keyBusy);
+            sb.append(',');
+            sb.append(ns.recordTooBig);
+            sb.append(',');
+            sb.append(ns.deviceOverload);
             sb.append(',');
             sb.append(ns.bytesIn);
             sb.append(',');
             sb.append(ns.bytesOut);
-            sb.append(",[");
-
-            LatencySnapshot[] latencies = ns.latencies;
-
-            for (int j = 0; j < latencies.length; j++) {
-                if (j > 0) {
-                    sb.append(',');
-                }
-
-                LatencySnapshot ls = latencies[j];
-
-                sb.append(ls.type.getLabel());
-                sb.append('[');
-
-                long[] buckets = ls.bucketCounts;
-
-                for (int k = 0; k < buckets.length; k++) {
-                    if (k > 0) {
-                        sb.append(',');
-                    }
-                    sb.append(buckets[k]);
-                }
-                sb.append(']');
-            }
-            sb.append("]]");
+            sb.append(',');
+            writeLatencies(ns.latencies);
+            sb.append(']');
         }
         sb.append("]]");
 	}
 
-	private void writeLine() {
+	private void writeLatencies(List<LatencySnapshot> latencies) {
+        sb.append('[');
+
+        boolean comma = false;
+
+        for (LatencySnapshot latency : latencies) {
+            if (comma) {
+                sb.append(',');
+            }
+            else {
+                comma = true;
+            }
+
+            writeLatency(latency);
+        }
+        sb.append(']');
+	}
+
+    private void writeLatency(LatencySnapshot latency) {
+        sb.append(latency.type.getLabel());
+        sb.append('[');
+        sb.append(latency.min);
+        sb.append(',');
+        sb.append(latency.max);
+        sb.append(',');
+        // Plain integer form; StringBuilder.append(double) would use exponent notation.
+        sb.append(new BigDecimal(latency.sum).toPlainString());
+        sb.append(',');
+        sb.append(latency.count);
+        sb.append(',');
+        sb.append('[');
+
+        long[] buckets = latency.bucketCounts;
+
+        for (int i = 0; i < buckets.length; i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(buckets[i]);
+        }
+        sb.append("]]");
+    }
+
+    private void writeLine() {
 		try {
 			sb.append(System.lineSeparator());
 			writer.write(sb.toString());

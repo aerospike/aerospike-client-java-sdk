@@ -201,7 +201,7 @@ public final class Batch {
 
         @Override
         protected BatchNodeExecutor createCommand(BatchNode batchNode) {
-            return new OperateListSync(cluster, parent, batchNode, records, status);
+            return new OperateListAsync(cluster, parent, batchNode, records, stream, status);
         }
 
         @Override
@@ -463,7 +463,7 @@ public final class Batch {
                     exec.commandSentCounter = commandSentCounter;
                     exec.deadline = deadline;
 
-                    cluster.addRetryCount();
+                    cluster.addRetryCount(latencyEnabled);
                     es.execute(exec);
                 }
             }

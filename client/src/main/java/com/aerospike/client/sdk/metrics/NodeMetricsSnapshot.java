@@ -30,12 +30,10 @@ public final class NodeMetricsSnapshot {
     public final String nodeName;
     public final String nodeAddress;
     public final int nodePort;
-
-    // TODO Support failure counts.
-    //public final long connectionOpenFailure;
-    //public final long connectionTlsHandshakeFailures;
-    //public final long connectionAuthFailure;
-
+    public final long connectionOpenFailure;
+    public final long connectionTlsHandshakeFailure;
+    public final long connectionAuthFailure;
+    public final LatencySnapshot connLatency; // can be null
     public final ConnectionMetricsSnapshot connections;
     public final NamespaceMetricsSnapshot[] namespaces;
 
@@ -43,16 +41,22 @@ public final class NodeMetricsSnapshot {
 		this.nodeName = node.getName();
 		this.nodeAddress = node.getAddress().getAddress().toString();
 		this.nodePort = node.getAddress().getPort();
-        //this.connectionOpenFailure = connectionOpenFailure;
-        //this.connectionTlsHandshakeFailures = connectionTlsHandshakeFailures;
-        //this.connectionAuthFailure = connectionAuthFailure;
+        this.connectionOpenFailure = node.getConnOpenFailure();
+        this.connectionTlsHandshakeFailure = node.getTlsHandshakeFailures();
+        this.connectionAuthFailure = node.getConnAuthFailure();
         this.connections = new ConnectionMetricsSnapshot(node);
+
+        NodeMetrics nodeMetrics = node.getMetrics();
+
+        this.connLatency = (nodeMetrics != null) ?
+            LatencySnapshot.connLatencySnapshot(nodeMetrics.getConnLatency()) : null;
 
         HashMap<String,Partitions> partitionMap = node.cluster.getPartitionMap();
         Set<String> namespaces = partitionMap.keySet();
         int count = 0;
 
-        this.namespaces = new NamespaceMetricsSnapshot[namespaces.size()];
+        this.namespaces = new NamespaceMetricsSnapshot[namespaces.size() + 1];
+        this.namespaces[count++] = new NamespaceMetricsSnapshot(node, "");
 
         for (String namespace : namespaces) {
             this.namespaces[count++] = new NamespaceMetricsSnapshot(node, namespace);
@@ -65,9 +69,9 @@ public final class NodeMetricsSnapshot {
             + "nodeName=" + nodeName
             + ", nodeAddress=" + nodeAddress
             + ", nodePort=" + nodePort
-            //+ ", connectionOpenFailure=" + connectionOpenFailure
-            //+ ", connectionTlsHandshakeFailures=" + connectionTlsHandshakeFailures
-            //+ ", connectionAuthFailure=" + connectionAuthFailure
+            + ", connectionOpenFailure=" + connectionOpenFailure
+            + ", connectionTlsHandshakeFailures=" + connectionTlsHandshakeFailure
+            + ", connectionAuthFailure=" + connectionAuthFailure
             + ", connections=" + connections
             + ", namespaces=" + Arrays.toString(namespaces)
             + '}';

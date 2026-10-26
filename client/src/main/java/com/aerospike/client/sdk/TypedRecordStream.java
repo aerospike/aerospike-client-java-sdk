@@ -225,6 +225,8 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      * @return a future that completes with mapped domain objects
      */
     public CompletableFuture<List<T>> asCompletableFuture(RecordMapper<T> mapper) {
+        session.getCluster().addObjectMapperReadCount();
+
         RecordReadContext<T> ctx = mappingContext();
         return asCompletableFuture().thenApply(list -> {
             List<T> results = new ArrayList<>(list.size());
@@ -348,6 +350,8 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      * @return a list of mapped domain objects in stream order
      */
     public List<T> toObjectList(RecordMapper<T> mapper) {
+        session.getCluster().addObjectMapperReadCount();
+
         try {
             List<T> result = new ArrayList<>();
             RecordReadContext<T> ctx = mappingContext();
@@ -442,6 +446,8 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      * @param consumer the action to perform for each mapped object (must not be null)
      */
     public void forEach(RecordMapper<T> mapper, Consumer<T> consumer) {
+        session.getCluster().addObjectMapperReadCount();
+
         try {
             RecordReadContext<T> ctx = mappingContext();
             while (hasNext()) {
@@ -521,6 +527,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
             while (hasNext()) {
                 RecordResult thisRecord = next();
                 if (thisRecord.getKey().equals(key)) {
+                    session.getCluster().addObjectMapperReadCount();
                     Record rec = thisRecord.recordOrThrow();
                     return Optional.of(mapper.fromMap(rec.bins, thisRecord.getKey(), rec.generation, ctx));
                 }
@@ -589,6 +596,8 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      */
     public Optional<T> pop(RecordMapper<T> mapper) {
         if (hasNext()) {
+            session.getCluster().addObjectMapperReadCount();
+
             RecordResult item = next();
             Record rec = item.recordOrThrow();
             return Optional.of(mapper.fromMap(rec.bins, item.getKey(), rec.generation, mappingContext()));
@@ -643,6 +652,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      */
     public Optional<T> popUdfResultObject(RecordMapper<T> mapper) {
         if (hasNext()) {
+            session.getCluster().addObjectMapperReadCount();
             return next().udfResultAsObject(mapper, mappingContext());
         }
         return Optional.empty();
@@ -663,6 +673,7 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      */
     public Optional<T> popUdfResultMapped() {
         if (hasNext()) {
+            session.getCluster().addObjectMapperReadCount();
             return next().udfResultAsObject();
         }
         return Optional.empty();
@@ -679,6 +690,8 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
      */
     public Optional<RecordStream.ObjectWithMetadata<T>> popWithMetadata(RecordMapper<T> mapper) {
         if (hasNext()) {
+            session.getCluster().addObjectMapperReadCount();
+
             RecordResult item = next();
             Record rec = item.recordOrThrow();
             T object = mapper.fromMap(rec.bins, item.getKey(), rec.generation, mappingContext());
@@ -705,6 +718,9 @@ public final class TypedRecordStream<T> implements Iterator<RecordResult>, Itera
         if (rr.isEmpty()) {
             return Optional.empty();
         }
+
+        session.getCluster().addObjectMapperReadCount();
+
         RecordResult item = rr.get();
         Record rec = item.recordOrThrow();
         T object = requireMapper().fromMap(rec.bins, item.getKey(), rec.generation, mappingContext());

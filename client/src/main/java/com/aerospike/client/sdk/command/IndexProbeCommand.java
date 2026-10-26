@@ -80,7 +80,7 @@ public final class IndexProbeCommand extends Command {
         long taskId,
         ResolvedSettings settings
     ) {
-        super(cluster, namespace, null, null, settings.getReplicaOrder(), settings);
+        super(cluster, namespace, null, null, settings.getReplicaOrder(), false, settings);
         QueryWhereWire.requireAel(ael);
         this.set = set;
         this.ael = ael;
@@ -93,9 +93,6 @@ public final class IndexProbeCommand extends Command {
      * Run explain against the cluster and return the server query plan.
      */
     public QueryPlan execute() {
-        cluster.addCommandCount();
-        cluster.addBlockingCount();
-
         IndexProbeExecutor exec = new IndexProbeExecutor(cluster, this);
         exec.execute();
         return exec.getPlan();

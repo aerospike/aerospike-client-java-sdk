@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk.query;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -80,6 +82,7 @@ public class IndexQueryBuilderImpl extends QueryImpl {
 
     private RecordStream executeInternal(ErrorHandler handler) {
         Session session = getSession();
+        Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
         validate(session, qb);
@@ -87,8 +90,19 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = qb.getAel();
 
+        if (where != null) {
+            if (where.hasStringAel()) {
+                cluster.addAelFilterCount();
+            }
+            else {
+                cluster.addExpFilterCount();
+            }
+        }
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+
         QueryCommand cmd = IndexProbePlanner.buildCommand(
-            session, dataSet, where, qb.getQueryHint(), policy, qb);
+            session, dataSet, where, qb.getQueryHint(), policy, qb, latencyEnabled);
 
         AsyncRecordStream stream = newStream(policy, handler);
         cmd.execute(stream);
@@ -124,15 +138,25 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
         WhereClauseProcessor where = qb.getAel();
 
+        if (where != null) {
+            if (where.hasStringAel()) {
+                cluster.addAelFilterCount();
+            }
+            else {
+                cluster.addExpFilterCount();
+            }
+        }
+
         AsyncRecordStream stream = newStream(policy, handler);
         CompletableFuture<QueryCommand> planned = new CompletableFuture<>();
+        boolean latencyEnabled = cluster.isLatencyEnabled();
 
         cluster.startVirtualThread(() -> {
             QueryCommand cmd;
 
             try {
                 cmd = IndexProbePlanner.buildCommand(
-                    session, dataSet, where, qb.getQueryHint(), policy, qb);
+                    session, dataSet, where, qb.getQueryHint(), policy, qb, latencyEnabled);
             }
             catch (Throwable t) {
                 planned.completeExceptionally(t);

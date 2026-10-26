@@ -28,6 +28,7 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Loggers;
+import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.policy.AuthMode;
 
@@ -70,20 +71,36 @@ public class AdminCommand {
         public byte[] sessionToken = null;
         public long sessionExpiration = 0;
 
-        public LoginCommand(ClusterDefinition def, Connection conn) throws IOException {
+        public LoginCommand(Cluster cluster, Node node, Connection conn) throws IOException {
             super();
+
+            ClusterDefinition def = cluster.getClusterDefinition();
 
             conn.setTimeout(def.getLoginTimeout());
 
             try {
-                login(def, conn);
+                login(cluster, node, conn);
+            }
+            catch(AerospikeException.Connection aec) {
+                handleConnOpenFailure(cluster, node);
+                throw aec;
+            }
+            catch(AerospikeException ae) {
+                handleConnAuthFailure(cluster, node);
+                throw ae;
+            }
+            catch(Throwable t) {
+                handleConnOpenFailure(cluster, node);
+                throw t;
             }
             finally {
                 conn.setTimeout(def.getTendTimeout());
             }
         }
 
-        private void login(ClusterDefinition def, Connection conn) throws IOException {
+        private void login(Cluster cluster, Node node, Connection conn) throws IOException {
+            ClusterDefinition def = cluster.getClusterDefinition();
+
             if (def.getAuthMode() == AuthMode.INTERNAL) {
                 writeHeader(LOGIN, 2);
                 writeField(USER, def.getUserName());
@@ -124,7 +141,7 @@ public class AdminCommand {
             int fieldCount = dataBuffer[11] & 0xFF;
 
             if (receiveSize <= 0 || receiveSize > dataBuffer.length || fieldCount <= 0) {
-                throw AerospikeException.toException(result, "Failed to retrieve session token");
+                throw AerospikeException.toException(ResultCode.CLIENT_ERROR, "Failed to retrieve session token");
             }
 
             conn.readFully(dataBuffer, receiveSize);
@@ -158,15 +175,46 @@ public class AdminCommand {
             }
 
             if (sessionToken == null) {
-                throw AerospikeException.toException(result, "Failed to retrieve session token");
+                throw AerospikeException.toException(ResultCode.CLIENT_ERROR, "Failed to retrieve session token");
             }
         }
     }
 
-    public static boolean authenticate(ClusterDefinition def, Connection conn, byte[] sessionToken)
+    public static boolean authenticate(Cluster cluster, Node node, Connection conn, byte[] sessionToken)
         throws IOException {
-        AdminCommand command = new AdminCommand();
-        return command.authenticateSession(def, conn, sessionToken);
+        try {
+            AdminCommand command = new AdminCommand();
+            boolean rv = command.authenticateSession(cluster.getClusterDefinition(), conn, sessionToken);
+
+            if (!rv) {
+                handleConnAuthFailure(cluster, node);
+            }
+            return rv;
+        }
+        catch(Throwable t) {
+            handleConnOpenFailure(cluster, node);
+            throw t;
+        }
+    }
+
+    private static void handleConnOpenFailure(Cluster cluster, Node node) {
+        if (node != null) {
+            node.addConnOpenFailure();
+        }
+        else if (cluster != null) {
+            cluster.addConnOpenFailure();
+        }
+    }
+
+    private static void handleConnAuthFailure(Cluster cluster, Node node) {
+        if (node != null) {
+            node.addConnAuthFailure();
+            node.addConnOpenFailure();
+        }
+        else if (cluster != null) {
+            cluster.addConnAuthFailure();
+            cluster.addConnOpenFailure();
+        }
     }
 
     private boolean authenticateSession(ClusterDefinition def, Connection conn, byte[] sessionToken)

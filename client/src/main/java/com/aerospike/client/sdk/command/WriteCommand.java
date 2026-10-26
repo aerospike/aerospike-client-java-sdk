@@ -37,21 +37,27 @@ public class WriteCommand extends Command {
 
     public WriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
-        Expression where, boolean failOnFilteredOut, ResolvedSettings settings
+        Expression where, boolean failOnFilteredOut, ResolvedSettings settings,
+        boolean latencyEnabled
     ) {
-        this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings, null, null);
+        this(cluster, partitions, txn, key, type, gen, ttl, where, failOnFilteredOut, settings,
+            null, null, latencyEnabled);
     }
 
-    public WriteCommand(Cluster cluster, Partitions partitions, Key key, ResolvedSettings settings) {
-        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null, null);
+    public WriteCommand(
+        Cluster cluster, Partitions partitions, Key key, ResolvedSettings settings,
+        boolean latencyEnabled
+    ) {
+        this(cluster, partitions, null, key, OpType.UPSERT, 0, 0, null, false, settings, null, null,
+            latencyEnabled);
     }
 
     public WriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, OpType type, int gen, int ttl,
         Expression where, boolean failOnFilteredOut, ResolvedSettings settings,
-        Boolean durableDeleteDefault, Boolean durableDeleteOverride
+        Boolean durableDeleteDefault, Boolean durableDeleteOverride, boolean latencyEnabled
     ) {
-        super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), settings);
+        super(cluster, key.namespace, txn, where, settings.getReplicaOrder(), latencyEnabled, settings);
         this.key = key;
         this.partition = new Partition(partitions, key, replica, null, false);
         this.type = type;

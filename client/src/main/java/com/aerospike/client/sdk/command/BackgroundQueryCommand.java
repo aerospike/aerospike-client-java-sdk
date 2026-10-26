@@ -45,9 +45,9 @@ public final class BackgroundQueryCommand extends Command {
     public BackgroundQueryCommand(
         Cluster cluster, DataSet set, long taskId, OpType type, List<Operation> ops, int ttl,
         Filter filter, Expression filterExp, ResolvedSettings settings, int recordsPerSecond,
-        Boolean durableDeleteDefault
+        Boolean durableDeleteDefault, boolean latencyEnabled
     ) {
-        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
+        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), latencyEnabled, settings);
         this.taskId = taskId;
         this.set = set.getSet();
         this.filter = filter;
@@ -66,9 +66,9 @@ public final class BackgroundQueryCommand extends Command {
         Cluster cluster, DataSet set, long taskId, OpType type,  int ttl,
         String packageName, String functionName, Value[] functionArgs,
         Filter filter, Expression filterExp, ResolvedSettings settings, int recordsPerSecond,
-        Boolean durableDeleteDefault
+        Boolean durableDeleteDefault, boolean latencyEnabled
     ) {
-        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
+        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), latencyEnabled, settings);
         this.taskId = taskId;
         this.set = set.getSet();
         this.filter = filter;

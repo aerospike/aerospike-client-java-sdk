@@ -27,6 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,9 +38,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aerospike.client.sdk.metrics.Histogram;
 import com.aerospike.client.sdk.metrics.IMetricsExporter;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.metrics.MetricsExporterType;
 import com.aerospike.client.sdk.metrics.MetricsExtended;
+import com.aerospike.client.sdk.metrics.MetricsSampler;
 import com.aerospike.client.sdk.metrics.MetricsSettings;
 import com.aerospike.client.sdk.metrics.MetricsSnapshot;
 import com.aerospike.client.sdk.metrics.MetricsWriter;
@@ -82,11 +86,22 @@ public class Cluster implements Closeable {
     private final CopyOnWriteArrayList<NodeMetricsSnapshot> nodesDeparted;
     private final ThreadFactory threadFactory;
     private final LongAdder commandCount;
-    private final LongAdder blockingCount;   // feature.api.blocking
-    private final LongAdder deferredCount;   // feature.api.deferred
-    private final LongAdder backgroundCount; // feature.api.background
-    private final LongAdder tranCount;       // feature.api.transaction
+    private final LongAdder pointCount;       // feature.shape.point
+    private final LongAdder batchCount;       // feature.shape.batch
+    private final LongAdder queryCount;       // feature.shape.query
+    private final LongAdder objectMappingReadCount;  // feature.object_mapping.read
+    private final LongAdder objectMappingWriteCount; // feature.object_mapping.writer
+    private final LongAdder objectMappingBatchCount; // feature.batch.mixed
+    private final LongAdder blockingCount;    // feature.api.blocking
+    private final LongAdder deferredCount;    // feature.api.deferred
+    private final LongAdder backgroundCount;  // feature.api.background
+    private final LongAdder aelFilterCount;   // feature.filter.ael
+    private final LongAdder expFilterCount;   // feature.filter.exp
+    private final LongAdder transactionCount; // feature.transaction
     private final LongAdder retryCount;
+    private final LongAdder connOpenFailures;     // cluster.validation.connection.open.failure
+    private final LongAdder connAuthFailures;     // cluster.validation.connection.auth.failure
+    private final LongAdder tlsHandshakeFailures; // cluster.validation.connection.tls.handshake.failure
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
     private final AtomicBoolean closed;
@@ -98,6 +113,9 @@ public class Cluster implements Closeable {
     private final Condition metricsSleepCondition = metricsSleepLock.newCondition();
     private volatile Thread metricsThread;
     private List<IMetricsExporter> metricsExporters;
+    private int metricsRange;
+    private int metricsThreshold;
+    private Histogram histogram;
     private Version serverVersion;
     private boolean serverVersionGE8;
     private boolean serverVersionGE812;
@@ -113,11 +131,22 @@ public class Cluster implements Closeable {
         nodesDeparted = new CopyOnWriteArrayList<>();
         threadFactory = Thread.ofVirtual().name("Aerospike-", 0L).factory();
         commandCount = new LongAdder();
+        pointCount = new LongAdder();
+        batchCount = new LongAdder();
+        queryCount = new LongAdder();
+        objectMappingReadCount = new LongAdder();
+        objectMappingWriteCount = new LongAdder();
+        objectMappingBatchCount = new LongAdder();
         blockingCount = new LongAdder();
         deferredCount = new LongAdder();
         backgroundCount = new LongAdder();
-        tranCount = new LongAdder();
+        aelFilterCount = new LongAdder();
+        expFilterCount = new LongAdder();
+        transactionCount = new LongAdder();
         retryCount = new LongAdder();
+        connOpenFailures = new LongAdder();
+        connAuthFailures = new LongAdder();
+        tlsHandshakeFailures = new LongAdder();
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
         closed = new AtomicBoolean();
@@ -473,11 +502,17 @@ public class Cluster implements Closeable {
             for (Node node : nodeArray) {
                 node.enableMetrics(settings);
             }
+
+            histogram = new Histogram(me.getOperational());
         }
 
         this.metricsEnabled = true;
         this.metricsOperationalEnabled = me.getOperational().getEnabled();
         this.metricsUsageEnabled = me.getUsage().getEnabled();
+
+        MetricsSampler ms = me.getOperational().getSampler();
+        this.metricsRange = ms.getRange();
+        this.metricsThreshold = ms.getThreshold();
 
         // Start metrics thread if not already running. If metrics are re-enabled with
         // new settings, the running thread picks up the new interval on its next cycle.
@@ -541,6 +576,43 @@ public class Cluster implements Closeable {
      */
     public boolean isMetricsOperationalEnabled() {
         return metricsOperationalEnabled;
+    }
+
+    /**
+     * Return if latency should be captured.
+     */
+    public boolean isLatencyEnabled() {
+        if (!metricsOperationalEnabled || metricsThreshold <= 0) {
+            return false;
+        }
+
+        int range = metricsRange;
+
+        if (metricsThreshold >= range) {
+            // Sample every command. No need for a random draw.
+            return true;
+        }
+
+        // ThreadLocalRandom stores its seed directly in the Thread object, so there is no
+        // contention across threads (unlike a shared java.util.Random, which CASes an
+        // AtomicLong) and no ThreadLocal map lookup or per-thread allocation (unlike a
+        // ThreadLocal<RandomShift>, which is costly with short-lived virtual threads).
+        // nextInt(bound) returns a non-negative, unbiased value in [0, range).
+        return ThreadLocalRandom.current().nextInt(range) < metricsThreshold;
+    }
+
+    /**
+     * Add command latency. For internal use only.
+     */
+    public void addLatency(LatencyType type, long elapsedNanos) {
+        histogram.addLatency(type, elapsedNanos);
+    }
+
+    /**
+     * Return latency histogram for all latency types.
+     */
+    public Histogram getHistogram() {
+        return histogram;
     }
 
     /**
@@ -717,27 +789,125 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Return command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getCommandCount() {
+        return commandCount.sum();
+    }
+
+    /**
      * Increment single key command count when usage metrics are enabled. For internal use only.
      */
-    public final void addCommandCount() {
-        if (metricsOperationalEnabled) {
+    public final void addPointCount(boolean latencyEnabled) {
+        if (metricsUsageEnabled) {
+            pointCount.increment();
+        }
+
+        if (latencyEnabled) {
             commandCount.increment();
         }
     }
 
     /**
-     * Return command count. The value is cumulative and not reset per metrics interval.
+     * Return single key command count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getCommandCount() {
-        return commandCount.longValue();
+    public final long getPointCount() {
+        return pointCount.sum();
+    }
+
+    /**
+     * Increment batch command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addBatchCount(boolean latencyEnabled) {
+        if (metricsUsageEnabled) {
+            batchCount.increment();
+        }
+
+        if (latencyEnabled) {
+            commandCount.increment();
+        }
+    }
+
+    /**
+     * Return batch command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getBatchCount() {
+        return batchCount.sum();
+    }
+
+    /**
+     * Increment query command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addQueryCount(boolean latencyEnabled) {
+        if (metricsUsageEnabled) {
+            queryCount.increment();
+        }
+
+        if (latencyEnabled) {
+            commandCount.increment();
+        }
+    }
+
+    /**
+     * Return query command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getQueryCount() {
+        return queryCount.sum();
+    }
+
+    /**
+     * Increment object mapper read command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addObjectMapperReadCount() {
+        if (metricsUsageEnabled) {
+            objectMappingReadCount.increment();
+        }
+    }
+
+    /**
+     * Return object mapper read command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getObjectMapperReadCount() {
+        return objectMappingReadCount.sum();
+    }
+
+    /**
+     * Increment object mapper write command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addObjectMapperWriteCount() {
+        if (metricsUsageEnabled) {
+            objectMappingWriteCount.increment();
+        }
+    }
+
+    /**
+     * Return object mapper write command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getObjectMapperWriteCount() {
+        return objectMappingWriteCount.sum();
+    }
+    /**
+     * Increment object mapper batch command count when usage metrics are enabled. For internal use only.
+     */
+    public final void addObjectMapperBatchCount() {
+        if (metricsUsageEnabled) {
+            objectMappingBatchCount.increment();
+        }
+    }
+
+    /**
+     * Return object mapper batch command count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getObjectMapperBatchCount() {
+        return objectMappingBatchCount.sum();
     }
 
     /**
      * Increment command retry count. There can be multiple retries for a single command.
      * For internal use only.
      */
-    public final void addRetryCount() {
-        if (metricsOperationalEnabled) {
+    public final void addRetryCount(boolean latencyEnabled) {
+        if (latencyEnabled) {
             retryCount.increment();
         }
     }
@@ -746,7 +916,61 @@ public class Cluster implements Closeable {
      * Return command retry count. The value is cumulative and not reset per metrics interval.
      */
     public final long getRetryCount() {
-        return retryCount.longValue();
+        return retryCount.sum();
+    }
+
+    /**
+     * Increment connection open failure count for failed connections without an assigned node.
+     * For internal use only.
+     */
+    public void addConnOpenFailure() {
+        if (metricsOperationalEnabled) {
+            connOpenFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection open failure count for connection validation without an assigned node.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnOpenFailure() {
+        return connOpenFailures.sum();
+    }
+
+    /**
+     * Increment connection authorization failure count for failed connections without an assigned node.
+     * For internal use only.
+     */
+    public void addConnAuthFailure() {
+        if (metricsOperationalEnabled) {
+            connAuthFailures.increment();
+        }
+    }
+
+    /**
+     * Return connection authorization failure count.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getConnAuthFailure() {
+        return connAuthFailures.sum();
+    }
+
+    /**
+     * Increment TLS handshake failure count for failed connections without an assigned node.
+     * For internal use only.
+     */
+    public void addTlsHandshakeFailures() {
+        if (metricsOperationalEnabled) {
+            tlsHandshakeFailures.increment();
+        }
+    }
+
+    /**
+     * Return TLS handshake failure count.
+     * The value is cumulative and not reset per metrics interval.
+     */
+    public long getTlsHandshakeFailures() {
+        return tlsHandshakeFailures.sum();
     }
 
     /**
@@ -762,7 +986,7 @@ public class Cluster implements Closeable {
      * Return sync command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getBlockingCount() {
-        return blockingCount.longValue();
+        return blockingCount.sum();
     }
 
     /**
@@ -778,7 +1002,7 @@ public class Cluster implements Closeable {
      * Return async command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getDeferredCount() {
-        return deferredCount.longValue();
+        return deferredCount.sum();
     }
 
     /**
@@ -794,23 +1018,73 @@ public class Cluster implements Closeable {
      * Return background command count. The value is cumulative and not reset per metrics interval.
      */
     public final long getBackgroundCount() {
-        return backgroundCount.longValue();
+        return backgroundCount.sum();
+    }
+
+    /**
+     * Increment AEL filter usage count when usage metrics are enabled. For internal use only.
+     */
+    public final void addAelFilterCount() {
+        if (metricsUsageEnabled) {
+            aelFilterCount.increment();
+        }
+    }
+
+    /**
+     * Add AEL filter usage counts when usage metrics are enabled. For internal use only.
+     */
+    public final void addAelFilterCount(long count) {
+        if (metricsUsageEnabled) {
+            aelFilterCount.add(count);
+        }
+    }
+
+    /**
+     * Return AEL filter usage count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getAelFilterCount() {
+        return aelFilterCount.sum();
+    }
+
+    /**
+     * Increment Exp filter usage count when usage metrics are enabled. For internal use only.
+     */
+    public final void addExpFilterCount() {
+        if (metricsUsageEnabled) {
+            expFilterCount.increment();
+        }
+    }
+
+    /**
+     * Add Exp filter usage counts when usage metrics are enabled. For internal use only.
+     */
+    public final void addExpFilterCount(int count) {
+        if (metricsUsageEnabled) {
+            expFilterCount.add(count);
+        }
+    }
+
+    /**
+     * Return Exp filter usage count. The value is cumulative and not reset per metrics interval.
+     */
+    public final long getExpFilterCount() {
+        return expFilterCount.sum();
     }
 
     /**
      * Increment transaction count when usage metrics are enabled. For internal use only.
      */
-    public final void addTranCount() {
+    public final void addTransactionCount() {
         if (metricsUsageEnabled) {
-            tranCount.increment();
+            transactionCount.increment();
         }
     }
 
     /**
      * Return transaction count. The value is cumulative and not reset per metrics interval.
      */
-    public final long getTranCount() {
-        return tranCount.longValue();
+    public final long getTransactionCount() {
+        return transactionCount.sum();
     }
 
     /**
@@ -896,7 +1170,7 @@ public class Cluster implements Closeable {
      * <p>True when the cluster's {@linkplain #getServerVersion() minimum server version} is
      * {@link Version#SERVER_VERSION_8_2} or newer.</p>
      *
-     * @see com.aerospike.client.sdk.exp.Expression#fromServerCompiledFilter(String)
+     * @see com.aerospike.client.sdk.exp.Expression#getCompiledFilter(String)
      */
     public boolean supportsAel() {
         return serverVersionGE82;
@@ -1133,19 +1407,24 @@ public class Cluster implements Closeable {
         }
 
         MetricsSnapshot snapshot = new MetricsSnapshot(this, metricsSettings);
-        nodesDeparted.clear();
+        boolean success = true;
 
         for (IMetricsExporter exporter : metricsExporters) {
             try {
                 exporter.export(snapshot);
             }
             catch(Throwable t) {
+                success = false;
                 if (log.isWarnEnabled()) {
                     log.atWarn()
                         .addKeyValue(Cluster.CONTEXT, def.getClusterName())
                         .log("Metrics export snapshot failed: " + Util.getErrorMessage(t));
                 }
             }
+        }
+
+        if (success) {
+            nodesDeparted.clear();
         }
     }
 
@@ -1160,11 +1439,22 @@ public class Cluster implements Closeable {
             if (metricsEnabled) {
                 try {
                     ArrayList<NodeMetricsSnapshot> list = new ArrayList<>(nodesToRemove.size());
+                    int size = nodesDeparted.size();
 
                     for (Node node : nodesToRemove) {
-                        list.add(new NodeMetricsSnapshot(node));
+                        // Cap nodesDeparted at 256.
+                        if (size < 256) {
+                            list.add(new NodeMetricsSnapshot(node));
+                            size++;
+                        }
+                        else {
+                            break;
+                        }
                     }
-                    nodesDeparted.addAll(list);
+
+                    if (list.size() > 0) {
+                        nodesDeparted.addAll(list);
+                    }
                 }
                 catch (Throwable e) {
                     if (log.isWarnEnabled()) {

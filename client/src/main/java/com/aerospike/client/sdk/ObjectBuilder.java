@@ -50,9 +50,11 @@ import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnMonitor;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
 import com.aerospike.client.sdk.policy.Behavior.OpShape;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
+import com.aerospike.client.sdk.query.WhereClauseProcessor;
 import com.aerospike.client.sdk.tend.Partitions;
 
 /**
@@ -877,10 +879,14 @@ public class ObjectBuilder<T> {
      * Execute operations using batch operations (10+ objects).
      */
     private RecordStream executeBatchSync(ErrorDisposition disposition) {
-        BatchCommand parent = prepareBatch();
-        List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
+        BatchCommand parent = prepareBatch(latencyEnabled);
+        List<BatchRecord> records = parent.getRecords();
         BatchStatus status = new BatchStatus();
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
@@ -902,7 +908,7 @@ public class ObjectBuilder<T> {
             }
         }
 
-        cluster.addCommandCount();
+        cluster.addObjectMapperBatchCount();
         cluster.addBlockingCount();
 
         if (txnToUse != null) {
@@ -951,6 +957,11 @@ public class ObjectBuilder<T> {
 
             RecordStream rs = new RecordStream(recordStream);
 
+            if (latencyEnabled) {
+                long elapsed = System.nanoTime() - begin;
+                cluster.addLatency(LatencyType.BATCH, elapsed);
+            }
+
             return opBuilder.includeMissingKeys ? rs.markMissingKeysExpected() : rs;
         }
         finally {
@@ -962,10 +973,14 @@ public class ObjectBuilder<T> {
      * Execute operations using async batch operations (10+ objects).
      */
     private RecordStream executeBatchAsync(ErrorHandler errorHandler) {
-        BatchCommand parent = prepareBatch();
-        List<BatchRecord> records = parent.getRecords();
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
+        BatchCommand parent = prepareBatch(latencyEnabled);
+        List<BatchRecord> records = parent.getRecords();
         BatchStatus status = new BatchStatus();
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
@@ -989,20 +1004,23 @@ public class ObjectBuilder<T> {
             }
         }
 
+        cluster.addObjectMapperBatchCount();
+        cluster.addDeferredCount();
+
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
                 TxnMonitor.addKeysBatchWrite(txnToUse, session, records);
-                operateBatchAsync(cluster, commands, status, stream);
+                operateBatchAsync(cluster, commands, status, stream, latencyEnabled, begin);
             });
         }
         else {
-            operateBatchAsync(cluster, commands, status, stream);
+            operateBatchAsync(cluster, commands, status, stream, latencyEnabled, begin);
         }
 
         return new RecordStream(stream);
     }
 
-    private BatchCommand prepareBatch() {
+    private BatchCommand prepareBatch(boolean latencyEnabled) {
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
 
@@ -1030,14 +1048,16 @@ public class ObjectBuilder<T> {
             records.add(new BatchWrite(key, null, attr, opBuilder.getOpType(), ops, generation, ttl));
         }
 
-        final Expression filterExp = getFilterExp(namespace, dataSet.getSet());
+        final Expression filterExp = getFilterExp(cluster, namespace);
 
         return new BatchCommand(cluster, partitions, txnToUse, namespace,
-            records, filterExp, opBuilder.includeMissingKeys, opBuilder.failOnFilteredOut, false, settings);
+            records, filterExp, opBuilder.includeMissingKeys, opBuilder.failOnFilteredOut, false,
+            latencyEnabled, settings);
     }
 
     private void operateBatchAsync(
-        Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream
+        Cluster cluster, IBatchCommand[] commands, BatchStatus status, AsyncRecordStream stream,
+        boolean latencyEnabled, long begin
     ) {
         AtomicInteger pending = new AtomicInteger(commands.length);
 
@@ -1049,6 +1069,12 @@ public class ObjectBuilder<T> {
                 finally {
                     if (pending.decrementAndGet() == 0) {
                         stream.complete();
+
+                        // Only record latency when all commands succeeded.
+                        if (latencyEnabled && !status.hasException()) {
+                            long elapsed = System.nanoTime() - begin;
+                            cluster.addLatency(LatencyType.BATCH, elapsed);
+                        }
                     }
                 }
             });
@@ -1071,6 +1097,10 @@ public class ObjectBuilder<T> {
 
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
         Key firstKey = keys.get(0);
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
@@ -1079,7 +1109,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
+        final Expression filterExp = getFilterExp(cluster, firstKey.namespace);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
         if (txnToUse != null) {
@@ -1089,7 +1119,8 @@ public class ObjectBuilder<T> {
 
         AsyncRecordStream stream = new AsyncRecordStream(elements.size());
         final java.util.concurrent.atomic.AtomicReference<AerospikeException> firstError =
-            (disposition instanceof ErrorDisposition.Throw) ? new java.util.concurrent.atomic.AtomicReference<>() : null;
+            (disposition instanceof ErrorDisposition.Throw) ?
+                new java.util.concurrent.atomic.AtomicReference<>() : null;
 
         try (ExecutorService es = cluster.getExecutorService()) {
             for (int i = 0; i < keys.size(); i++) {
@@ -1097,12 +1128,13 @@ public class ObjectBuilder<T> {
                 final T element = elements.get(i);
                 final int idx = i;
 
-                cluster.addCommandCount();
+                cluster.addObjectMapperWriteCount();
                 cluster.addBlockingCount();
 
                 es.submit(() -> {
                     try {
-                        Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
+                        Record rec = operate(cluster, partitions, settings, filterExp, key, element,
+                            ttl, latencyEnabled);
 
                         stream.publish(new RecordResult(key, rec, idx));
                     } catch (AerospikeException ae) {
@@ -1127,6 +1159,11 @@ public class ObjectBuilder<T> {
             throw firstError.get();
         }
 
+        if (latencyEnabled) {
+            long elapsed = System.nanoTime() - begin;
+            cluster.addLatency(LatencyType.WRITE, elapsed);
+        }
+
         return new RecordStream(stream);
     }
 
@@ -1145,6 +1182,10 @@ public class ObjectBuilder<T> {
 
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
         Key firstKey = keys.get(0);
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
@@ -1153,20 +1194,25 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(firstKey.namespace, firstKey.setName);
+        final Expression filterExp = getFilterExp(cluster, firstKey.namespace);
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
         AsyncRecordStream stream = newAsyncStream(elements.size(), errorHandler);
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
 
+        cluster.addObjectMapperWriteCount();
+        cluster.addDeferredCount();
+
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
                 TxnMonitor.addKeys(txnToUse, session, keys);
-                operateKeysAsync(cluster, partitions, settings, filterExp, ttl, stream, keys);
+                operateKeysAsync(cluster, partitions, settings, filterExp, ttl, stream, keys,
+                    latencyEnabled, begin);
             });
         }
         else {
-            operateKeysAsync(cluster, partitions, settings, filterExp, ttl, stream, keys);
+            operateKeysAsync(cluster, partitions, settings, filterExp, ttl, stream, keys,
+                latencyEnabled, begin);
         }
 
         return new RecordStream(stream);
@@ -1178,6 +1224,10 @@ public class ObjectBuilder<T> {
 
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
         Partitions partitions = getPartitions(cluster, key.namespace);
 
         // Assume all operations are puts (WRITE_RETRYABLE).
@@ -1185,7 +1235,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(key.namespace, key.setName);
+        final Expression filterExp = getFilterExp(cluster, key.namespace);
 
         if (txnToUse != null) {
             // Assume all operations are write operations.
@@ -1194,11 +1244,16 @@ public class ObjectBuilder<T> {
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
 
-        cluster.addCommandCount();
+        cluster.addObjectMapperWriteCount();
         cluster.addBlockingCount();
 
         try {
-            Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
+            Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl, latencyEnabled);
+
+            if (latencyEnabled) {
+                long elapsed = System.nanoTime() - begin;
+                cluster.addLatency(LatencyType.WRITE, elapsed);
+            }
 
             return new RecordStream(key, rec);
         }
@@ -1223,6 +1278,13 @@ public class ObjectBuilder<T> {
 
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
+        cluster.addObjectMapperWriteCount();
+        cluster.addDeferredCount();
+
         Partitions partitions = getPartitions(cluster, key.namespace);
 
         // Assume all operations are puts (WRITE_RETRYABLE).
@@ -1230,7 +1292,7 @@ public class ObjectBuilder<T> {
             .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
-        final Expression filterExp = getFilterExp(key.namespace, key.setName);
+        final Expression filterExp = getFilterExp(cluster, key.namespace);
 
         int ttl = (int) resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         AsyncRecordStream stream = newAsyncStream(1, errorHandler);
@@ -1239,11 +1301,13 @@ public class ObjectBuilder<T> {
         if (txnToUse != null) {
             cluster.startVirtualThread(() -> {
                 TxnMonitor.addKey(txnToUse, session, key);
-                operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps, false);
+                operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0,
+                    pendingOps, false, latencyEnabled, begin);
             });
         }
         else {
-            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0, pendingOps, false);
+            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, 0,
+                pendingOps, false, latencyEnabled, begin);
         }
 
         return new RecordStream(stream);
@@ -1251,30 +1315,38 @@ public class ObjectBuilder<T> {
 
     private void operateKeysAsync(
         Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp, int ttl,
-        AsyncRecordStream stream, List<Key> keys
+        AsyncRecordStream stream, List<Key> keys, boolean latencyEnabled, long begin
     ) {
         AtomicInteger pendingOps = new AtomicInteger(elements.size());
 
         for (int i = 0; i < elements.size(); i++) {
             T element = elements.get(i);
             Key key = keys.get(i);
-            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, i, pendingOps, true);
+
+            operateAsync(cluster, partitions, settings, filterExp, key, element, ttl, stream, i,
+                pendingOps, true, latencyEnabled, begin);
         }
     }
 
     private void operateAsync(
-        Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp, Key key,
-        T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
-        boolean isBatch
+        Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp,
+        Key key, T element, int ttl, AsyncRecordStream stream, int index, AtomicInteger pendingOps,
+        boolean isBatch, boolean latencyEnabled, long begin
     ) {
-        cluster.addCommandCount();
+        cluster.addObjectMapperWriteCount();
         cluster.addDeferredCount();
 
         cluster.startVirtualThread(() -> {
             try {
-                Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl);
+                Record rec = operate(cluster, partitions, settings, filterExp, key, element, ttl,
+                    latencyEnabled);
 
                 stream.publish(new RecordResult(key, rec, index));
+
+                if (latencyEnabled) {
+                    long elapsed = System.nanoTime() - begin;
+                    cluster.addLatency(LatencyType.WRITE, elapsed);
+                }
             }
             catch (AerospikeException ae) {
                 if (!shouldPublish(ae, isBatch)) {
@@ -1292,7 +1364,7 @@ public class ObjectBuilder<T> {
 
     private Record operate(
         Cluster cluster, Partitions partitions, ResolvedSettings settings, Expression filterExp, Key key,
-        T element, int ttl
+        T element, int ttl, boolean latencyEnabled
     ) {
         RecordMapper<T> recordMapper = getMapper(element);
         List<Operation> ops = operationsForElement(recordMapper, element);
@@ -1300,7 +1372,7 @@ public class ObjectBuilder<T> {
         OperateArgs args = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txnToUse, key, ops,
             args, opBuilder.getOpType(), generation, ttl, filterExp,
-            opBuilder.failOnFilteredOut, settings);
+            opBuilder.failOnFilteredOut, settings, latencyEnabled);
 
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();
@@ -1317,9 +1389,21 @@ public class ObjectBuilder<T> {
         return partitions;
     }
 
-    private Expression getFilterExp(String namespace, String querySet) {
-        if (opBuilder.getAel() != null && !elements.isEmpty()) {
-            return opBuilder.getAel().toFilterExpression(opBuilder.getSession());
+    private Expression getFilterExp(Cluster cluster, String namespace) {
+        WhereClauseProcessor processor = opBuilder.getAel();
+
+        if (processor != null && !elements.isEmpty()) {
+            Expression expression = processor.toFilterExpression(opBuilder.getSession());
+
+            if (expression != null) {
+                if (expression.isFromAelString()) {
+                    cluster.addAelFilterCount();
+                }
+                else {
+                    cluster.addExpFilterCount();
+                }
+            }
+            return expression;
         }
         return null;
     }

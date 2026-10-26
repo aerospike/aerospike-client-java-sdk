@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.TlsBuilder;
@@ -59,13 +60,25 @@ public final class Connection implements Closeable {
     private final Pool pool;
     private volatile long lastUsed;
 
-    public Connection(InetSocketAddress address, int timeoutMillis)
+    /**
+     * Connection constructor for connections without an assigned node.
+     */
+    public Connection(InetSocketAddress address, int timeoutMillis, Cluster cluster)
         throws AerospikeException.Connection {
-        this(address, timeoutMillis, null, null);
+        this(address, timeoutMillis, cluster, null, null);
     }
 
+    /**
+     * Connection constructor for connections with an assigned node.
+     */
     public Connection(InetSocketAddress address, int timeoutMillis, Node node, Pool pool)
         throws AerospikeException.Connection {
+        this(address, timeoutMillis, null, node, pool);
+    }
+
+    private Connection(
+        InetSocketAddress address, int timeoutMillis, Cluster cluster, Node node, Pool pool
+    ) throws AerospikeException.Connection {
         this.pool = pool;
 
         try {
@@ -98,24 +111,42 @@ public final class Connection implements Closeable {
             }
         }
         catch (AerospikeException ae) {
+            incrementError(cluster, node, false);
             throw ae;
         }
         catch (Throwable e) {
+            incrementError(cluster, node, false);
             throw new AerospikeException.Connection(e);
         }
     }
 
+    /**
+     * TLS Connection constructor for connections without an assigned node.
+     */
     public Connection(
-        TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis
+        TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis,
+        Cluster cluster
     ) throws AerospikeException.Connection {
-        this(tls, tlsName, address, timeoutMillis, null, null);
+        this(tls, tlsName, address, timeoutMillis, cluster, null, null);
     }
 
+    /**
+     * TLS Connection constructor for connections with an assigned node.
+     */
     public Connection(
-        TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis, Node node,
-        Pool pool
+        TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis,
+        Node node, Pool pool
+    ) throws AerospikeException.Connection {
+        this(tls, tlsName, address, timeoutMillis, null, node, pool);
+    }
+
+    private Connection(
+        TlsBuilder tls, String tlsName, InetSocketAddress address, int timeoutMillis,
+        Cluster cluster, Node node, Pool pool
     ) throws AerospikeException.Connection {
         this.pool = pool;
+
+        boolean inHandshake = false;
 
         try {
             SSLContext context = tls.getCustomSslContext();
@@ -160,12 +191,15 @@ public final class Connection implements Closeable {
 
                 sslSocket.setUseClientMode(true);
                 sslSocket.connect(address, timeoutMillis);
+
+                inHandshake = true;
                 sslSocket.startHandshake();
 
                 X509Certificate cert = (X509Certificate)sslSocket.getSession()
                     .getPeerCertificates()[0];
 
                 validateServerCertificate(tls, tlsName, cert);
+                inHandshake = false;
 
                 in = socket.getInputStream();
                 out = socket.getOutputStream();
@@ -182,10 +216,29 @@ public final class Connection implements Closeable {
             }
         }
         catch (AerospikeException ae) {
+            incrementError(cluster, node, inHandshake);
             throw ae;
         }
         catch (Throwable e) {
+            incrementError(cluster, node, inHandshake);
             throw new AerospikeException.Connection(e);
+        }
+    }
+
+    private static void incrementError(Cluster cluster, Node node, boolean inHandshake) {
+        if (node != null) {
+            node.addConnOpenFailure();
+
+            if (inHandshake) {
+                node.addTlsHandshakeFailures();
+            }
+        }
+        else if (cluster != null) {
+            cluster.addConnOpenFailure();
+
+            if (inHandshake) {
+                cluster.addTlsHandshakeFailures();
+            }
         }
     }
 

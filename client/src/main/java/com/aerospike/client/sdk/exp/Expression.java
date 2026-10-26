@@ -32,9 +32,10 @@ public final class Expression implements Serializable {
     public static final int SERVER_COMPILED_AEL_EXPRESSION_OP = 128;
 
     private final byte[] bytes;
+    private final boolean fromAelString;
 
     /**
-     * Expression constructor used by {@link Exp#build(Exp)}
+     * Expression constructor.
      */
     Expression(Exp exp) {
         Packer packer = new Packer();
@@ -42,6 +43,19 @@ public final class Expression implements Serializable {
         packer.createBuffer();
         exp.pack(packer);
         bytes = packer.getBuffer();
+        this.fromAelString = false;
+    }
+
+    /**
+     * Expression constructor with AEL string indicator.
+     */
+    Expression(Exp exp, boolean fromAelString) {
+        Packer packer = new Packer();
+        exp.pack(packer);
+        packer.createBuffer();
+        exp.pack(packer);
+        bytes = packer.getBuffer();
+        this.fromAelString = fromAelString;
     }
 
     /**
@@ -49,6 +63,7 @@ public final class Expression implements Serializable {
      */
     Expression(byte[] bytes) {
         this.bytes = bytes;
+        this.fromAelString = false;
     }
 
     /**
@@ -81,14 +96,14 @@ public final class Expression implements Serializable {
      *
      * @param aelString AEL string (UTF-8)
      */
-    public static Expression fromServerCompiledFilter(String aelString) {
+    public static Expression getCompiledFilter(String aelString) {
         if (aelString == null) {
             throw new AerospikeException("Server-compiled AEL source must not be null");
         }
-        return new Expression(encodeServerCompiledFilterPayload(aelString));
+        return new Expression(encodeCompiledFilterPayload(aelString));
     }
 
-    private static byte[] encodeServerCompiledFilterPayload(String aelString) {
+    private static byte[] encodeCompiledFilterPayload(String aelString) {
         try {
             Packer packer = new Packer();
             packPayload(packer, aelString);
@@ -112,6 +127,13 @@ public final class Expression implements Serializable {
      */
     public byte[] getBytes() {
         return bytes;
+    }
+
+    /**
+     * Return if expression was derived from an AEL string.
+     */
+    public boolean isFromAelString() {
+        return fromAelString;
     }
 
     /**

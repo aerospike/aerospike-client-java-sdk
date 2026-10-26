@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk.metrics;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -44,17 +45,23 @@ public final class MetricsSnapshot {
     public final int invalidNodeCount;
     public final long commandCount;
     public final long commandRetries;
+    public final long validationOpenFailure;
+    public final long validationTlsHandshakeFailure;
+    public final long validationAuthFailure;
     public final double cpuPercent;
     public final long memoryBytes;
     public final boolean metricsEnabled;
     public final boolean operationalMetricsEnabled;
     public final boolean usageMetricsEnabled;
+    public final List<LatencySnapshot> clusterLatencies; // per command (including retries)
     public final NodeMetricsSnapshot[] nodes;
     public final NodeMetricsSnapshot[] nodesDeparted;
     public final UsageMetricsSnapshot usage;
     public final TimeUnit latencyUnit;
     public final int latencyColumns;
     public final int latencyShift;
+    // public final long openConnections; This is a rollup. Why is it in the spec?
+    // public final long batchPartialFailure;
 
     /**
      * Metrics snapshot constructor.
@@ -77,7 +84,7 @@ public final class MetricsSnapshot {
                 this.appId = Buffer.utf8ToString(userBytes, 0, userBytes.length);
             }
             else {
-                this.appId = "";
+                this.appId = "not-set";
             }
         }
 
@@ -86,6 +93,9 @@ public final class MetricsSnapshot {
         this.invalidNodeCount = cluster.getInvalidNodeCount();
         this.commandCount = cluster.getCommandCount();
         this.commandRetries = cluster.getRetryCount();
+        this.validationOpenFailure = cluster.getConnOpenFailure();
+        this.validationAuthFailure = cluster.getConnAuthFailure();
+        this.validationTlsHandshakeFailure = cluster.getTlsHandshakeFailures();
         this.cpuPercent = Util.getProcessCpuLoad();
         this.memoryBytes = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         this.metricsEnabled = settings.getEnabled();
@@ -115,6 +125,24 @@ public final class MetricsSnapshot {
 
         this.usageMetricsEnabled = mu.getEnabled();
         this.usage = new UsageMetricsSnapshot(cluster);
+
+        Histogram histogram = cluster.getHistogram();
+
+        if (histogram != null) {
+            this.clusterLatencies = new ArrayList<>(LatencyType.commandTypes.length);
+
+            for (LatencyType type :  LatencyType.commandTypes) {
+                LatencyBuckets buckets = histogram.getBuckets(type);
+
+                if (buckets.getCount() > 0) {
+                    LatencySnapshot ls = new LatencySnapshot(type, buckets);
+                    this.clusterLatencies.add(ls);
+                }
+            }
+        }
+        else {
+            this.clusterLatencies = new ArrayList<>(0);
+        }
     }
 
     @Override
@@ -131,11 +159,15 @@ public final class MetricsSnapshot {
             + ", invalidNodeCount=" + invalidNodeCount
             + ", commandCount=" + commandCount
             + ", commandRetries=" + commandRetries
+            + ", connectionOpenFailure=" + validationOpenFailure
+            + ", connectionTlsHandshakeFailure=" + validationTlsHandshakeFailure
+            + ", connectionAuthFailure=" + validationAuthFailure
             + ", cpuPercent=" + cpuPercent
             + ", memoryBytes=" + memoryBytes
             + ", metricsEnabled=" + metricsEnabled
             + ", operationalMetricsEnabled=" + operationalMetricsEnabled
             + ", usageMetricsEnabled=" + usageMetricsEnabled
+            + ", latencies=" + clusterLatencies.toString()
             + ", nodes=" + Arrays.toString(nodes)
             + ", nodesDeparted=" + Arrays.toString(nodesDeparted)
             + ", usage=" + usage

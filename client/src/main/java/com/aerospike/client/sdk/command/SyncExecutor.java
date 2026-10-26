@@ -31,23 +31,25 @@ import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.util.Util;
 
 public abstract class SyncExecutor {
-    Cluster cluster;
-    Command cmd;
+    final Cluster cluster;
+    final Command cmd;
     ArrayList<AerospikeException> subExceptions;
     int socketTimeout;
     int totalTimeout;
     int iteration = 1;
     int commandSentCounter;
     long deadline;
+    final boolean latencyEnabled;
 
     public SyncExecutor(Cluster cluster, Command cmd) {
         this.cluster = cluster;
         this.cmd = cmd;
         this.socketTimeout = cmd.socketTimeout;
         this.totalTimeout = cmd.totalTimeout;
+        this.latencyEnabled = cmd.latencyEnabled;
     }
 
-    public final void execute() {
+    public void execute() {
         if (totalTimeout > 0) {
             deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(totalTimeout);
         }
@@ -58,8 +60,12 @@ public abstract class SyncExecutor {
         Node node;
         AerospikeException exception = null;
         long begin = 0;
-        final LatencyType latencyType = cluster.isMetricsOperationalEnabled()? getLatencyType() : LatencyType.NONE;
+        final LatencyType latencyType = latencyEnabled? getLatencyType() : LatencyType.NONE;
         boolean isClientTimeout;
+        // A batch node sub-batch records one namespace latency sample that includes its own
+        // retries to the same node. If a retry moves to a different node, restart the timer.
+        final boolean timeRetries = latencyType == LatencyType.BATCH;
+        Node timerNode = null;
 
         // Execute command until successful, timed out or maximum iterations have been reached.
         while (true) {
@@ -79,8 +85,9 @@ public abstract class SyncExecutor {
             try {
                 node.validateErrorCount();
 
-                if (latencyType != LatencyType.NONE) {
+                if (latencyType != LatencyType.NONE && (!timeRetries || node != timerNode)) {
                     begin = System.nanoTime();
+                    timerNode = node;
                 }
 
                 Connection conn = node.getConnection(this, cmd.connectTimeout, socketTimeout, cmd.timeoutDelay);
@@ -118,28 +125,34 @@ public abstract class SyncExecutor {
                         node.closeConnection(conn);
                     }
 
-                    if (ae.getResultCode() == ResultCode.TIMEOUT) {
-                        // Retry on server timeout.
-                        // Log.info("Server timeout: " + tranId + ',' + node + ',' + sequence + ',' + iteration);
+                    switch(ae.getResultCode()) {
+                    case ResultCode.TIMEOUT: // Server timeout. Retry.
                         exception = new AerospikeException.Timeout(cmd, false);
                         isClientTimeout = false;
                         node.incrErrorRate();
-                        node.addTimeout(cmd.namespace);
-                    }
-                    else if (ae.getResultCode() == ResultCode.DEVICE_OVERLOAD) {
-                        // Add to circuit breaker error count and retry.
-                        exception = ae;
-                        isClientTimeout = false;
-                        node.incrErrorRate();
-                        node.addError(cmd.namespace);
-                    }
-                    else if (ae.getResultCode() == ResultCode.KEY_BUSY) {
+                        node.addServerTimeout(cmd.namespace);
+                        break;
+
+                    case ResultCode.KEY_BUSY: // Retry
                         exception = ae;
                         isClientTimeout = false;
                         node.incrErrorRate();
                         node.addKeyBusy(cmd.namespace);
-                    }
-                    else {
+                        break;
+
+                    case ResultCode.DEVICE_OVERLOAD: // Retry
+                        exception = ae;
+                        isClientTimeout = false;
+                        node.incrErrorRate();
+                        node.addDeviceOverload(cmd.namespace);
+                        break;
+
+                    case ResultCode.RECORD_TOO_BIG: // Fatal
+                        node.addRecordTooBig(cmd.namespace);
+                        prepareException(node, ae, subExceptions);
+                        throw ae;
+
+                    default: // Fatal
                         node.addError(cmd.namespace);
                         prepareException(node, ae, subExceptions);
                         throw ae;
@@ -154,7 +167,7 @@ public abstract class SyncExecutor {
                     }
                     exception = new AerospikeException.Timeout(cmd, true);
                     isClientTimeout = true;
-                    node.addTimeout(cmd.namespace);
+                    node.addClientTimeout(cmd.namespace);
                 }
                 catch (SocketTimeoutException ste) {
                     // Full timeout has been reached.
@@ -162,7 +175,7 @@ public abstract class SyncExecutor {
                     node.closeConnection(conn);
                     exception = new AerospikeException.Timeout(cmd, true);
                     isClientTimeout = true;
-                    node.addTimeout(cmd.namespace);
+                    node.addClientTimeout(cmd.namespace);
                 }
                 catch (IOException ioe) {
                     // IO errors are considered temporary anomalies.  Retry.
@@ -187,7 +200,7 @@ public abstract class SyncExecutor {
                 // Connection already handled.
                 exception = new AerospikeException.Timeout(cmd, true);
                 isClientTimeout = true;
-                node.addTimeout(cmd.namespace);
+                node.addClientTimeout(cmd.namespace);
             }
             catch (AerospikeException.Connection ce) {
                 // Socket connection error has occurred. Retry.
@@ -261,7 +274,7 @@ public abstract class SyncExecutor {
                 }
             }
 
-            cluster.addRetryCount();
+            cluster.addRetryCount(latencyEnabled);
         }
 
         // Retries have been exhausted.  Throw last exception.
@@ -297,12 +310,6 @@ public abstract class SyncExecutor {
         long elapsed = System.nanoTime() - startTime;
         deadline += elapsed;
     }
-
-    /*
-    @Override
-    protected void sizeBuffer() {
-        dataBuffer = new byte[dataOffset];
-    }*/
 
     protected boolean retryBatch(
         Cluster cluster,

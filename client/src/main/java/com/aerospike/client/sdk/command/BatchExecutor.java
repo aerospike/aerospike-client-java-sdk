@@ -41,14 +41,13 @@ public final class BatchExecutor {
                     status.setException(new AerospikeException(e));
                 }
             }
-            status.checkException();
-            return;
         }
-
-        // Start virtual threads.
-        try (ExecutorService es = cluster.getExecutorService()) {
-            for (IBatchCommand command : commands) {
-                es.execute(command);
+        else {
+            // Start virtual threads.
+            try (ExecutorService es = cluster.getExecutorService()) {
+                for (IBatchCommand command : commands) {
+                    es.execute(command);
+                }
             }
         }
 

@@ -21,10 +21,29 @@ import java.io.IOException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.metrics.LatencyType;
 
-public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
+public final class SyncTxnAddKeysExecutor extends SyncExecutor {
+    private final OperateWriteCommand operate;
+
     public SyncTxnAddKeysExecutor(Cluster cluster, OperateWriteCommand cmd) {
         super(cluster, cmd);
+        this.operate = cmd;
+    }
+
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
+
+    @Override
+    protected final Node getNode() {
+        return operate.partition.getNodeWrite(cluster);
+    }
+
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.NONE;
     }
 
     @Override
@@ -46,6 +65,12 @@ public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
         }
 
         throw rp.toException();
+    }
+
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        operate.partition.prepareRetryWrite(timeout);
+        return true;
     }
 
     @Override

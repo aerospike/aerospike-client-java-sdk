@@ -161,7 +161,7 @@ public final class TxnMonitor {
             OpShape.POINT, partitions.scMode);
 
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, txnKey, ops,
-            args, OpType.UPSERT, 0, txn.getTimeout(), null, false, settings
+            args, OpType.UPSERT, 0, txn.getTimeout(), null, false, settings, false
             );
 
         SyncTxnAddKeysExecutor exec = new SyncTxnAddKeysExecutor(cluster, cmd);

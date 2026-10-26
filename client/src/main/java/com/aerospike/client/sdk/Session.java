@@ -2035,7 +2035,7 @@ public class Session {
         IndexCollectionType indexCollectionType,
         String aelString
     ) {
-        Expression exp = Expression.fromServerCompiledFilter(aelString);
+        Expression exp = Expression.getCompiledFilter(aelString);
         return createIndex(set, indexName, indexType, indexCollectionType, exp);
     }
 

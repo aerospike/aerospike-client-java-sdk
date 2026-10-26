@@ -16,7 +16,8 @@
  */
 package com.aerospike.client.sdk.metrics;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.aerospike.client.sdk.Node;
 
@@ -27,42 +28,45 @@ public final class NamespaceMetricsSnapshot {
     public final String namespace;
     public final long errors;
     public final long clientTimeouts;
-    // TODO Support new error counters.
-    //public final long serverTimeouts;
+    public final long serverTimeouts;
     public final long keyBusy;
-    //public final long recordTooBig;
-    //public final long deviceOverload;
+    public final long recordTooBig;
+    public final long deviceOverload;
     public final long bytesIn;
     public final long bytesOut;
-    public final LatencySnapshot[] latencies;
+    public final List<LatencySnapshot> latencies;
 
 	public NamespaceMetricsSnapshot(Node node, String namespace) {
-
         this.namespace = namespace;
 		this.errors = node.getErrorCount(namespace);
-		this.clientTimeouts = node.getTimeoutCount(namespace);
-        //this.serverTimeouts = serverTimeouts;
+		this.clientTimeouts = node.getClientTimeoutCount(namespace);
+        this.serverTimeouts = node.getServerTimeoutCount(namespace);
         this.keyBusy = node.getKeyBusyCount(namespace);
-        //this.recordTooBig = recordTooBig;
-        //this.deviceOverload = deviceOverload;
+        this.recordTooBig = node.getRecordTooBig(namespace);
+        this.deviceOverload = node.getDeviceOverload(namespace);
         this.bytesIn = node.getBytesIn(namespace);
         this.bytesOut = node.getBytesOut(namespace);
 
         NodeMetrics nodeMetrics = node.getMetrics();
+        Histogram histogram = (nodeMetrics != null) ?
+            nodeMetrics.getHistograms().getHistogram(namespace) : null;
 
-        if (nodeMetrics != null) {
-            LatencyBuckets[] latencyBuckets = nodeMetrics.getHistograms().getBuckets(namespace);
-            LatencyType[] types = LatencyType.values();
-            int max = LatencyType.getMax();
+        // Histogram is null when metrics are disabled or no command has completed
+        // on this namespace yet.
+        if (histogram != null) {
+            this.latencies = new ArrayList<>(LatencyType.commandTypes.length);
 
-            this.latencies = new LatencySnapshot[max];
+            for (LatencyType type :  LatencyType.commandTypes) {
+                LatencyBuckets buckets = histogram.getBuckets(type);
 
-            for (int i = 0; i < max; i++) {
-                this.latencies[i] = new LatencySnapshot(types[i], latencyBuckets[i]);
+                if (buckets.getCount() > 0) {
+                    LatencySnapshot ls = new LatencySnapshot(type, buckets);
+                    this.latencies.add(ls);
+                }
             }
         }
         else {
-            this.latencies = new LatencySnapshot[0];
+            this.latencies = new ArrayList<>(0);
         }
 	}
 
@@ -72,13 +76,13 @@ public final class NamespaceMetricsSnapshot {
             + "namespace=" + namespace
             + ", errors=" + errors
             + ", clientTimeouts=" + clientTimeouts
-            //+ ", serverTimeouts=" + serverTimeouts
+            + ", serverTimeouts=" + serverTimeouts
             + ", keyBusy=" + keyBusy
-            //+ ", recordTooBig=" + recordTooBig
-            //+ ", deviceOverload=" + deviceOverload
+            + ", recordTooBig=" + recordTooBig
+            + ", deviceOverload=" + deviceOverload
             + ", bytesIn=" + bytesIn
             + ", bytesOut=" + bytesOut
-            + ", latencies=" + Arrays.toString(latencies)
+            + ", latencies=" + latencies.toString()
             + '}';
     }
 }

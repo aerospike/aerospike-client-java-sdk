@@ -33,7 +33,7 @@ class ServerCompiledFilterWireTest {
 
     @Test
     void fromServerCompiledFilter_encodes_two_element_root_array_with_opcode_128_then_utf8() {
-        Expression e = Expression.fromServerCompiledFilter("$.bin==1");
+        Expression e = Expression.getCompiledFilter("$.bin==1");
         byte[] b = e.getBytes();
         assertThat(b.length).isGreaterThan(4);
         assertThat(b[0]).isEqualTo((byte) 0x92);
@@ -44,12 +44,12 @@ class ServerCompiledFilterWireTest {
 
     @Test
     void fromServerCompiledFilter_nullThrows() {
-        assertThrows(AerospikeException.class, () -> Expression.fromServerCompiledFilter(null));
+        assertThrows(AerospikeException.class, () -> Expression.getCompiledFilter(null));
     }
 
     @Test
     void fromServerCompiledFilter_emptyString_stillProducesTwoElementRoot() {
-        Expression e = Expression.fromServerCompiledFilter("");
+        Expression e = Expression.getCompiledFilter("");
         byte[] b = e.getBytes();
         assertThat(b[0]).isEqualTo((byte) 0x92);
         assertThat(b[1]).isEqualTo((byte) 0xcc);
@@ -61,7 +61,7 @@ class ServerCompiledFilterWireTest {
     void fromServerCompiledFilter_utf8_payloadCopiedVerbatim_afterStringHeader() {
         String src = "$.café=='é'";
         byte[] utf8 = src.getBytes(StandardCharsets.UTF_8);
-        Expression e = Expression.fromServerCompiledFilter(src);
+        Expression e = Expression.getCompiledFilter(src);
         byte[] payload = e.getBytes();
         assertThat(Byte.toUnsignedInt(payload[3])).isEqualTo(0xa0 + utf8.length);
         assertThat(Arrays.copyOfRange(payload, 4, 4 + utf8.length)).isEqualTo(utf8);
@@ -70,7 +70,7 @@ class ServerCompiledFilterWireTest {
     @Test
     void fromServerCompiledFilter_asciiLength32UsesStr8NotFixstr() {
         String padded = "a".repeat(32);
-        byte[] b = Expression.fromServerCompiledFilter(padded).getBytes();
+        byte[] b = Expression.getCompiledFilter(padded).getBytes();
         assertThat(b[0]).isEqualTo((byte) 0x92);
         assertThat(b[1]).isEqualTo((byte) 0xcc);
         assertThat(b[2]).isEqualTo((byte) Expression.SERVER_COMPILED_AEL_EXPRESSION_OP);
@@ -81,7 +81,7 @@ class ServerCompiledFilterWireTest {
 
     @Test
     void expr_embed_roundTripMatchesDirectWirePayload() {
-        Expression direct = Expression.fromServerCompiledFilter("$.rank in (1,2,3)");
+        Expression direct = Expression.getCompiledFilter("$.rank in (1,2,3)");
         Expression rebuilt = Exp.build(Exp.expr(direct));
         assertThat(rebuilt.getBytes()).isEqualTo(direct.getBytes());
     }
