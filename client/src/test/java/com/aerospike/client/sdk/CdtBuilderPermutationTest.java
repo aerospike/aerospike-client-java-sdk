@@ -70,6 +70,10 @@ public class CdtBuilderPermutationTest extends ClusterTest {
 
     @BeforeAll
     public static void seed() {
+        Assumptions.assumeTrue(
+            cluster.getServerVersion().isGreaterOrEqual(8, 1, 1, 0),
+            "CDT builder permutation coverage requires server 8.1.1+");
+
         key = args.set.id("cdt-perm-seed");
         session.delete(key).execute();
 
@@ -205,7 +209,7 @@ public class CdtBuilderPermutationTest extends ClusterTest {
         List.of(30L, 40L, 50L), // onMapKeyRange("c", INFINITY)
         List.of(10L), // onMapKeyRange(NULL, "b")
         List.of(10L, 20L), // onMapRankRange(0, 2)
-        List.of(), // onMapRankRange(3)
+        List.of(40L, 50L), // onMapRankRange(3)
         List.of(20L, 30L, 40L), // onMapValueRange(15, 45)
         List.of(30L, 40L, 50L), // onMapValueRange(30, INFINITY)
         List.of(30L, 40L, 50L), // onMapKeyRelativeIndexRange("c", 0)
@@ -532,7 +536,7 @@ public class CdtBuilderPermutationTest extends ClusterTest {
         @Test
         void mapAndListNavigations() {
             Assumptions.assumeTrue(
-                cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
+                cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
                 "dataset query read operations require server 8.1.2+");
             Record rec = first(dataset()
                 .bin(SMAP).onMapKey("c").getValues()

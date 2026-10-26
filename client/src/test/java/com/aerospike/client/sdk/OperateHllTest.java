@@ -21,12 +21,17 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.Value.HLLValue;
+import com.aerospike.client.sdk.cdt.ListPolicy;
+import com.aerospike.client.sdk.cdt.ListReturnType;
+import com.aerospike.client.sdk.exp.Exp;
+import com.aerospike.client.sdk.exp.ListExp;
 
 public class OperateHllTest extends ClusterTest {
     private static boolean debug = false;
@@ -1150,5 +1155,128 @@ public class OperateHllTest extends ClusterTest {
             assertThrows("Expect parameter error", key, AerospikeException.BinOpInvalidException.class,
                 ResultCode.OP_NOT_APPLICABLE, builder);
         }
+    }
+
+    //-------------------------------------------------------------------------
+    // CLIENT-5496 - nested HLL degraded to BLOB by client-side collection writes.
+    //-------------------------------------------------------------------------
+
+    private static final String nestedHllBin = "ophnhll";
+    private static final String nestedListBin = "ophnlist";
+    private static final Key nestedKey = args.set.id("ophnestedkey");
+    private static final int nestedIndex = 3;
+    private static final String probeBin = "ophprobe";
+
+    /**
+     * Ask the server which particle actually sits at {@code index} of {@code listBin}.
+     *
+     * <p>This question cannot be answered from the client. A degraded HLL reads back as the
+     * exact bytes it was written with, so any client-side before/after comparison matches.
+     * The only witness is the server: a read that declares a return type succeeds when the
+     * stored particle has that type and fails with OP_NOT_APPLICABLE when it does not.</p>
+     */
+    public boolean serverTypeMatches(Key k, String listBin, int index, Exp.Type type) {
+        try {
+            Record rec = session.query(k)
+                .bin(probeBin).selectFrom(
+                    ListExp.getByIndex(ListReturnType.VALUE, type, Exp.val(index), Exp.listBin(listBin)))
+                .execute()
+                .getFirstRecord();
+
+            return rec != null && rec.getValue(probeBin) != null;
+        }
+        catch (AerospikeException e) {
+            if (e.getResultCode() == ResultCode.OP_NOT_APPLICABLE) {
+                // The server refused to read the slot as this type - it holds something else.
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /** Return a real HLL value, fetched from the server so its particle type is beyond doubt. */
+    public HLLValue serverHll() {
+        ChainableOperationBuilder builder = session.upsert(nestedKey)
+            .deleteRecord()
+            .bin(nestedHllBin).hllInit(HllConfig.of(minNIndexBits))
+            .bin(nestedHllBin).get();
+
+        Record rec = assertSuccess("init nested hll", nestedKey, builder);
+
+        return (HLLValue)rec.getList(nestedHllBin).get(1);
+    }
+
+    /**
+     * Seed {@link #nestedListBin} as [1, 2, 3, HLL] where the HLL is placed by a server-side
+     * expression - the one collection path that is known to preserve the HLL particle.
+     */
+    public void seedNestedHll() {
+        serverHll();
+
+        ChainableOperationBuilder builder = session.upsert(nestedKey)
+            .bin(nestedListBin).setTo(Arrays.asList(1L, 2L, 3L));
+
+        assertSuccess("seed list", nestedKey, builder);
+
+        builder = session.upsert(nestedKey)
+            .bin(nestedListBin).upsertFrom(
+                ListExp.append(ListPolicy.Default, Exp.hllBin(nestedHllBin), Exp.listBin(nestedListBin)));
+
+        assertSuccess("nest hll server-side", nestedKey, builder);
+
+        assertTrue(serverTypeMatches(nestedKey, nestedListBin, nestedIndex, Exp.Type.HLL),
+            "precondition - the server-side append should store a real HLL at index " + nestedIndex);
+    }
+
+    /**
+     * CLIENT-5496 - reading a record that holds a nested HLL and writing the returned
+     * collection straight back, unchanged, destroys the HLL: the server ends up with a BLOB
+     * and every HLL API against that slot fails with OP_NOT_APPLICABLE.
+     */
+    @Test
+    public void nestedHllSurvivesReadModifyWrite() {
+        seedNestedHll();
+
+        // Read the record and hand the very same list back to the server, unmodified.
+        Record before = session.query(nestedKey).execute().getFirstRecord();
+        AerospikeList<?> list = before.getList(nestedListBin);
+
+        ChainableOperationBuilder builder = session.upsert(nestedKey)
+            .bin(nestedListBin).setTo(list);
+
+        assertSuccess("read-modify-write", nestedKey, builder);
+
+        // The client sees an identical bin - this is why the defect is invisible client-side.
+        Record after = session.query(nestedKey).execute().getFirstRecord();
+
+        // ... but the server must still hold an HLL in that slot.
+        assertTrue(serverTypeMatches(nestedKey, nestedListBin, nestedIndex, Exp.Type.HLL),
+            "CLIENT-5496 - read-modify-write degraded the nested HLL to a BLOB");
+
+        assertEquals(list, after.getList(nestedListBin), "client-visible value should round-trip");
+    }
+
+    /**
+     * CLIENT-5496 - an HLL written inside a client-side list is stored as a BLOB. Only a
+     * top-level setTo(HLLValue) and a server-side expression write preserve the particle.
+     */
+    @Test
+    public void nestedHllSurvivesClientSideListWrite() {
+        HLLValue hll = serverHll();
+
+        ChainableOperationBuilder builder = session.upsert(nestedKey)
+            .bin(nestedListBin).setTo(Arrays.asList(1L, 2L, 3L, hll));
+
+        assertSuccess("client-side nested list write", nestedKey, builder);
+
+        // Control: the same value at the top level keeps its type, so the value itself is fine.
+        builder = session.upsert(nestedKey)
+            .bin(nestedHllBin).setTo(hll)
+            .bin(nestedHllBin).hllGetCount();
+
+        assertSuccess("top-level HLL write remains an HLL", nestedKey, builder);
+
+        assertTrue(serverTypeMatches(nestedKey, nestedListBin, nestedIndex, Exp.Type.HLL),
+            "CLIENT-5496 - an HLL nested in a client-side list was stored as a BLOB");
     }
 }

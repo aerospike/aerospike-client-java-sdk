@@ -33,9 +33,10 @@ public final class Expression implements Serializable {
 
     private final byte[] bytes;
     private final transient boolean hasVector;
+    private final transient boolean fromAelString;
 
     /**
-     * Expression constructor used by {@link Exp#build(Exp)}
+     * Expression constructor.
      */
     Expression(Exp exp) {
         Packer packer = new Packer();
@@ -44,6 +45,20 @@ public final class Expression implements Serializable {
         exp.pack(packer);
         bytes = packer.getBuffer();
         hasVector = packer.hasVector();
+        this.fromAelString = false;
+    }
+
+    /**
+     * Expression constructor with AEL string indicator.
+     */
+    Expression(Exp exp, boolean fromAelString) {
+        Packer packer = new Packer();
+        exp.pack(packer);
+        packer.createBuffer();
+        exp.pack(packer);
+        bytes = packer.getBuffer();
+        hasVector = packer.hasVector();
+        this.fromAelString = fromAelString;
     }
 
     /**
@@ -57,6 +72,7 @@ public final class Expression implements Serializable {
     Expression(byte[] bytes, boolean hasVector) {
         this.bytes = bytes;
         this.hasVector = hasVector;
+        this.fromAelString = false;
     }
 
     /**
@@ -89,14 +105,14 @@ public final class Expression implements Serializable {
      *
      * @param aelString AEL string (UTF-8)
      */
-    public static Expression fromServerCompiledFilter(String aelString) {
+    public static Expression getCompiledFilter(String aelString) {
         if (aelString == null) {
             throw new AerospikeException("Server-compiled AEL source must not be null");
         }
-        return new Expression(encodeServerCompiledFilterPayload(aelString));
+        return new Expression(encodeCompiledFilterPayload(aelString));
     }
 
-    private static byte[] encodeServerCompiledFilterPayload(String aelString) {
+    private static byte[] encodeCompiledFilterPayload(String aelString) {
         try {
             Packer packer = new Packer();
             packPayload(packer, aelString);
@@ -125,6 +141,13 @@ public final class Expression implements Serializable {
     /** @hidden Whether this expression contains a VECTOR literal. */
     public boolean hasVector() {
         return hasVector;
+    }
+
+    /**
+     * Return if expression was derived from an AEL string.
+     */
+    public boolean isFromAelString() {
+        return fromAelString;
     }
 
     /**

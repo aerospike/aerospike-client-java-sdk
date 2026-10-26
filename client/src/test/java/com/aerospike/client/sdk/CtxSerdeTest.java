@@ -113,13 +113,30 @@ class CtxSerdeTest {
 
     static Stream<Arguments> mapKeysInRoundTripCases() {
         return Stream.of(
-            Arguments.of(CTX.mapKeysIn((byte) 1, (byte) 2), List.of(1L, 2L)),
             Arguments.of(CTX.mapKeysIn((short) 3, (short) 4), List.of(3L, 4L)),
             Arguments.of(CTX.mapKeysIn(5, 6), List.of(5L, 6L)),
             Arguments.of(CTX.mapKeysIn(7L, 8L), List.of(7L, 8L)),
-            Arguments.of(CTX.mapKeysIn(1.5, 2.5), List.of(1.5, 2.5)),
-            Arguments.of(CTX.mapKeysIn(3.5f, 4.5f), List.of(3.5d, 4.5d))
+            Arguments.of(CTX.mapKeysIn(Value.get("a"), Value.get(9L)), List.of("a", 9L))
         );
+    }
+
+    @Test
+    void mapKeysInValueOverloadSendsByteArraysAsBlobKeys() {
+        byte[] blob = {1, 2, 3};
+        CTX original = CTX.mapKeysIn(Value.get(blob), Value.get("b"));
+        CTX[] restored = CTX.fromBytes(CTX.toBytes(new CTX[] {original}));
+
+        List<Object> keys = mapKeysInKeyList(restored[0]);
+        assertThat(keys).hasSize(2);
+        assertArrayEquals(blob, (byte[]) keys.get(0));
+        assertThat(keys.get(1)).isEqualTo("b");
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    void mapKeysInByteOverloadEncodesIntegerKeysNotBlobs() {
+        CTX restored = CTX.fromBytes(CTX.toBytes(new CTX[] {CTX.mapKeysIn((byte) 1, (byte) 2)}))[0];
+        assertThat(mapKeysInKeyList(restored)).isEqualTo(List.of(1L, 2L));
     }
 
     @Test

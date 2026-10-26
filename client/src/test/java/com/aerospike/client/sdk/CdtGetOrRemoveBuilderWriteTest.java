@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -248,7 +247,6 @@ class CdtGetOrRemoveBuilderWriteTest {
      * <p>This pins current behaviour; it is a defect, not the intended contract.</p>
      */
     @Test
-    @Tag(KnownDefect.TAG)
     void writeAfterNonIndexListSelectorSilentlyBecomesMapPut() {
         MapPolicy policy = expectedPolicy(Verb.SET_TO, Opts.NONE);
 

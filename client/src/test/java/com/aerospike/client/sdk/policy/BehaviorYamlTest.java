@@ -60,9 +60,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   simple:
-                    allOperations:
-                      abandonCallAfter: 5s
-                      maximumNumberOfCallAttempts: 3
+                    all_operations:
+                      abandon_call_after: 5s
+                      maximum_number_of_call_attempts: 3
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -90,8 +90,8 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   DEFAULT:
-                    retryableWrites:
-                      sendKey: true
+                    retryable_writes:
+                      send_key: true
                 """;
 
             loadFromYamlString(yaml);
@@ -107,13 +107,13 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   multi-op:
-                    consistencyModeReads:
-                      abandonCallAfter: 2s
-                      readConsistency: SESSION
-                    retryableWrites:
-                      abandonCallAfter: 10s
-                      useDurableDelete: true
-                      maximumNumberOfCallAttempts: 5
+                    consistency_mode_reads:
+                      abandon_call_after: 2s
+                      read_consistency: SESSION
+                    retryable_writes:
+                      abandon_call_after: 10s
+                      use_durable_delete: true
+                      maximum_number_of_call_attempts: 5
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -146,9 +146,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   seconds-test:
-                    allOperations:
-                      abandonCallAfter: 30s
-                      delayBetweenRetries: 1s
+                    all_operations:
+                      abandon_call_after: 30s
+                      delay_between_retries: 1s
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -166,9 +166,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   millis-test:
-                    allOperations:
-                      abandonCallAfter: 500ms
-                      delayBetweenRetries: 100ms
+                    all_operations:
+                      abandon_call_after: 500ms
+                      delay_between_retries: 100ms
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -186,9 +186,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   time-test:
-                    allOperations:
-                      abandonCallAfter: 2m
-                      waitForCallToComplete: 1h
+                    all_operations:
+                      abandon_call_after: 2m
+                      wait_for_call_to_complete: 1h
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -211,11 +211,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   nanos-test:
-                    allOperations:
-                      abandonCallAfter: 1000ns
-                      delayBetweenRetries: 500nanos
-                      waitForCallToComplete: 2000nanosecond
-                      waitForConnectionToComplete: 3000nanoseconds
+                    all_operations:
+                      abandon_call_after: 1000ns
+                      delay_between_retries: 500nanos
+                      wait_for_call_to_complete: 2000nanosecond
+                      wait_for_connection_to_complete: 3000nanoseconds
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -235,11 +235,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   micros-test:
-                    allOperations:
-                      abandonCallAfter: 1000us
-                      delayBetweenRetries: 500micros
-                      waitForCallToComplete: 2000microsecond
-                      waitForConnectionToComplete: 3000microseconds
+                    all_operations:
+                      abandon_call_after: 1000us
+                      delay_between_retries: 500micros
+                      wait_for_call_to_complete: 2000microsecond
+                      wait_for_connection_to_complete: 3000microseconds
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -260,11 +260,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   millis-test:
-                    allOperations:
-                      abandonCallAfter: 100ms
-                      delayBetweenRetries: 50millis
-                      waitForCallToComplete: 200millisecond
-                      waitForConnectionToComplete: 300milliseconds
+                    all_operations:
+                      abandon_call_after: 100ms
+                      delay_between_retries: 50millis
+                      wait_for_call_to_complete: 200millisecond
+                      wait_for_connection_to_complete: 300milliseconds
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -284,11 +284,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   seconds-test:
-                    allOperations:
-                      abandonCallAfter: 10s
-                      delayBetweenRetries: 5sec
-                      waitForCallToComplete: 20second
-                      waitForConnectionToComplete: 30seconds
+                    all_operations:
+                      abandon_call_after: 10s
+                      delay_between_retries: 5sec
+                      wait_for_call_to_complete: 20second
+                      wait_for_connection_to_complete: 30seconds
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -308,11 +308,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   minutes-test:
-                    allOperations:
-                      abandonCallAfter: 1m
-                      delayBetweenRetries: 2min
-                      waitForCallToComplete: 3minute
-                      waitForConnectionToComplete: 5minutes
+                    all_operations:
+                      abandon_call_after: 1m
+                      delay_between_retries: 2min
+                      wait_for_call_to_complete: 3minute
+                      wait_for_connection_to_complete: 5minutes
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -332,11 +332,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   hours-test:
-                    allOperations:
-                      abandonCallAfter: 1h
-                      delayBetweenRetries: 2hr
-                      waitForCallToComplete: 3hour
-                      waitForConnectionToComplete: 4hours
+                    all_operations:
+                      abandon_call_after: 1h
+                      delay_between_retries: 2hr
+                      wait_for_call_to_complete: 3hour
+                      wait_for_connection_to_complete: 4hours
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -356,10 +356,10 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   days-test:
-                    allOperations:
-                      abandonCallAfter: 1d
-                      delayBetweenRetries: 2day
-                      waitForCallToComplete: 3days
+                    all_operations:
+                      abandon_call_after: 1d
+                      delay_between_retries: 2day
+                      wait_for_call_to_complete: 3days
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -378,9 +378,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   conversion-test:
-                    allOperations:
-                      abandonCallAfter: 5000ms
-                      delayBetweenRetries: 5s
+                    all_operations:
+                      abandon_call_after: 5000ms
+                      delay_between_retries: 5s
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -399,9 +399,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   conversion-test:
-                    allOperations:
-                      abandonCallAfter: 120s
-                      delayBetweenRetries: 2m
+                    all_operations:
+                      abandon_call_after: 120s
+                      delay_between_retries: 2m
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -420,9 +420,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   conversion-test:
-                    allOperations:
-                      abandonCallAfter: 60m
-                      delayBetweenRetries: 1h
+                    all_operations:
+                      abandon_call_after: 60m
+                      delay_between_retries: 1h
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -441,9 +441,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   conversion-test:
-                    allOperations:
-                      abandonCallAfter: 24h
-                      delayBetweenRetries: 1d
+                    all_operations:
+                      abandon_call_after: 24h
+                      delay_between_retries: 1d
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -462,9 +462,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   conversion-test:
-                    allOperations:
-                      abandonCallAfter: 5000us
-                      delayBetweenRetries: 5ms
+                    all_operations:
+                      abandon_call_after: 5000us
+                      delay_between_retries: 5ms
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -483,10 +483,10 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   large-values-test:
-                    allOperations:
-                      abandonCallAfter: 999999ms
-                      delayBetweenRetries: 86400s
-                      waitForCallToComplete: 1440m
+                    all_operations:
+                      abandon_call_after: 999999ms
+                      delay_between_retries: 86400s
+                      wait_for_call_to_complete: 1440m
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -505,16 +505,16 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   mixed-units:
-                    allOperations:
-                      abandonCallAfter: 500ms
-                    consistencyModeReads:
-                      abandonCallAfter: 2s
-                    retryableWrites:
-                      abandonCallAfter: 1m
-                    batchReads:
-                      abandonCallAfter: 5m
+                    all_operations:
+                      abandon_call_after: 500ms
+                    consistency_mode_reads:
+                      abandon_call_after: 2s
+                    retryable_writes:
+                      abandon_call_after: 1m
+                    batch_reads:
+                      abandon_call_after: 5m
                     query:
-                      abandonCallAfter: 1h
+                      abandon_call_after: 1h
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -544,9 +544,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   whitespace-test:
-                    allOperations:
-                      abandonCallAfter: 10 s
-                      delayBetweenRetries: 500 ms
+                    all_operations:
+                      abandon_call_after: 10 s
+                      delay_between_retries: 500 ms
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -569,15 +569,15 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   parent-config:
-                    allOperations:
-                      abandonCallAfter: 10s
-                      maximumNumberOfCallAttempts: 5
-                      delayBetweenRetries: 500ms
+                    all_operations:
+                      abandon_call_after: 10s
+                      maximum_number_of_call_attempts: 5
+                      delay_between_retries: 500ms
 
                   child-config:
                     parent: parent-config
-                    allOperations:
-                      abandonCallAfter: 20s
+                    all_operations:
+                      abandon_call_after: 20s
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -607,8 +607,8 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   standalone:
-                    allOperations:
-                      abandonCallAfter: 15s
+                    all_operations:
+                      abandon_call_after: 15s
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -630,11 +630,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   batch-config:
-                    batchReads:
-                      abandonCallAfter: 30s
-                      maxConcurrentServers: 10
-                      allowInlineMemoryAccess: true
-                      allowInlineSsdAccess: false
+                    batch_reads:
+                      abandon_call_after: 30s
+                      max_concurrent_servers: 10
+                      allow_inline_memory_access: true
+                      allow_inline_ssd_access: false
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -656,12 +656,12 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   batch-writes:
-                    batchWrites:
-                      abandonCallAfter: 45s
-                      maxConcurrentServers: 8
-                      allowInlineMemoryAccess: false
-                      allowInlineSsdAccess: true
-                      maximumNumberOfCallAttempts: 4
+                    batch_writes:
+                      abandon_call_after: 45s
+                      max_concurrent_servers: 8
+                      allow_inline_memory_access: false
+                      allow_inline_ssd_access: true
+                      maximum_number_of_call_attempts: 4
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -690,10 +690,10 @@ public class BehaviorYamlTest {
                 behaviors:
                   query-config:
                     query:
-                      abandonCallAfter: 60s
-                      recordQueueSize: 5000
-                      maxConcurrentServers: 12
-                      maximumNumberOfCallAttempts: 2
+                      abandon_call_after: 60s
+                      record_queue_size: 5000
+                      max_concurrent_servers: 12
+                      maximum_number_of_call_attempts: 2
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -719,11 +719,11 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   retry-writes:
-                    retryableWrites:
-                      abandonCallAfter: 8s
-                      useDurableDelete: true
-                      maximumNumberOfCallAttempts: 6
-                      delayBetweenRetries: 200ms
+                    retryable_writes:
+                      abandon_call_after: 8s
+                      use_durable_delete: true
+                      maximum_number_of_call_attempts: 6
+                      delay_between_retries: 200ms
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -745,10 +745,10 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   no-retry-writes:
-                    nonRetryableWrites:
-                      abandonCallAfter: 3s
-                      useDurableDelete: false
-                      maximumNumberOfCallAttempts: 1
+                    non_retryable_writes:
+                      abandon_call_after: 3s
+                      use_durable_delete: false
+                      maximum_number_of_call_attempts: 1
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -774,10 +774,10 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   sys-txn:
-                    systemTxnVerify:
-                      abandonCallAfter: 1s
+                    system_txn_verify:
+                      abandon_call_after: 1s
                       consistency: LINEARIZE
-                      maximumNumberOfCallAttempts: 2
+                      maximum_number_of_call_attempts: 2
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -808,13 +808,13 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     connections:
-                      minimumConnectionsPerNode: 10
-                      maximumConnectionsPerNode: 100
-                    circuitBreaker:
-                      numTendIntervalsInErrorWindow: 2
-                      maximumErrorsInErrorWindow: 50
+                      minimum_connections_per_node: 10
+                      maximum_connections_per_node: 100
+                    circuit_breaker:
+                      num_tend_intervals_in_error_window: 2
+                      maximum_errors_in_error_window: 50
                     refresh:
-                      tendInterval: 1s
+                      tend_interval: 1s
                 """;
 
             loadFromYamlString(yaml);
@@ -837,13 +837,13 @@ public class BehaviorYamlTest {
                 system:
                   production:
                     connections:
-                      minimumConnectionsPerNode: 50
-                      maximumConnectionsPerNode: 300
-                    circuitBreaker:
-                      numTendIntervalsInErrorWindow: 3
-                      maximumErrorsInErrorWindow: 100
+                      minimum_connections_per_node: 50
+                      maximum_connections_per_node: 300
+                    circuit_breaker:
+                      num_tend_intervals_in_error_window: 3
+                      maximum_errors_in_error_window: 100
                     refresh:
-                      tendInterval: 500ms
+                      tend_interval: 500ms
                 """;
 
             loadFromYamlString(yaml);
@@ -866,16 +866,16 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     connections:
-                      minimumConnectionsPerNode: 5
-                      maximumConnectionsPerNode: 50
+                      minimum_connections_per_node: 5
+                      maximum_connections_per_node: 50
                   production:
                     connections:
-                      minimumConnectionsPerNode: 100
-                      maximumConnectionsPerNode: 500
+                      minimum_connections_per_node: 100
+                      maximum_connections_per_node: 500
                   development:
                     connections:
-                      minimumConnectionsPerNode: 1
-                      maximumConnectionsPerNode: 10
+                      minimum_connections_per_node: 1
+                      maximum_connections_per_node: 10
                 """;
 
             loadFromYamlString(yaml);
@@ -902,9 +902,9 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     connections:
-                      minimumConnectionsPerNode: 20
-                      maximumConnectionsPerNode: 200
-                      maximumSocketIdleTime: 55s
+                      minimum_connections_per_node: 20
+                      maximum_connections_per_node: 200
+                      maximum_socket_idle_time: 55s
                 """;
 
             loadFromYamlString(yaml);
@@ -924,9 +924,9 @@ public class BehaviorYamlTest {
             String yaml = """
                 system:
                   DEFAULT:
-                    circuitBreaker:
-                      numTendIntervalsInErrorWindow: 5
-                      maximumErrorsInErrorWindow: 200
+                    circuit_breaker:
+                      num_tend_intervals_in_error_window: 5
+                      maximum_errors_in_error_window: 200
                 """;
 
             loadFromYamlString(yaml);
@@ -946,7 +946,7 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     refresh:
-                      tendInterval: 2s
+                      tend_interval: 2s
                 """;
 
             loadFromYamlString(yaml);
@@ -965,15 +965,15 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     connections:
-                      maximumSocketIdleTime: 30s
+                      maximum_socket_idle_time: 30s
                     refresh:
-                      tendInterval: 500ms
+                      tend_interval: 500ms
                   fast-refresh:
                     refresh:
-                      tendInterval: 100ms
+                      tend_interval: 100ms
                   slow-refresh:
                     refresh:
-                      tendInterval: 5s
+                      tend_interval: 5s
                 """;
 
             loadFromYamlString(yaml);
@@ -997,21 +997,21 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   production:
-                    allOperations:
-                      abandonCallAfter: 10s
-                      maximumNumberOfCallAttempts: 5
+                    all_operations:
+                      abandon_call_after: 10s
+                      maximum_number_of_call_attempts: 5
 
                 system:
                   DEFAULT:
                     connections:
-                      minimumConnectionsPerNode: 25
-                      maximumConnectionsPerNode: 250
-                    circuitBreaker:
-                      numTendIntervalsInErrorWindow: 3
+                      minimum_connections_per_node: 25
+                      maximum_connections_per_node: 250
+                    circuit_breaker:
+                      num_tend_intervals_in_error_window: 3
                   production:
                     connections:
-                      minimumConnectionsPerNode: 50
-                      maximumConnectionsPerNode: 500
+                      minimum_connections_per_node: 50
+                      maximum_connections_per_node: 500
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -1055,8 +1055,8 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   simple:
-                    allOperations:
-                      abandonCallAfter: 5s
+                    all_operations:
+                      abandon_call_after: 5s
                 """;
 
             // Should not throw exception when system section is missing
@@ -1072,9 +1072,9 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     transactions:
-                      implicitBatchWriteTransactions: true
-                      sleepBetweenAttempts: 500ms
-                      numberOfAttempts: 5
+                      implicit_batch_write_transactions: true
+                      sleep_between_attempts: 500ms
+                      number_of_attempts: 5
                 """;
 
             loadFromYamlString(yaml);
@@ -1095,7 +1095,7 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     transactions:
-                      numberOfAttempts: 10
+                      number_of_attempts: 10
                 """;
 
             loadFromYamlString(yaml);
@@ -1116,12 +1116,12 @@ public class BehaviorYamlTest {
                 system:
                   DEFAULT:
                     transactions:
-                      sleepBetweenAttempts: 250ms
-                      numberOfAttempts: 3
+                      sleep_between_attempts: 250ms
+                      number_of_attempts: 3
                   production:
                     transactions:
-                      sleepBetweenAttempts: 1s
-                      numberOfAttempts: 10
+                      sleep_between_attempts: 1s
+                      number_of_attempts: 10
                 """;
 
             loadFromYamlString(yaml);
@@ -1148,27 +1148,27 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   base-performance:
-                    allOperations:
-                      abandonCallAfter: 5s
-                      maximumNumberOfCallAttempts: 3
-                      delayBetweenRetries: 100ms
+                    all_operations:
+                      abandon_call_after: 5s
+                      maximum_number_of_call_attempts: 3
+                      delay_between_retries: 100ms
 
                   high-throughput:
                     parent: base-performance
-                    batchReads:
-                      maxConcurrentServers: 16
-                      allowInlineMemoryAccess: true
-                      allowInlineSsdAccess: true
+                    batch_reads:
+                      max_concurrent_servers: 16
+                      allow_inline_memory_access: true
+                      allow_inline_ssd_access: true
                     query:
-                      recordQueueSize: 10000
-                      maxConcurrentServers: 16
+                      record_queue_size: 10000
+                      max_concurrent_servers: 16
 
                   low-latency:
                     parent: base-performance
-                    allOperations:
-                      abandonCallAfter: 1s
-                    consistencyModeReads:
-                      readConsistency: LINEARIZE
+                    all_operations:
+                      abandon_call_after: 1s
+                    consistency_mode_reads:
+                      read_consistency: LINEARIZE
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);
@@ -1199,35 +1199,35 @@ public class BehaviorYamlTest {
             String yaml = """
                 behaviors:
                   production-config:
-                    allOperations:
-                      abandonCallAfter: 10s
-                      waitForCallToComplete: 5s
-                      waitForConnectionToComplete: 2s
-                      maximumNumberOfCallAttempts: 4
-                      delayBetweenRetries: 250ms
-                      replicaOrder: SEQUENCE
-                      resetTtlOnReadAtPercent: 80
-                      sendKey: true
-                      useCompression: false
+                    all_operations:
+                      abandon_call_after: 10s
+                      wait_for_call_to_complete: 5s
+                      wait_for_connection_to_complete: 2s
+                      maximum_number_of_call_attempts: 4
+                      delay_between_retries: 250ms
+                      replica_order: SEQUENCE
+                      reset_ttl_on_read_at_percent: 80
+                      send_key: true
+                      use_compression: false
 
-                    consistencyModeReads:
-                      readConsistency: SESSION
+                    consistency_mode_reads:
+                      read_consistency: SESSION
 
-                    availabilityModeReads:
-                      migrationReadConsistency: ONE
+                    availability_mode_reads:
+                      migration_read_consistency: ONE
 
-                    retryableWrites:
-                      useDurableDelete: true
-                      maximumNumberOfCallAttempts: 5
+                    retryable_writes:
+                      use_durable_delete: true
+                      maximum_number_of_call_attempts: 5
 
-                    batchReads:
-                      maxConcurrentServers: 12
-                      allowInlineMemoryAccess: true
-                      allowInlineSsdAccess: false
+                    batch_reads:
+                      max_concurrent_servers: 12
+                      allow_inline_memory_access: true
+                      allow_inline_ssd_access: false
 
                     query:
-                      recordQueueSize: 8000
-                      maxConcurrentServers: 10
+                      record_queue_size: 8000
+                      max_concurrent_servers: 10
                 """;
 
             Map<String, Behavior> behaviors = loadFromYamlString(yaml);

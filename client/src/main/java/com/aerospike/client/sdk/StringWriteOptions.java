@@ -85,7 +85,7 @@ public final class StringWriteOptions {
         return this;
     }
 
-    int toFlags() {
+    public int toFlags() {
         int flags = writeMode | extraFlags;
         if (noFail) {
             flags |= StringWriteFlags.NO_FAIL;

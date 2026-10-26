@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
@@ -93,7 +94,7 @@ public class DurableDeleteTests extends ClusterTest {
             .executeUdf(args.set)
             .function("record_example", "processRecord")
             .passing(ddUdfBin1, ddUdfBin2, 100)
-            .where("$." + ddUdfBin1 + " >= 3 and $." + ddUdfBin1 + " <= 9")
+            .where(ddUdfBin1Range(3, 9))
             .defaultWithDurableDelete();
 
         ExecuteTask task = bg.execute();
@@ -104,7 +105,7 @@ public class DurableDeleteTests extends ClusterTest {
 
     private void validateDdUdfProcessRecordOutcome() {
         RecordStream rs = session.query(args.set)
-            .where("$." + ddUdfBin1 + " >= 1 and $." + ddUdfBin1 + " <= " + (ddUdfSize + 100))
+            .where(ddUdfBin1Range(1, ddUdfSize + 100))
             .execute();
 
         try {
@@ -136,6 +137,12 @@ public class DurableDeleteTests extends ClusterTest {
         finally {
             rs.close();
         }
+    }
+
+    private static Exp ddUdfBin1Range(int min, int max) {
+        return Exp.and(
+            Exp.ge(Exp.intBin(ddUdfBin1), Exp.val(min)),
+            Exp.le(Exp.intBin(ddUdfBin1), Exp.val(max)));
     }
 
     /**

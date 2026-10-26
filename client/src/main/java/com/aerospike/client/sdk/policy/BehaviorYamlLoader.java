@@ -23,13 +23,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.introspector.BeanAccess;
+import org.yaml.snakeyaml.introspector.MissingProperty;
 import org.yaml.snakeyaml.introspector.Property;
 import org.yaml.snakeyaml.introspector.PropertyUtils;
 import org.yaml.snakeyaml.nodes.Node;
@@ -38,6 +42,8 @@ import org.yaml.snakeyaml.nodes.Tag;
 
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.SystemSettingsRegistry;
+import com.aerospike.client.sdk.metrics.MetricsExporterType;
+import com.aerospike.client.sdk.util.Util;
 
 /**
  * Loads {@link Behavior} definitions and system settings from YAML.
@@ -68,18 +74,9 @@ public class BehaviorYamlLoader {
             // Register Duration constructor
             this.yamlConstructors.put(new Tag(Duration.class), new DurationConstruct());
 
-            // Use custom property utils to skip missing properties
-            PropertyUtils propertyUtils = new PropertyUtils() {
-                @Override
-                public Property getProperty(Class<?> type, String name) {
-                    try {
-                        return super.getProperty(type, name);
-                    } catch (Exception e) {
-                        // If property not found, skip it
-                        return null;
-                    }
-                }
-            };
+            // YAML keys are snake_case; map them onto the camelCase bean properties
+            // of BehaviorYamlConfig and skip anything that does not resolve.
+            PropertyUtils propertyUtils = new SnakeCasePropertyUtils();
             propertyUtils.setSkipMissingProperties(true);
             this.setPropertyUtils(propertyUtils);
         }
@@ -90,8 +87,9 @@ public class BehaviorYamlLoader {
                 ScalarNode scalarNode = (ScalarNode) node;
                 String value = scalarNode.getValue();
 
-                // Try to detect if this is a Duration value based on format
-                if (isDurationValue(value)) {
+                // Try to detect if this is a Duration value based on format.
+                // Skip String properties (e.g. "10mb" sizes), which are parsed by the loader.
+                if (node.getType() != String.class && isDurationValue(value)) {
                     return DurationConstruct.parseDuration(value);
                 }
             }
@@ -104,6 +102,69 @@ public class BehaviorYamlLoader {
             }
             // Check if it looks like a duration (number followed by time unit or ISO-8601)
             return value.matches("^\\d+\\s*[a-zA-Z]+$") || value.startsWith("PT") || value.startsWith("P");
+        }
+    }
+
+    /**
+     * Binds the {@code snake_case} keys used in the YAML configuration file to the
+     * {@code camelCase} JavaBean properties of {@link BehaviorYamlConfig}.
+     *
+     * <p>The configuration file is snake_case only: a key that is not valid snake_case
+     * (a legacy {@code camelCase} key, for example) is reported as missing and skipped
+     * rather than being bound to a property.</p>
+     */
+    static class SnakeCasePropertyUtils extends PropertyUtils {
+
+        @Override
+        public Property getProperty(Class<?> type, String name, BeanAccess beanAccess) {
+            String propertyName = toCamelCase(name);
+
+            if (propertyName == null) {
+                // Not a snake_case key, so it is not part of the schema.
+                return new MissingProperty(name);
+            }
+
+            try {
+                return super.getProperty(type, propertyName, beanAccess);
+            }
+            catch (Exception e) {
+                // If property not found, skip it
+                return new MissingProperty(name);
+            }
+        }
+
+        /**
+         * Convert a snake_case YAML key to the equivalent camelCase property name,
+         * for example {@code allow_inline_ssd_access} to {@code allowInlineSsdAccess}.
+         *
+         * @param name the YAML key
+         * @return the camelCase property name, or null when the key is not valid snake_case
+         */
+        static String toCamelCase(String name) {
+            if (name == null || name.isEmpty()) {
+                return null;
+            }
+
+            StringBuilder sb = new StringBuilder(name.length());
+            boolean toUpper = false;
+
+            for (int i = 0; i < name.length(); i++) {
+                char c = name.charAt(i);
+
+                if (Character.isUpperCase(c)) {
+                    // snake_case keys never contain upper case characters.
+                    return null;
+                }
+
+                if (c == '_') {
+                    toUpper = true;
+                    continue;
+                }
+
+                sb.append(toUpper ? Character.toUpperCase(c) : c);
+                toUpper = false;
+            }
+            return sb.length() == 0 ? null : sb.toString();
         }
     }
 
@@ -130,6 +191,7 @@ public class BehaviorYamlLoader {
      */
     public static Map<String, Behavior> loadBehaviorsFromFile(File file) throws IOException {
         BehaviorYamlConfig config = loadYamlConfig(file);
+        //System.out.println("FILE: " + config);
         return updateBehaviorsFromConfig(config);
     }
 
@@ -437,6 +499,19 @@ public class BehaviorYamlLoader {
      *
      * @param config The YAML configuration containing system settings
      */
+    /**
+     * Convert a metrics exporter name to {@link MetricsExporterType}, ignoring case.
+     */
+    static MetricsExporterType parseExporterType(String value) {
+        try {
+            return MetricsExporterType.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid metrics exporter: '" + value +
+                "'. Expected one of " + Arrays.toString(MetricsExporterType.values()), e);
+        }
+    }
+
     private static void loadSystemSettings(BehaviorYamlConfig config) {
         if (config.getSystem() == null) {
             return;
@@ -519,6 +594,75 @@ public class BehaviorYamlLoader {
                 }
                 if (transactionsConfig.getNumberOfAttempts() != null) {
                     ops.numberOfAttempts(transactionsConfig.getNumberOfAttempts());
+                }
+            });
+        }
+
+        // Apply metrics settings
+        if (config.getMetrics() != null) {
+            BehaviorYamlConfig.SystemMetricsConfig metricsConfig = config.getMetrics();
+            builder.metrics (ops -> {
+                if (metricsConfig.getLabels() != null) {
+                    ops.labels(metricsConfig.getLabels());
+                }
+                if (metricsConfig.getExporter() != null) {
+                    ops.exporter(parseExporterType(metricsConfig.getExporter()));
+                }
+                if (metricsConfig.getReportDir() != null) {
+                    ops.reportDir(metricsConfig.getReportDir());
+                }
+                if (metricsConfig.getReportSizeLimit() != null) {
+                    ops.reportSizeLimit(Util.parseSize(metricsConfig.getReportSizeLimit()));
+                }
+                if (metricsConfig.getExportSampleRate() != null) {
+                    ops.exportSampleRate(metricsConfig.getExportSampleRate());
+                }
+                if (metricsConfig.getExportInterval() != null) {
+                    ops.exportInterval(metricsConfig.getExportInterval());
+                }
+                if (metricsConfig.getEnabled() != null) {
+                    ops.enabled(metricsConfig.getEnabled());
+                }
+                if (metricsConfig.getExtended() != null) {
+                    BehaviorYamlConfig.MetricsExtendedConfig extendedConfig = metricsConfig.getExtended();
+                    ops.extended(ext -> {
+                        if (extendedConfig.getOperational() != null) {
+                            BehaviorYamlConfig.MetricsOperationalConfig operationalConfig = extendedConfig.getOperational();
+                            ext.operational(opc -> {
+                                if (operationalConfig.getLatencyUnit() != null) {
+                                    opc.latencyUnit(operationalConfig.getLatencyUnit());
+                                }
+                                if (operationalConfig.getLatencyColumns() != null) {
+                                    opc.latencyColumns(operationalConfig.getLatencyColumns());
+                                }
+                                if (operationalConfig.getLatencyShift() != null) {
+                                    opc.latencyShift(operationalConfig.getLatencyShift());
+                                }
+                                if (operationalConfig.getEnabled() != null) {
+                                    opc.enabled(operationalConfig.getEnabled());
+                                }
+                                if (operationalConfig.getSampler() != null) {
+                                    BehaviorYamlConfig.MetricsSamplerConfig samplerConfig = operationalConfig.getSampler();
+                                    opc.sampler(sam -> {
+                                        if (samplerConfig.getRange() != null) {
+                                            sam.range(samplerConfig.getRange());
+                                        }
+                                        if (samplerConfig.getThreshold() != null) {
+                                            sam.threshold(samplerConfig.getThreshold());
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        if (extendedConfig.getUsage() != null) {
+                            BehaviorYamlConfig.MetricsUsageConfig usageConfig = extendedConfig.getUsage();
+                            ext.usage(usage -> {
+                                if (usageConfig.getEnabled() != null) {
+                                    usage.enabled(usageConfig.getEnabled());
+                                }
+                            });
+                        }
+                    });
                 }
             });
         }

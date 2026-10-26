@@ -1,0 +1,82 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.sdk.metrics;
+
+import com.aerospike.client.sdk.util.Counter;
+
+/**
+ * Optional extended node metrics. Used when extended metrics is enabled.
+ */
+public final class NodeMetrics {
+    private final Histograms histograms;
+    private final LatencyBuckets connLatency;
+	public final Counter bytesInCounter;
+	public final Counter bytesOutCounter;
+	public final Counter errorCounter;
+    public final Counter clientTimeoutCounter;
+    public final Counter serverTimeoutCounter;
+    public final Counter keyBusyCounter;
+    public final Counter recordTooBigCounter;
+    public final Counter deviceOverloadCounter;
+
+	/**
+	 * Initialize extended node metrics.
+	 */
+	public NodeMetrics(MetricsSettings settings) {
+		this.bytesInCounter = new Counter();
+		this.bytesOutCounter = new Counter();
+        this.errorCounter = new Counter();
+        this.clientTimeoutCounter = new Counter();
+        this.serverTimeoutCounter = new Counter();
+        this.keyBusyCounter = new Counter();
+        this.recordTooBigCounter = new Counter();
+        this.deviceOverloadCounter = new Counter();
+
+        MetricsOperational mo = settings.getExtended().getOperational();
+		histograms = new Histograms(mo);
+		connLatency = new LatencyBuckets(mo);
+	}
+
+	/**
+	 * Add elapsed time in nanoseconds to histogram map buckets corresponding to namespace & latency type.
+	 */
+	public void addLatency(String namespace, LatencyType type, long elapsed) {
+		histograms.addLatency(namespace, type, elapsed);
+	}
+
+    /**
+     * Add connection elapsed time in nanoseconds.
+     */
+    public void addConnLatency(long elapsed) {
+        connLatency.add(elapsed);
+    }
+
+    /**
+     * Return connection latency buckets.
+     */
+    public LatencyBuckets getConnLatency() {
+        return connLatency;
+    }
+
+    /**
+	 * Returns the available Histograms (Containers for namespace-aggregated latency buckets)
+	 * @return the Histograms object
+	 */
+	public Histograms getHistograms() {
+		return histograms;
+	}
+}

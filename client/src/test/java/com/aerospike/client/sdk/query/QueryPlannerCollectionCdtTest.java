@@ -371,8 +371,14 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
                 "$." + mapBin + "." + mapKey + ".exists() == false", mapBin)));
     }
 
+    /**
+     * Golden-rows helper: what the query returns, not how the server got there. Several predicates
+     * here (negations, {@code .count() == 0}, positional element checks) have no index that can
+     * serve them, so the scan fallback is permitted - the plan-shape tests above are where access
+     * paths are pinned.
+     */
     private static int countMatching(String where, String binName, Predicate<Record> check) {
-        RecordStream rs = session.query(dataSet)
+        RecordStream rs = sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(binName)
             .where(where)
             .execute();
@@ -427,8 +433,9 @@ public class QueryPlannerCollectionCdtTest extends ClusterTest {
         );
     }
 
+    /** @see #countMatching(String, String, Predicate) */
     private static int countMatches(String where, String binName) {
-        return QuerySelectionIntegSupport.countRecords(session.query(dataSet)
+        return QuerySelectionIntegSupport.countRecords(sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(binName)
             .where(where)
             .execute());

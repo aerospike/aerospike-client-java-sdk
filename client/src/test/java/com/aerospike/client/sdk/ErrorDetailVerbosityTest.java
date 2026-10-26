@@ -29,7 +29,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.exp.Exp;
@@ -238,7 +237,6 @@ public class ErrorDetailVerbosityTest extends ClusterTest {
     }
 
     @Test
-    @Tag(KnownDefect.TAG)
     public void testDeleteGenerationMismatch() {
         KnownDefect.skipWhere(args.scMode,
             "on a strong-consistency namespace the delete is durable, so it runs through tombstone_master in"

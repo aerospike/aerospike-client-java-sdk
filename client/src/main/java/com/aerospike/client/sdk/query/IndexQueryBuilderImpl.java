@@ -17,6 +17,8 @@
 package com.aerospike.client.sdk.query;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,13 +69,13 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     @Override
     public RecordStream executeAsync(ErrorStrategy strategy) {
         Objects.requireNonNull(strategy, "ErrorStrategy must not be null");
-        return executeInternal(null);
+        return executeAsyncInternal(null);
     }
 
     @Override
     public RecordStream executeAsync(ErrorHandler handler) {
         Objects.requireNonNull(handler, "ErrorHandler must not be null");
-        return executeInternal(handler);
+        return executeAsyncInternal(handler);
     }
 
     private RecordStream executeInternal(ErrorHandler handler) {
@@ -81,29 +83,26 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         Cluster cluster = session.getCluster();
         QueryBuilder qb = getQueryBuilder();
 
-        // Validate Top-K configuration.
-        qb.validateTopKQueryState();
-        warnQueryDoesNotParticipateInTransaction(qb);
-
-        // Check for operations - not supported on servers < 8.1.2
-        if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
-            !qb.getOperations().isEmpty()) {
-            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
-                "Index query with read operations requires server version 8.1.2+. Server version is " +
-                cluster.getVersion());
-        }
+        validate(session, qb);
 
         ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
-        WhereClauseProcessor where = getQueryBuilder().getAel();
-        QueryCommand cmd;
+        WhereClauseProcessor where = qb.getAel();
 
-        cmd = IndexProbePlanner.buildCommand(
-            session, dataSet, where, qb.getQueryHint(), policy, qb);
-
-        AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
-        if (handler != null) {
-            stream.withErrorHandler(handler);
+        if (where != null) {
+            if (where.hasStringAel()) {
+                cluster.addAelFilterCount();
+            }
+            else {
+                cluster.addExpFilterCount();
+            }
         }
+
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+
+        QueryCommand cmd = IndexProbePlanner.buildCommand(
+            session, dataSet, where, qb.getQueryHint(), policy, qb, latencyEnabled);
+
+        AsyncRecordStream stream = newStream(policy, handler);
         cmd.execute(stream);
 
         if (qb.getOrderBySpec() != null) {
@@ -121,7 +120,136 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         }
     }
 
-    /** Warns when a query is executed inside a transaction. */
+    /**
+     * Asynchronous sibling of {@link #executeInternal(ErrorHandler)}: returns a stream immediately and
+     * does the work on a virtual thread.
+     *
+     * <p>Planning an index query is a server round-trip (the explain probe), so leaving it in the calling
+     * thread made {@code executeAsync} block for as long as the server took to answer - CLIENT-5523. Only
+     * the argument checks stay here, because a caller that passed nonsense should hear about it from the
+     * call rather than from the stream. Everything after that, planning included, happens on the virtual
+     * thread, and a planning failure reaches the caller through the stream like any other query error.</p>
+     */
+    private RecordStream executeAsyncInternal(ErrorHandler handler) {
+        Session session = getSession();
+        Cluster cluster = session.getCluster();
+        QueryBuilder qb = getQueryBuilder();
+
+        validate(session, qb);
+
+        ResolvedSettings policy = session.getBehavior().getSettings(OpKind.READ, OpShape.QUERY, Mode.ANY);
+        WhereClauseProcessor where = qb.getAel();
+
+        if (where != null) {
+            if (where.hasStringAel()) {
+                cluster.addAelFilterCount();
+            }
+            else {
+                cluster.addExpFilterCount();
+            }
+        }
+
+        AsyncRecordStream stream = newStream(policy, handler);
+        CompletableFuture<QueryCommand> planned = new CompletableFuture<>();
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+
+        cluster.startVirtualThread(() -> {
+            QueryCommand cmd;
+
+            try {
+                cmd = IndexProbePlanner.buildCommand(
+                    session, dataSet, where, qb.getQueryHint(), policy, qb, latencyEnabled);
+            }
+            catch (Throwable t) {
+                planned.completeExceptionally(t);
+                stream.error(t);
+                return;
+            }
+
+            planned.complete(cmd);
+
+            try {
+                cmd.execute(stream);
+            }
+            catch (Throwable t) {
+                stream.error(t);
+            }
+        });
+
+        if (qb.getChunkSize() == 0) {
+            // Normal query
+            return new RecordStream(stream);
+        }
+        else {
+            // Paginated query: the chunk loader needs the planned command, which is not ready yet.
+            return new RecordStream(stream, () -> awaitPlan(planned), qb.getLimit(),
+                policy.getRecordQueueSize(), handler);
+        }
+    }
+
+    /** Cheap, local checks that belong to the call itself rather than to the stream it returns. */
+    private void validate(Session session, QueryBuilder qb) {
+        Cluster cluster = session.getCluster();
+
+        // Validate Top-K configuration.
+        qb.validateTopKQueryState();
+        warnQueryDoesNotParticipateInTransaction(qb);
+
+        // Check for operations - not supported on servers < 8.1.2
+        if (!cluster.supportsQueryOperations() && qb.getOperations() != null &&
+            !qb.getOperations().isEmpty()) {
+            throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
+                "Index query with read operations requires server version 8.1.2+. Server version is " +
+                cluster.getServerVersion());
+        }
+    }
+
+    private static AsyncRecordStream newStream(ResolvedSettings policy, ErrorHandler handler) {
+        AsyncRecordStream stream = new AsyncRecordStream(policy.getRecordQueueSize());
+
+        if (handler != null) {
+            stream.withErrorHandler(handler);
+        }
+        return stream;
+    }
+
+    /**
+     * Waits for the plan produced on the virtual thread, unwrapping the completion wrapper so a planning
+     * failure surfaces as the {@link AerospikeException} the caller would have seen synchronously.
+     */
+    private static QueryCommand awaitPlan(CompletableFuture<QueryCommand> planned) {
+        try {
+            return planned.join();
+        }
+        catch (CompletionException e) {
+            Throwable cause = e.getCause();
+
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Reports that this query will not take part in the transaction it is running inside.
+     *
+     * <p>The server has no multi-record transaction support on the query path, so a query is always evaluated
+     * outside any transaction, whether the transaction was passed explicitly or inherited from the session.
+     * The consequence is a disagreement rather than an error: within one transaction the same record reads as
+     * two different values depending on how it is asked for, because a point read participates and sees the
+     * transaction's own writes while a query does not and still sees the pre-transaction state. Rows a query
+     * returns are also absent from the transaction's read set, so commit cannot detect that another writer
+     * changed them.</p>
+     *
+     * <p>None of that is new behaviour; it was simply silent. Warning rather than failing is deliberate,
+     * because querying for keys inside a transactional block and then writing those keys transactionally is
+     * legitimate and has to keep working. Whether the explicit case should instead be refused outright is
+     * still open (CLIENT-5404).</p>
+     */
     private static void warnQueryDoesNotParticipateInTransaction(QueryBuilder qb) {
         if (qb.getTxnToUse() == null || !log.isWarnEnabled()) {
             return;

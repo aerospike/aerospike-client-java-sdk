@@ -37,7 +37,12 @@ public final class Txn {
         OPEN,
         VERIFIED,
         COMMITTED,
-        ABORTED;
+        ABORTED,
+        /**
+         * A commit failed in-doubt and may still advance, so abort is not allowed
+         * in this state. Retry the commit to resolve the transaction safely.
+         */
+        COMMIT_FAILED;
     }
 
     private static AtomicLong randomState = new AtomicLong(System.nanoTime());
@@ -177,6 +182,7 @@ public final class Txn {
 
             switch (state) {
             case VERIFIED:
+            case COMMIT_FAILED:
                 msg = "it is currently being committed";
                 break;
 
@@ -193,6 +199,17 @@ public final class Txn {
                 break;
             }
             throw new AerospikeException("Issuing commands to this transaction is forbidden because " + msg);
+        }
+    }
+
+    /**
+     * Transition to COMMIT_FAILED when mark-roll-forward fails in an in-doubt state.
+     * The server may still roll the transaction forward; abort must not be called.
+     * For internal use only.
+     */
+    public void markCommitFailed() {
+        if (state != State.ABORTED && state != State.COMMITTED) {
+            state = State.COMMIT_FAILED;
         }
     }
 

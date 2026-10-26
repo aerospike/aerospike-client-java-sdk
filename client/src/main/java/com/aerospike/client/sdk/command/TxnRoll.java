@@ -89,7 +89,7 @@ public final class TxnRoll {
             this.verifyRecords = records;
 
             parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-                records, null, false, false, attr.linearize, verifyPolicy);
+                records, null, false, false, attr.linearize, false, verifyPolicy);
 
             BatchStatus status = new BatchStatus();
 
@@ -132,7 +132,7 @@ public final class TxnRoll {
             if (txn.closeMonitor()) {
                 try {
                     Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-                    WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+                    WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy, false);
                     close(cmd);
                 }
                 catch (Throwable t3) {
@@ -149,9 +149,9 @@ public final class TxnRoll {
         txn.setState(Txn.State.VERIFIED);
     }
 
-    public CommitStatus commit(ResolvedSettings rollPolicy) {
+    public TxnStatus commit(ResolvedSettings rollPolicy) {
         Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-        WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+        WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy, false);
 
         if (txn.monitorExists()) {
             // Tell transaction monitor that a roll-forward will commence.
@@ -171,11 +171,13 @@ public final class TxnRoll {
                     // The transaction was already inDoubt and just failed again,
                     // so the new exception should also be inDoubt.
                     aec.setInDoubt(true);
+                    txn.markCommitFailed();
                 }
                 else if (ae.getInDoubt()){
                     // The current exception is inDoubt.
                     aec.setInDoubt(true);
                     txn.setInDoubt(true);
+                    txn.markCommitFailed();
                 }
                 throw aec;
             }
@@ -185,6 +187,7 @@ public final class TxnRoll {
 
                 if (txn.getInDoubt()) {
                     aec.setInDoubt(true);
+                    txn.markCommitFailed();
                 }
                 throw aec;
             }
@@ -202,7 +205,7 @@ public final class TxnRoll {
                 log.warn("Transaction roll-forward failed: " + Util.getErrorMessage(t));
             }
             rollForwardException = createCommitException(cmd, CommitError.ROLL_FORWARD_ABANDONED, t);
-            return CommitStatus.ROLL_FORWARD_ABANDONED;
+            return TxnStatus.ROLL_FORWARD_ABANDONED;
         }
 
         if (txn.closeMonitor()) {
@@ -211,14 +214,14 @@ public final class TxnRoll {
                 close(cmd);
             }
             catch (Throwable t) {
-                return CommitStatus.CLOSE_ABANDONED;
+                return TxnStatus.ROLL_FORWARD_CLOSE_ABANDONED;
             }
         }
-        return CommitStatus.OK;
+        return TxnStatus.COMMITTED;
     }
 
     /**
-     * The roll-forward failure behind the most recent {@link CommitStatus#ROLL_FORWARD_ABANDONED}
+     * The roll-forward failure behind the most recent {@link TxnStatus#ROLL_FORWARD_ABANDONED}
      * returned by {@link #commit(ResolvedSettings)}, or null if roll-forward was not abandoned.
      */
     public AerospikeException.Commit getRollForwardException() {
@@ -243,27 +246,27 @@ public final class TxnRoll {
         return aec;
     }
 
-    public AbortStatus abort(ResolvedSettings rollPolicy) {
+    public TxnStatus abort(ResolvedSettings rollPolicy) {
         txn.setState(Txn.State.ABORTED);
 
         try {
             roll(rollPolicy, Command.INFO4_TXN_ROLL_BACK);
         }
         catch (Throwable t) {
-            return AbortStatus.ROLL_BACK_ABANDONED;
+            return TxnStatus.ROLL_BACK_ABANDONED;
         }
 
         if (txn.closeMonitor()) {
             try {
                 Key txnKey = TxnMonitor.getTxnMonitorKey(txn);
-                WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy);
+                WriteCommand cmd = new WriteCommand(cluster, partitions, txnKey, rollPolicy, false);
                 close(cmd);
             }
             catch (Throwable t) {
-                return AbortStatus.CLOSE_ABANDONED;
+                return TxnStatus.ROLL_BACK_CLOSE_ABANDONED;
             }
         }
-        return AbortStatus.OK;
+        return TxnStatus.ABORTED;
     }
 
     private void markRollForward(WriteCommand cmd) {
@@ -293,7 +296,7 @@ public final class TxnRoll {
         this.rollRecords = records;
 
         BatchCommand parent = new BatchCommand(cluster, partitions, txn, txn.getNamespace(),
-            records, null, false, false, attr.linearize, rollPolicy);
+            records, null, false, false, attr.linearize, false, rollPolicy);
 
         BatchStatus status = new BatchStatus();
 

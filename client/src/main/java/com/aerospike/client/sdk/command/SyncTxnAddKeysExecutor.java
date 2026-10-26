@@ -21,10 +21,29 @@ import java.io.IOException;
 import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.metrics.LatencyType;
 
-public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
+public final class SyncTxnAddKeysExecutor extends SyncExecutor {
+    private final OperateWriteCommand operate;
+
     public SyncTxnAddKeysExecutor(Cluster cluster, OperateWriteCommand cmd) {
         super(cluster, cmd);
+        this.operate = cmd;
+    }
+
+    @Override
+    protected final boolean isWrite() {
+        return true;
+    }
+
+    @Override
+    protected final Node getNode() {
+        return operate.partition.getNodeWrite(cluster);
+    }
+
+    @Override
+    protected final LatencyType getLatencyType() {
+        return LatencyType.NONE;
     }
 
     @Override
@@ -37,17 +56,21 @@ public final class SyncTxnAddKeysExecutor extends OperateWriteExecutor {
     @Override
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
-        rp.parseTranDeadline(cmd.txn);
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        rp.parseTranDeadline(cmd.txn);
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
 
         if (rp.resultCode == ResultCode.OK) {
             return;
         }
 
         throw rp.toException();
+    }
+
+    @Override
+    protected final boolean prepareRetry(boolean timeout) {
+        operate.partition.prepareRetryWrite(timeout);
+        return true;
     }
 
     @Override

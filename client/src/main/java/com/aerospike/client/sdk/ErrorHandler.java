@@ -20,6 +20,16 @@ package com.aerospike.client.sdk;
  * Callback for handling per-record errors during execution. Errors dispatched to the handler
  * are excluded from the returned {@link RecordStream}.
  *
+ * <p>This is a per-record channel only. Terminal failures (the whole operation cannot run —
+ * missing hard-hinted index, cluster down, transaction namespace mismatch) do not invoke the
+ * handler. Sync {@code execute()} throws; async {@code executeAsync()} delivers
+ * {@link AsyncRecordStream#error(Throwable)} so iteration throws and
+ * {@link RecordStream#asCompletableFuture()} completes exceptionally.</p>
+ *
+ * <p>{@link ResultCode#KEY_NOT_FOUND_ERROR} on a read is omitted unless
+ * {@code includeMissingKeys()}; then it remains in the stream and does not call this handler.
+ * Write {@code KEY_NOT_FOUND} is an actionable per-key error.</p>
+ *
  * <p>Pass to {@code executeAsync()} or {@code execute()} as a lambda:</p>
  * <pre>{@code
  * RecordStream rs = session.update(set.id(1)).bin("age").add(1)

@@ -4,13 +4,17 @@
 
 This document specifies how `KEY_NOT_FOUND_ERROR` (result code 2) and `FILTERED_OUT` (result code 27) results are handled across different operation types, error disposition modes, and flag combinations.
 
+For the three error channels (programming vs terminal vs per-key), see [error-handling.md](error-handling.md).
+
 ## Flags
 
 ### `includeMissingKeys`
 
 - **Applies to:** Query (read) operations only
 - **Default:** `false`
-- **Effect:** When `true`, a `RecordResult` with result code `KEY_NOT_FOUND_ERROR` (2) is included in the stream for keys that don't map to a record. When `false` (default), missing records are silently omitted from the stream.
+- **Effect:** When `false` (default), missing records are silently omitted. When `true`, a
+  `RecordResult` with `KEY_NOT_FOUND_ERROR` (2) is **always** placed in the stream — including
+  single-key default `execute()`. It is not thrown and does not invoke `ErrorHandler`.
 
 ### `failOnFilteredOut`
 
@@ -45,7 +49,7 @@ For **async** operations, errors are placed in the stream (equivalent to IN_STRE
 |---|---|---|
 | Default (Throw) | Nothing in stream | `RecordResult` in stream (result code 2) |
 | IN_STREAM | Nothing in stream | `RecordResult` in stream (result code 2) |
-| Error Handler | Nothing in stream; handler **not** invoked | `RecordResult` in stream (result code 2) |
+| Error Handler | Nothing in stream; handler **not** invoked | `RecordResult` in stream (result code 2); handler **not** invoked |
 | Batch | Nothing in stream | `RecordResult` in stream (result code 2) |
 | Async | Nothing in stream | `RecordResult` in stream (result code 2) |
 

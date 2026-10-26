@@ -105,6 +105,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     private boolean transactionSet;
     private List<OrderBySpec> orderBySpecs = List.of();
     private Integer topK = null;
+    private Filter filter;
 
     /**
      * Creates a QueryBuilder for querying an entire dataset.
@@ -604,6 +605,33 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
+     * Attaches an explicit secondary-index filter to this dataset query.
+     *
+     * <p>The filter is authoritative: it bypasses server index selection and is sent unchanged.
+     * Any {@code where(...)} clause becomes a residual filter expression beside it. Textual
+     * {@code where(String)} and {@link PreparedAel} residuals require server-side AEL support
+     * ({@code 8.2+}).</p>
+     *
+     * @param filter the secondary-index filter to attach
+     * @return this QueryBuilder for method chaining
+     * @throws NullPointerException if filter is null
+     * @throws IllegalArgumentException if called more than once
+     */
+    @Override
+    public QueryBuilder filter(Filter filter) {
+        Objects.requireNonNull(filter, "filter must not be null");
+        if (this.filter != null) {
+            throw new IllegalArgumentException("filter() can only be called once per query");
+        }
+        this.filter = filter;
+        return this;
+    }
+
+    Filter getFilter() {
+        return filter;
+    }
+
+    /**
      * Returns the effective query duration from the hint, or {@link QueryDuration#LONG}
      * if no hint or no duration was specified.
      */
@@ -644,6 +672,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(BooleanExpression)} will throw an exception.</p>
      *
+     * <p>When {@link #filter(Filter)} is also attached, this AEL is sent as a residual filter
+     * expression and requires server-side AEL support ({@code 8.2+}); it is not used for automatic
+     * index selection.</p>
+     *
      * @param ael the AEL filter expression
      * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)}
      * @return this QueryBuilder for method chaining
@@ -674,6 +706,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
+     * <p>When {@link #filter(Filter)} is also attached, this expression is sent as a residual
+     * filter expression beside the explicit index filter.</p>
+     *
      * @param ael the BooleanExpression filter
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
@@ -691,6 +726,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
+     * <p>When {@link #filter(Filter)} is also attached, this expression is sent as a residual
+     * filter expression beside the explicit index filter.</p>
+     *
      * @param expression filter expression
      * @return
      */
@@ -707,6 +745,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      *
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
+     *
+     * <p>When {@link #filter(Filter)} is also attached, this expression is sent as a residual
+     * filter expression beside the explicit index filter.</p>
      *
      * @param exp - The expression to validate the records against.
      * @return
@@ -733,6 +774,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      *
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or other {@code where()} methods will throw an exception.</p>
+     *
+     * <p>When {@link #filter(Filter)} is also attached, this prepared AEL is sent as a residual
+     * filter expression and requires server-side AEL support ({@code 8.2+}); it is not used for
+     * automatic index selection.</p>
      *
      * @param ael the prepared AEL expression
      * @param params the parameters to bind to the prepared expression
@@ -880,13 +925,15 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Execute the query synchronously with errors embedded in the stream.
      *
-     * <p>This method executes the query synchronously and embeds error results
-     * directly in the returned stream according to the specified error strategy.
-     * The query will block until all results are available.</p>
+     * <p>Per-record failures are embedded as {@link RecordResult} entries. Dataset/index queries
+     * currently produce only successful rows; a non-zero server result terminates the whole query
+     * (this method throws) rather than inventing an error row. {@code IN_STREAM} therefore has no
+     * per-row failures to apply on this path.</p>
      *
      * @param strategy the error strategy (must not be null)
-     * @return a RecordStream containing the query results (including error results)
+     * @return a RecordStream containing the query results (including error results, if any)
      * @throws NullPointerException if strategy is null
+     * @throws AerospikeException if the query cannot run (planning, missing hard-hinted index, …)
      */
     @Override
     public RecordStream execute(ErrorStrategy strategy) {
@@ -903,6 +950,10 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * consumes the stream, not eagerly before this method returns, so a caller that abandons the
      * stream early will not be notified of errors in the records it never read.</p>
      *
+     * <p>Terminal query failures (for example a missing hard-hinted index) throw from this method
+     * and do not invoke the handler. Dataset/index queries do not currently produce per-row
+     * failures, so the handler is unused on a successful scan/index query.</p>
+     *
      * @param handler the error handler callback (must not be null)
      * @return RecordStream containing only successful results
      * @throws NullPointerException if handler is null
@@ -916,9 +967,11 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Execute the query asynchronously with errors embedded in the stream.
      *
-     * <p>This method executes the query asynchronously and embeds error results
-     * directly in the returned stream according to the specified error strategy.
-     * The stream will be populated as results arrive from the server.</p>
+     * <p>This method returns a stream immediately. Planning and I/O run on a virtual thread.
+     * Terminal failures are delivered with {@link com.aerospike.client.sdk.AsyncRecordStream#error}
+     * (iteration throws; {@code asCompletableFuture} completes exceptionally), not as a
+     * {@link RecordResult} row. Per-record {@code IN_STREAM} rows apply to keyed batches, not to
+     * a failed index query.</p>
      *
      * <p><b>Warning:</b> If called within a transaction, a warning will be logged
      * as async operations may still be in flight when the transaction commits,
@@ -940,9 +993,9 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * Execute the query asynchronously with errors dispatched to the handler.
      * Error results are excluded from the returned stream.
      *
-     * <p>This method executes the query asynchronously and dispatches any errors
-     * to the provided handler callback. Only successful results are included
-     * in the returned stream. The stream will be populated as results arrive from the server.</p>
+     * <p>This method returns a stream immediately. Terminal failures do not invoke the handler;
+     * they terminate the stream. Per-record errors on keyed operations are dispatched as records
+     * arrive. Dataset/index queries do not currently produce per-row failures for the handler.</p>
      *
      * <p><b>Warning:</b> If called within a transaction, a warning will be logged
      * as async operations may still be in flight when the transaction commits,

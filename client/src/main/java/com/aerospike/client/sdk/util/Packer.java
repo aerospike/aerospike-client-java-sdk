@@ -307,6 +307,12 @@ public final class Packer {
         packParticleBytes(buffer, ParticleType.VECTOR);
     }
 
+    public void packHLL(byte[] bytes) {
+        packByteArrayBegin(bytes.length + 1);
+        packByte(ParticleType.HLL);
+        packByteArray(bytes, 0, bytes.length);
+    }
+
     private void packByteArrayBegin(int size) {
         // Use string header codes for byte arrays.
         packStringBegin(size);

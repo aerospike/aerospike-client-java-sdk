@@ -61,7 +61,7 @@ class QueryTopKWireTest {
             .topK(3);
         ResolvedSettings settings = Behavior.DEFAULT.getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
-        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder);
+        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder, false);
         command.setSendTopK(true);
 
         Map<Integer, byte[]> fields = fields(command);
@@ -87,7 +87,7 @@ class QueryTopKWireTest {
             .topK(25);
         ResolvedSettings settings = Behavior.DEFAULT.getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
-        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder);
+        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder, false);
         command.setSendTopK(sendTopK);
         return command;
     }

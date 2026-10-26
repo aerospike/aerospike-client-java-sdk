@@ -56,11 +56,9 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
-            rp.parseFields(cmd.txn, rec.key, false);
 
-            if (node.isMetricsEnabled()) {
-                node.addBytesIn(rec.key.namespace, rp.bytesIn);
-            }
+            rp.parseFields(cmd.txn, rec.key, false);
+            node.addBytesIn(rec.key.namespace, rp.bytesIn);
 
             if (rp.resultCode == ResultCode.OK) {
                 rec.setRecord(rp.parseRecord(true));
@@ -141,11 +139,9 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
-            rp.parseFields(cmd.txn, key, rec.hasWrite);
 
-            if (node.isMetricsEnabled()) {
-                node.addBytesIn(rec.key.namespace, rp.bytesIn);
-            }
+            rp.parseFields(cmd.txn, key, rec.hasWrite);
+            node.addBytesIn(rec.key.namespace, rp.bytesIn);
 
             if (rp.resultCode == ResultCode.OK) {
                 rec.setRecord(rp.parseRecord(true));
@@ -201,11 +197,9 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
-            rp.parseFields(cmd.txn, key, true);
 
-            if (node.isMetricsEnabled()) {
-                node.addBytesIn(rec.key.namespace, rp.bytesIn);
-            }
+            rp.parseFields(cmd.txn, key, true);
+            node.addBytesIn(rec.key.namespace, rp.bytesIn);
 
             if (rp.resultCode == ResultCode.OK) {
                 rec.setRecord(new Record(rp.generation, rp.expiration));
@@ -263,11 +257,9 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
-            rp.parseFields(cmd.txn, key, true);
 
-            if (node.isMetricsEnabled()) {
-                node.addBytesIn(rec.key.namespace, rp.bytesIn);
-            }
+            rp.parseFields(cmd.txn, key, true);
+            node.addBytesIn(rec.key.namespace, rp.bytesIn);
 
             if (rp.resultCode == ResultCode.OK) {
                 rec.setRecord(rp.parseRecord(false));
@@ -334,11 +326,9 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
-            rp.parseFieldsError();
 
-            if (node.isMetricsEnabled()) {
-                node.addBytesIn(br.key.namespace, rp.bytesIn);
-            }
+            rp.parseFieldsError();
+            node.addBytesIn(br.key.namespace, rp.bytesIn);
 
             if (rp.resultCode == ResultCode.OK) {
                 br.resultCode = rp.resultCode;
@@ -388,11 +378,9 @@ public final class BatchSingle {
         @Override
         protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
             RecordParser rp = new RecordParser(conn, buffer);
-            rp.parseFieldsError();
 
-            if (node.isMetricsEnabled()) {
-                node.addBytesIn(br.key.namespace, rp.bytesIn);
-            }
+            rp.parseFieldsError();
+            node.addBytesIn(br.key.namespace, rp.bytesIn);
 
             if (rp.resultCode == ResultCode.OK) {
                 br.resultCode = rp.resultCode;

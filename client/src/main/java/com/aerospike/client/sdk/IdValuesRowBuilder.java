@@ -460,17 +460,12 @@ public class IdValuesRowBuilder {
         int totalKeys = specs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
         AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
 
-        Cluster cluster = session.getCluster();
-        cluster.startVirtualThread(() -> {
-            try {
-                // TODO There is no durableDeleteDefault for IdValuesRowBuilder.
-                RecordStream syncResult = OperationSpecExecutor.execute(
-                    session, specs, null, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-                    null);
-                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
-            } finally {
-                asyncStream.complete();
-            }
+        AsyncExecutionSupport.runOnVirtualThread(session.getCluster(), asyncStream, () -> {
+            // TODO There is no durableDeleteDefault for IdValuesRowBuilder.
+            RecordStream syncResult = OperationSpecExecutor.execute(
+                session, specs, null, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+                null);
+            syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
         });
 
         return new RecordStream(asyncStream);

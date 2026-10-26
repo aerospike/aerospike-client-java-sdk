@@ -50,6 +50,7 @@ import com.aerospike.client.sdk.command.UdfCommand;
 import com.aerospike.client.sdk.command.UdfExecutor;
 import com.aerospike.client.sdk.command.WriteCommand;
 import com.aerospike.client.sdk.exp.Expression;
+import com.aerospike.client.sdk.metrics.LatencyType;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
@@ -122,6 +123,10 @@ class OperationSpecExecutor {
             return new RecordStream();
         }
 
+        Cluster cluster = session.getCluster();
+        boolean latencyEnabled = cluster.isLatencyEnabled();
+        long begin = (latencyEnabled) ? System.nanoTime() : 0L;
+
         // Single-key optimization: bypass batch infrastructure for single-spec, single-key operations
         if (specs.size() == 1) {
             OperationSpec spec = specs.get(0);
@@ -132,20 +137,30 @@ class OperationSpecExecutor {
                 Expression filterExp = spec.getWhereClause() != null ?
                     spec.getWhereClause() : defaultWhereClause;
 
+                if (filterExp != null) {
+                    if (filterExp.isFromAelString()) {
+                        cluster.addAelFilterCount();
+                    }
+                    else {
+                        cluster.addExpFilterCount();
+                    }
+                }
+
                 return executeSingleKey(session, spec, key, filterExp, defaultExpirationInSeconds,
-                    txn, disposition, durableDeleteDefault);
+                    txn, disposition, durableDeleteDefault, latencyEnabled, begin);
             }
         }
 
         // TODO Track count of keys in builders, so it can be used here.
         List<BatchRecord> records = new ArrayList<>(512);
         List<Class<?>> readMappingPerRecord = new ArrayList<>(512);
-        Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
         // TODO: Put in hashmap
         BatchAttr attr = new BatchAttr();
         BatchStatus status = new BatchStatus();
         AerospikeException except = null;
+        String namespace = null;
+        boolean multipleNamespaces = false;
         boolean includeMissingKeys = false;
         boolean failOnFilteredOut = false;
         Mode mode = Mode.AP;
@@ -162,8 +177,31 @@ class OperationSpecExecutor {
                 failOnFilteredOut = true;
             }
 
+            Expression filterExp = spec.getWhereClause();
+
+            if (filterExp != null) {
+                int size = spec.getKeys().size();
+
+                if (filterExp.isFromAelString()) {
+                    cluster.addAelFilterCount(size);
+                }
+                else {
+                    cluster.addExpFilterCount(size);
+                }
+            }
+
             // Create BatchRecord(s) for each key in this spec
             for (Key key : spec.getKeys()) {
+                if (!multipleNamespaces) {
+                    if (namespace == null) {
+                        namespace = key.namespace;
+                    }
+                    else if (!namespace.equals(key.namespace)) {
+                        multipleNamespaces = true;
+                        namespace = null;
+                    }
+                }
+
                 Partitions partitions;
 
                 try {
@@ -288,8 +326,10 @@ class OperationSpecExecutor {
         OpKind kind = hasWrite? OpKind.WRITE_NON_RETRYABLE : OpKind.READ;
         ResolvedSettings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
-        BatchCommand parent = new BatchCommand(cluster, null, txn, null, records,
-            defaultWhereClause, includeMissingKeys, failOnFilteredOut, linearize, settings);
+        // Note: latency namespace will be null when at least one key has a different namespace.
+        BatchCommand parent = new BatchCommand(cluster, null, txn, namespace, records,
+            defaultWhereClause, includeMissingKeys, failOnFilteredOut, linearize, latencyEnabled,
+            settings);
 
         List<BatchNode> bns = BatchNodes.generate(cluster, parent, records, status);
 
@@ -328,6 +368,9 @@ class OperationSpecExecutor {
             }
         }
 
+        cluster.addBatchCount(latencyEnabled);
+        cluster.addBlockingCount();
+
         if (txn != null) {
             TxnMonitor.addKeysBatchReadWrite(txn, session, records);
             BatchExecutor.execute(cluster, commands, status);
@@ -360,9 +403,17 @@ class OperationSpecExecutor {
                     br, settings, i, mappingSession, readHint);
 
                 AbstractFilterableBuilder.routeBatchResult(
-                    result, br.resultCode, disposition, recordStream);
+                    result, br.resultCode, disposition, recordStream, br.hasWrite);
             }
-            return new RecordStream(recordStream);
+
+            RecordStream rs = new RecordStream(recordStream);
+
+            if (latencyEnabled) {
+                long elapsed = System.nanoTime() - begin;
+                cluster.addLatency(LatencyType.BATCH, elapsed);
+            }
+
+            return includeMissingKeys ? rs.markMissingKeysExpected() : rs;
         }
         finally {
             recordStream.complete();
@@ -389,7 +440,7 @@ class OperationSpecExecutor {
 
                 if (includeResult) {
                     RecordResult result;
-                    if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode)) {
+                    if (settings.getStackTraceOnException() && AbstractFilterableBuilder.isActionableError(br.resultCode, spec.isIncludeMissingKeys())) {
                         result = new RecordResult(
                             br,
                             AerospikeException.resultCodeToException(br.resultCode, null, br.inDoubt),
@@ -447,7 +498,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKey(
         Session session, OperationSpec spec, Key key, Expression filterExp,
         long defaultExpirationInSeconds, Txn txn, ErrorDisposition disposition,
-        Boolean durableDeleteDefault
+        Boolean durableDeleteDefault, boolean latencyEnabled, long begin
     ) {
         Cluster cluster = session.getCluster();
         Behavior behavior = session.getBehavior();
@@ -464,34 +515,60 @@ class OperationSpecExecutor {
         boolean includeMissingKeys = spec.isIncludeMissingKeys();
         boolean failOnFilteredOut = spec.isFailOnFilteredOut();
         long ttl = resolveTtl(spec, defaultExpirationInSeconds);
+        LatencyType latencyType;
+        RecordStream rs;
+
+        cluster.addPointCount(latencyEnabled);
+        cluster.addBlockingCount();
 
         try {
-            if (spec.isQuery()) {
-                return executeSingleKeyRead(session, cluster, behavior, partitions, spec, key,
-                    filterExp, txn, scMode, includeMissingKeys, failOnFilteredOut);
-            }
-            else if (spec.getOpType() == OpType.EXISTS) {
-                return executeSingleKeyExists(session, cluster, behavior, partitions, spec, key,
-                    filterExp, txn, scMode, failOnFilteredOut);
-            }
-            else if (spec.getOpType() == OpType.TOUCH) {
-                return executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key,
-                    filterExp, ttl, txn, scMode, failOnFilteredOut);
-            }
-            else if (spec.getOpType() == OpType.DELETE) {
-                return executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key,
-                    filterExp, txn, scMode, failOnFilteredOut, durableDeleteDefault);
-            }
-            else if (spec.getOpType() == OpType.UDF) {
-                return executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key,
+            switch (spec.getOpType()) {
+            case null:
+                latencyType = LatencyType.READ;
+                rs = executeSingleKeyRead(session, cluster, behavior, partitions, spec, key,
+                    filterExp, txn, scMode, includeMissingKeys, failOnFilteredOut, disposition,
+                    latencyEnabled);
+                break;
+
+            case EXISTS:
+                latencyType = LatencyType.READ;
+                rs = executeSingleKeyExists(session, cluster, behavior, partitions, spec, key,
+                    filterExp, txn, scMode, failOnFilteredOut, latencyEnabled);
+                break;
+
+            case TOUCH:
+                latencyType = LatencyType.WRITE;
+                rs = executeSingleKeyTouch(session, cluster, behavior, partitions, spec, key,
+                    filterExp, ttl, txn, scMode, failOnFilteredOut, latencyEnabled);
+                break;
+
+            case DELETE:
+                latencyType = LatencyType.WRITE;
+                rs = executeSingleKeyDelete(session, cluster, behavior, partitions, spec, key,
+                    filterExp, txn, scMode, failOnFilteredOut, durableDeleteDefault, latencyEnabled);
+                break;
+
+            case UDF:
+                latencyType = LatencyType.WRITE;
+                rs = executeSingleKeyUdf(session, cluster, behavior, partitions, spec, key,
                     filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut,
-                    durableDeleteDefault);
-            }
-            else {
-                return executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key,
+                    durableDeleteDefault, disposition, latencyEnabled);
+                break;
+
+            default:
+                latencyType = LatencyType.WRITE;
+                rs = executeSingleKeyWrite(session, cluster, behavior, partitions, spec, key,
                     filterExp, ttl, txn, scMode, includeMissingKeys, failOnFilteredOut,
-                    durableDeleteDefault);
+                    durableDeleteDefault, disposition, latencyEnabled);
+                break;
             }
+
+            if (latencyEnabled) {
+                long elapsed = System.nanoTime() - begin;
+                cluster.addLatency(latencyType, elapsed);
+            }
+
+            return rs;
         }
         catch (AerospikeException ae) {
             return handleSingleKeyError(key, ae, spec, disposition);
@@ -501,6 +578,10 @@ class OperationSpecExecutor {
     private static RecordStream handleSingleKeyError(
         Key key, AerospikeException ae, OperationSpec spec, ErrorDisposition disposition
     ) {
+        if (ae.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR && spec.isQuery()) {
+            return spec.isIncludeMissingKeys() ? streamNotFound(key) : new RecordStream();
+        }
+
         boolean hasWrite = spec.getOpType() != null;
         if (!shouldIncludeResult(ae.getResultCode(), spec.isIncludeMissingKeys(), spec.isFailOnFilteredOut(), hasWrite, false)) {
             return new RecordStream();
@@ -522,7 +603,8 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyRead(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut
+        boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
+        ErrorDisposition disposition, boolean latencyEnabled
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
         ReadAttr attr = new ReadAttr(partitions, settings);
@@ -537,7 +619,7 @@ class OperationSpecExecutor {
         if (ops != null && !ops.isEmpty()) {
             OperateArgs operateArgs = new OperateArgs(ops);
             OperateReadCommand cmd = new OperateReadCommand(cluster, partitions, txn, key, ops, operateArgs,
-                filterExp, failOnFilteredOut, settings, attr);
+                filterExp, failOnFilteredOut, settings, attr, latencyEnabled);
             OperateReadExecutor exec = new OperateReadExecutor(cluster, cmd);
             exec.execute();
             rec = exec.getRecord();
@@ -547,10 +629,13 @@ class OperationSpecExecutor {
             // withNoBins is true ONLY if explicitly set (empty array), not if null (null = read all bins)
             boolean withNoBins = binNames != null && binNames.length == 0;
             ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, binNames, withNoBins,
-                filterExp, failOnFilteredOut, settings, attr);
+                filterExp, failOnFilteredOut, settings, attr, latencyEnabled);
             ReadExecutor exec = new ReadExecutor(cluster, cmd);
             exec.execute();
             rec = exec.getRecord();
+            if (rec == null && exec.getResultCode() == ResultCode.FILTERED_OUT) {
+                return new RecordStream();
+            }
         }
 
         return createRecordStream(session, key, rec, includeMissingKeys, spec.getReadMappingClass());
@@ -563,7 +648,7 @@ class OperationSpecExecutor {
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
-        Boolean durableDeleteDefault
+        Boolean durableDeleteDefault, ErrorDisposition disposition, boolean latencyEnabled
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -577,7 +662,7 @@ class OperationSpecExecutor {
         OperateArgs operateArgs = new OperateArgs(ops);
         OperateWriteCommand cmd = new OperateWriteCommand(cluster, partitions, txn, key, ops, operateArgs,
             opType, gen, (int) ttl, filterExp, failOnFilteredOut, settings, durableDeleteDefault,
-            spec.getDurableDelete());
+            spec.getDurableDelete(), latencyEnabled);
         OperateWriteExecutor exec = new OperateWriteExecutor(cluster, cmd);
         exec.execute();
         Record rec = exec.getRecord();
@@ -604,7 +689,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyExists(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean failOnFilteredOut
+        boolean scMode, boolean failOnFilteredOut, boolean latencyEnabled
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.READ, OpShape.POINT, scMode);
         ReadAttr attr = new ReadAttr(partitions, settings);
@@ -614,7 +699,7 @@ class OperationSpecExecutor {
         }
 
         ReadCommand cmd = new ReadCommand(cluster, partitions, txn, key, null, true,
-            filterExp, failOnFilteredOut, settings, attr);
+            filterExp, failOnFilteredOut, settings, attr, latencyEnabled);
         ExistsExecutor exec = new ExistsExecutor(cluster, cmd);
         exec.execute();
 
@@ -627,7 +712,7 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyTouch(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
-        boolean scMode, boolean failOnFilteredOut
+        boolean scMode, boolean failOnFilteredOut, boolean latenycEnabled
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -637,7 +722,7 @@ class OperationSpecExecutor {
         }
 
         WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.TOUCH,
-            gen, (int) ttl, filterExp, failOnFilteredOut, settings);
+            gen, (int) ttl, filterExp, failOnFilteredOut, settings, latenycEnabled);
         TouchExecutor exec = new TouchExecutor(cluster, cmd);
         exec.execute();
 
@@ -650,7 +735,8 @@ class OperationSpecExecutor {
     private static RecordStream executeSingleKeyDelete(
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression filterExp, Txn txn,
-        boolean scMode, boolean failOnFilteredOut, Boolean durableDeleteDefault
+        boolean scMode, boolean failOnFilteredOut, Boolean durableDeleteDefault,
+        boolean latenycEnabled
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
@@ -661,7 +747,8 @@ class OperationSpecExecutor {
         }
 
         WriteCommand cmd = new WriteCommand(cluster, partitions, txn, key, OpType.DELETE,
-            gen, ttl, filterExp, failOnFilteredOut, settings, durableDeleteDefault, spec.getDurableDelete());
+            gen, ttl, filterExp, failOnFilteredOut, settings, durableDeleteDefault,
+            spec.getDurableDelete(), latenycEnabled);
         DeleteExecutor exec = new DeleteExecutor(cluster, cmd);
         exec.execute();
 
@@ -676,7 +763,7 @@ class OperationSpecExecutor {
         Session session, Cluster cluster, Behavior behavior, Partitions partitions,
         OperationSpec spec, Key key, Expression where, long ttl, Txn txn,
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
-        Boolean durableDeleteDefault
+        Boolean durableDeleteDefault, ErrorDisposition disposition, boolean latenycEnabled
     ) {
         ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
 
@@ -685,7 +772,8 @@ class OperationSpecExecutor {
         }
 
         UdfCommand cmd = new UdfCommand(cluster, partitions, txn, key, spec, (int)ttl, where,
-            failOnFilteredOut, settings, durableDeleteDefault, spec.getDurableDelete());
+            failOnFilteredOut, settings, durableDeleteDefault, spec.getDurableDelete(),
+            latenycEnabled);
 
         UdfExecutor exec = new UdfExecutor(cluster, cmd);
         exec.execute();
@@ -714,9 +802,15 @@ class OperationSpecExecutor {
         }
     }
 
+    /**
+     * A stream holding the one missing key the caller asked to see. The entry is marked expected, so
+     * inspecting it does not throw - see {@link RecordStream#markMissingKeysExpected()}.
+     */
+    @SuppressWarnings("resource")
     private static RecordStream streamNotFound(Key key) {
         return new RecordStream(new RecordResult(key, ResultCode.KEY_NOT_FOUND_ERROR, SubCode.NONE,
-            ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0, false));
+            ResultCode.getResultString(ResultCode.KEY_NOT_FOUND_ERROR), 0, false))
+            .markMissingKeysExpected();
     }
 
     /**

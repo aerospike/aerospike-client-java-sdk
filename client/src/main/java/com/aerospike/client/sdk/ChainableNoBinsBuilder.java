@@ -1081,16 +1081,11 @@ public class ChainableNoBinsBuilder extends AbstractSessionOperationBuilder<Chai
         int totalKeys = operationSpecs.stream().mapToInt(spec -> spec.getKeys().size()).sum();
         AsyncRecordStream asyncStream = AsyncExecutionSupport.newStream(totalKeys, errorHandler);
 
-        Cluster cluster = session.getCluster();
-        cluster.startVirtualThread(() -> {
-            try {
-                RecordStream syncResult = OperationSpecExecutor.execute(
-                    session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds,
-                    txnToUse, notInAnyTransaction, durableDeleteDefault);
-                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
-            } finally {
-                asyncStream.complete();
-            }
+        AsyncExecutionSupport.runOnVirtualThread(session.getCluster(), asyncStream, () -> {
+            RecordStream syncResult = OperationSpecExecutor.execute(
+                session, operationSpecs, defaultWhereClause, defaultExpirationInSeconds,
+                txnToUse, notInAnyTransaction, durableDeleteDefault);
+            syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
         });
 
         return new RecordStream(asyncStream);

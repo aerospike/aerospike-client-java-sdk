@@ -20,27 +20,33 @@ package com.aerospike.client.sdk.metrics;
  * Latency group type.
  */
 public enum LatencyType {
-    CONN,
-    WRITE,
-    READ,
-    BATCH,
-    QUERY,
-    NONE;
+    NONE("none", -1),
+    CONN("conn", -1),
+    WRITE("write", 0),
+    READ("read", 1),
+    BATCH("batch", 2),
+    QUERY("query", 3);
 
-    public static int getMax() {
-        return LatencyType.NONE.ordinal();
+    private String label;
+    private int commandOrdinal;
+
+    private LatencyType(String label, int commandOrdinal) {
+        this.label = label;
+        this.commandOrdinal = commandOrdinal;
     }
 
-    private static String[] TypeStrings = new String[] {
-        "conn",
-        "write",
-        "read",
-        "batch",
-        "query",
-        "none"
+    public String getLabel() {
+        return label;
+    }
+
+    public int getCommandOrdinal() {
+        return commandOrdinal;
+    }
+
+    public static final LatencyType[] commandTypes = new LatencyType[] {
+        LatencyType.WRITE,
+        LatencyType.READ,
+        LatencyType.BATCH,
+        LatencyType.QUERY
     };
-
-    public static String getString(int i) {
-        return TypeStrings[i];
-    }
 }

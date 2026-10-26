@@ -44,6 +44,7 @@ package com.aerospike.client.sdk;
  * // Bulk update
  * ExecuteTask task = session.backgroundTask()
  *     .update(customerDataSet)
+ *     .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
  *     .where("$.age > 30")
  *     .bin("category").setTo("senior")
  *     .expireRecordAfter(Duration.ofDays(90))
@@ -60,6 +61,15 @@ package com.aerospike.client.sdk;
  * // Monitor progress
  * task.waitTillComplete();
  * }</pre>
+ *
+ * <p>For update, delete, and touch builders, {@code filter(Filter)} chooses the explicit
+ * secondary-index access path and {@code where(...)} is an optional residual predicate applied to
+ * those candidates. Background UDF builders intentionally expose only {@code where(...)}.</p>
+ *
+ * <p>String and {@link com.aerospike.client.sdk.query.PreparedAel} {@code where(...)}
+ * residuals require server 8.2+ AEL support. Use programmatic
+ * {@link com.aerospike.client.sdk.exp.Exp} or {@link com.aerospike.client.sdk.exp.Expression}
+ * residuals for baseline-compatible filtering.</p>
  *
  * @see Session#backgroundTask()
  * @see BackgroundOperationBuilder
@@ -82,13 +92,14 @@ public class BackgroundTaskSession {
      * Updates only existing records that match the optional where clause.
      * 
      * <p>The UPDATE operation will only modify records that already exist in the database.
-     * Records are selected based on the optional where clause filter. Use this for
-     * bulk updates of existing data.</p>
+     * Records are selected based on the optional explicit secondary-index filter and optional
+     * residual where clause. Use this for bulk updates of existing data.</p>
      * 
      * <p><b>Example:</b></p>
      * <pre>{@code
      * ExecuteTask task = session.backgroundTask()
      *     .update(customerDataSet)
+     *     .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
      *     .where("$.age > 30")
      *     .bin("category").setTo("senior")
      *     .execute();
@@ -104,7 +115,7 @@ public class BackgroundTaskSession {
 
     /**
      * Create background delete operation for a dataset.
-     * Deletes only existing records that match the optional where clause.
+     * Deletes only existing records that match the optional explicit filter and where clause.
      * 
      * <p>The DELETE operation will remove records that match the optional filter.
      * Use this for bulk cleanup of unwanted or expired data.</p>
@@ -113,6 +124,7 @@ public class BackgroundTaskSession {
      * <pre>{@code
      * ExecuteTask task = session.backgroundTask()
      *     .delete(customerDataSet)
+     *     .filter(Filter.rangeByIndex("idx_last_login", 0, 1609459200000L))
      *     .where("$.lastLogin < 1609459200000")
      *     .execute();
      * }</pre>
@@ -127,7 +139,7 @@ public class BackgroundTaskSession {
 
     /**
      * Create background touch operation for a dataset.
-     * Touches only existing records that match the optional where clause.
+     * Touches only existing records that match the optional explicit filter and where clause.
      * 
      * <p>The TOUCH operation updates the record metadata (like TTL) without
      * modifying the record data itself. Use this to extend expiration times
@@ -137,6 +149,7 @@ public class BackgroundTaskSession {
      * <pre>{@code
      * ExecuteTask task = session.backgroundTask()
      *     .touch(activeUsers)
+     *     .filter(Filter.equalByIndex("idx_status", "active"))
      *     .where("$.status == 'active'")
      *     .expireRecordAfter(Duration.ofDays(30))
      *     .execute();

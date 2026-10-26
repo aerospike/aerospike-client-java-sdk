@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.ael.Ael;
@@ -40,6 +38,7 @@ import com.aerospike.client.sdk.mapper.Address;
 import com.aerospike.client.sdk.mapper.Customer;
 import com.aerospike.client.sdk.mapper.CustomerMapper;
 import com.aerospike.client.sdk.policy.QueryDuration;
+import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.PreparedAel;
 import com.aerospike.client.sdk.query.TypedQueryBuilder;
 import com.aerospike.client.sdk.tend.Partition;
@@ -101,6 +100,13 @@ public class TypedQueryMappingTest extends ClusterTest {
             assertEquals(42, customer.getAge());
             assertEquals(null, customer.getAddress());
         }
+    }
+
+    @Test
+    public void typedDatasetQueryFilterDelegatesFluently() {
+        TypedQueryBuilder<Customer> qb = session.query(customerDataSet());
+
+        assertEquals(qb, qb.filter(Filter.equal("id", 1)));
     }
 
     @Test
@@ -404,7 +410,11 @@ public class TypedQueryMappingTest extends ClusterTest {
         TypedDataSet<Customer> ds = customerDataSet();
         seedCustomer(ds, key, "where-overloads");
 
-        assertCustomerName(session.query(ds)
+        // The where() overloads are what is under test, not index selection: bin "id" carries no
+        // secondary index, so the textual clauses below need the scan fallback to run at all.
+        Session scanSession = sessionAllowingScansWithWhere();
+
+        assertCustomerName(scanSession.query(ds)
             .where("$.id == " + key)
             .limit(1)
             .execute()
@@ -412,14 +422,14 @@ public class TypedQueryMappingTest extends ClusterTest {
             .orElseThrow(), "where-overloads");
 
         PreparedAel prepared = PreparedAel.prepare("$.id == ?0");
-        assertCustomerName(session.query(ds)
+        assertCustomerName(scanSession.query(ds)
             .where(prepared, key)
             .limit(1)
             .execute()
             .getFirstObject()
             .orElseThrow(), "where-overloads");
 
-        assertCustomerName(session.query(ds)
+        assertCustomerName(scanSession.query(ds)
             .where(Ael.longBin("id").eq(key))
             .limit(1)
             .execute()
@@ -427,7 +437,7 @@ public class TypedQueryMappingTest extends ClusterTest {
             .orElseThrow(), "where-overloads");
 
         Expression expression = Exp.build(Exp.eq(Exp.intBin("id"), Exp.val(key)));
-        assertCustomerName(session.query(ds)
+        assertCustomerName(scanSession.query(ds)
             .where(expression)
             .limit(1)
             .execute()
@@ -524,7 +534,7 @@ public class TypedQueryMappingTest extends ClusterTest {
     @Test
     public void typedDatasetQueryBinBuilderOnDataset() {
         assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
+            cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
             "dataset bin projection requires server 8.1.2+");
 
         installCustomerMapper();
@@ -542,10 +552,6 @@ public class TypedQueryMappingTest extends ClusterTest {
     }
 
     @Test
-    @Tag(KnownDefect.TAG)
-    @Disabled("Known defect: a secondary-index query never calls Txn.setNamespace, because the server has"
-        + " no MRT support on the query path, so a transaction containing only a query commits with a null"
-        + " namespace and TxnRoll throws InvalidNamespace.")
     public void typedDatasetQueryInTransaction() {
         assumeTrue(args.scMode, "transactions require strong consistency");
         installCustomerMapper();

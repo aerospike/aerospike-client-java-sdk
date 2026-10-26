@@ -18,6 +18,7 @@ package com.aerospike.client.sdk.policy;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class BehaviorYamlConfig {
 
@@ -52,6 +53,7 @@ public class BehaviorYamlConfig {
         private SystemCircuitBreakerConfig systemCircuitBreaker;
         private SystemRefreshConfig systemRefresh;
         private SystemTransactionsConfig systemTransactions;
+        private SystemMetricsConfig systemMetrics;
 
         // Getters and setters
         public String getName() { return name; }
@@ -110,6 +112,9 @@ public class BehaviorYamlConfig {
 
         public SystemTransactionsConfig getSystemTransactions() { return systemTransactions; }
         public void setSystemTransactions(SystemTransactionsConfig systemTransactions) { this.systemTransactions = systemTransactions; }
+
+        public SystemMetricsConfig getSystemMetrics() { return systemMetrics; }
+        public void setSystemMetrics(SystemMetricsConfig metrics) { this.systemMetrics = metrics; }
     }
 
     // Base policy configuration
@@ -300,6 +305,7 @@ public class BehaviorYamlConfig {
         private SystemCircuitBreakerConfig circuitBreaker;
         private SystemRefreshConfig refresh;
         private SystemTransactionsConfig transactions;
+        private SystemMetricsConfig metrics;
 
         public SystemConnectionsConfig getConnections() { return connections; }
         public void setConnections(SystemConnectionsConfig connections) { this.connections = connections; }
@@ -312,5 +318,167 @@ public class BehaviorYamlConfig {
 
         public SystemTransactionsConfig getTransactions() { return transactions; }
         public void setTransactions(SystemTransactionsConfig transactions) { this.transactions = transactions; }
+
+        public SystemMetricsConfig getMetrics() { return metrics; }
+        public void setMetrics(SystemMetricsConfig metrics) { this.metrics = metrics; }
+    }
+
+    public static class SystemMetricsConfig {
+        private String exporter;
+        private Map<String,String> labels;
+        private String reportDir;
+        private String reportSizeLimit;
+        private Double exportSampleRate;
+        private Duration exportInterval;
+        private Boolean enabled;
+        private MetricsExtendedConfig extended;
+
+        public Map<String, String> getLabels() {
+            return labels;
+        }
+        public void setLabels(Map<String, String> labels) {
+            this.labels = labels;
+        }
+
+        public String getExporter() {
+            return exporter;
+        }
+        public void setExporter(String exporter) {
+            this.exporter = exporter;
+        }
+
+        public String getReportDir() {
+            return reportDir;
+        }
+        public void setReportDir(String reportDir) {
+            this.reportDir = reportDir;
+        }
+
+        public String getReportSizeLimit() {
+            return reportSizeLimit;
+        }
+        public void setReportSizeLimit(String reportSizeLimit) {
+            this.reportSizeLimit = reportSizeLimit;
+        }
+
+        public Double getExportSampleRate() {
+            return exportSampleRate;
+        }
+        public void setExportSampleRate(Double exportSampleRate) {
+            this.exportSampleRate = exportSampleRate;
+        }
+
+        public Duration getExportInterval() {
+            return exportInterval;
+        }
+        public void setExportInterval(Duration interval) {
+            this.exportInterval = interval;
+        }
+
+        public Boolean getEnabled() {
+            return enabled;
+        }
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public MetricsExtendedConfig getExtended() {
+            return extended;
+        }
+        public void setExtended(MetricsExtendedConfig extended) {
+            this.extended = extended;
+        }
+    }
+
+    public static class MetricsExtendedConfig {
+        private MetricsOperationalConfig operational;
+        private MetricsUsageConfig usage;
+
+        public MetricsOperationalConfig getOperational() {
+            return operational;
+        }
+        public void setOperational(MetricsOperationalConfig operational) {
+            this.operational = operational;
+        }
+
+        public MetricsUsageConfig getUsage() {
+            return usage;
+        }
+        public void setUsage(MetricsUsageConfig usage) {
+            this.usage = usage;
+        }
+    }
+
+    public static class MetricsOperationalConfig {
+        private TimeUnit latencyUnit;
+        private Integer latencyColumns;
+        private Integer latencyShift;
+        private Boolean enabled;
+        private MetricsSamplerConfig sampler;
+
+        public TimeUnit getLatencyUnit() {
+            return latencyUnit;
+        }
+        public void setLatencyUnit(TimeUnit unit) {
+            this.latencyUnit = unit;
+        }
+
+        public Integer getLatencyColumns() {
+            return latencyColumns;
+        }
+        public void setLatencyColumns(Integer latencyColumns) {
+            this.latencyColumns = latencyColumns;
+        }
+
+        public Integer getLatencyShift() {
+            return latencyShift;
+        }
+        public void setLatencyShift(Integer latencyShift) {
+            this.latencyShift = latencyShift;
+        }
+
+        public Boolean getEnabled() {
+            return enabled;
+        }
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public MetricsSamplerConfig getSampler() {
+            return sampler;
+        }
+        public void setSampler(MetricsSamplerConfig sampler) {
+            this.sampler = sampler;
+        }
+    }
+
+    public static class MetricsSamplerConfig {
+        private Integer range;
+        private Integer threshold;
+
+        public Integer getRange() {
+            return range;
+        }
+        public void setRange(Integer range) {
+            this.range = range;
+        }
+
+        public Integer getThreshold() {
+            return threshold;
+        }
+        public void setThreshold(Integer threshold) {
+            this.threshold = threshold;
+        }
+    }
+
+    public static class MetricsUsageConfig {
+        private Boolean enabled;
+
+        public Boolean getEnabled() {
+            return enabled;
+        }
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 }

@@ -22,6 +22,7 @@ import java.util.List;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.StringWriteOptions;
 import com.aerospike.client.sdk.Value;
 import com.aerospike.client.sdk.cdt.CTX;
 import com.aerospike.client.sdk.command.ParticleType;
@@ -434,6 +435,21 @@ public final class StringOperation {
      * Create string {@code insert} operation that splices {@code value} into the bin at
      * codepoint {@code index}. Negative indexes count from the end of the string.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param index     codepoint index at which to insert (negative counts from end)
+     * @param value     text to insert
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation insert(StringWriteOptions options, String binName, int index, String value, CTX... ctx) {
+        return insert(options.toFlags(), binName, index, value, ctx);
+    }
+
+    /**
+     * Create string {@code insert} operation that splices {@code value} into the bin at
+     * codepoint {@code index}. Negative indexes count from the end of the string.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param index     codepoint index at which to insert (negative counts from end)
@@ -445,6 +461,28 @@ public final class StringOperation {
         validateWriteFlags("string_insert", flags, true, ctx);
         byte[] bytes = Pack.pack(INSERT, index, Value.get(value), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code overwrite} operation that overwrites codepoints starting at
+     * codepoint {@code index} with {@code value}. The result may grow beyond the
+     * original length when {@code value} extends past the end.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param index     codepoint index at which to start overwriting
+     * @param value     text to write
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation overwrite(
+        StringWriteOptions options,
+        String binName,
+        int index,
+        String value,
+        CTX... ctx
+    ) {
+        return overwrite(options.toFlags(), binName, index, value, ctx);
     }
 
     /**
@@ -468,6 +506,19 @@ public final class StringOperation {
     /**
      * Create string {@code concat} operation that appends {@code value} to the bin.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param value     text to append
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation concat(StringWriteOptions options, String binName, String value, CTX... ctx) {
+        return concat(options.toFlags(), binName, value, ctx);
+    }
+
+    /**
+     * Create string {@code concat} operation that appends {@code value} to the bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param value     text to append
@@ -480,6 +531,20 @@ public final class StringOperation {
         list.add(Value.get(value));
         byte[] bytes = Pack.pack(CONCAT, list, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code concat} operation that appends each element of {@code values}
+     * to the bin in order.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param values    ordered list of strings to append
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation concat(StringWriteOptions options, String binName, List<String> values, CTX... ctx) {
+        return concat(options.toFlags(), binName, values, ctx);
     }
 
     /**
@@ -502,6 +567,19 @@ public final class StringOperation {
     /**
      * Create string {@code append} operation that appends {@code value} to the end of the bin.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param value     text to append to the end of the string
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation append(StringWriteOptions options, String binName, String value, CTX... ctx) {
+        return append(options.toFlags(), binName, value, ctx);
+    }
+
+    /**
+     * Create string {@code append} operation that appends {@code value} to the end of the bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param value     text to append to the end of the string
@@ -512,6 +590,19 @@ public final class StringOperation {
         validateWriteFlags("string_append", flags, true, ctx);
         byte[] bytes = Pack.pack(APPEND, Value.get(value), flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code prepend} operation that prepends {@code value} to the start of the bin.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param value     text to prepend to the start of the string
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation prepend(StringWriteOptions options, String binName, String value, CTX... ctx) {
+        return prepend(options.toFlags(), binName, value, ctx);
     }
 
     /**
@@ -530,8 +621,29 @@ public final class StringOperation {
     }
 
     /**
-     * Create string {@code snip} operation that removes the half-open codepoint range
-     * {@code [start, end)} from the bin.
+     * Create string {@code snip} operation that removes every codepoint from {@code start}
+     * to the end of the bin.
+     * <p>
+     * The server's snip argument list is positional — {@code start}, {@code end},
+     * {@code flags} — so this form cannot carry the write options without also
+     * supplying an explicit {@code end}: they are accepted for signature parity with the
+     * other modify operations and are <strong>not</strong> transmitted. Use
+     * {@link #snip(StringWriteOptions, String, int, int, CTX...)} when the write options
+     * must be honored.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param start     first codepoint to remove (inclusive)
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation snip(StringWriteOptions options, String binName, int start, CTX... ctx) {
+        return snip(options.toFlags(), binName, start, ctx);
+    }
+
+    /**
+     * Create string {@code snip} operation that removes every codepoint from {@code start}
+     * to the end of the bin.
      * <p>
      * The server's snip argument list is positional — {@code start}, {@code end},
      * {@code flags} — so this form cannot carry the {@code flags} without also
@@ -543,7 +655,6 @@ public final class StringOperation {
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param start     first codepoint to remove (inclusive)
-     * @param end       one past the last codepoint to remove (exclusive)
      * @param ctx       optional path into a string nested inside a list or map
      * @return          modify operation
      */
@@ -551,6 +662,21 @@ public final class StringOperation {
         validateWriteFlags("string_snip", flags, false, ctx);
         byte[] bytes = Pack.pack(SNIP, start, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code snip} operation that removes the half-open codepoint range
+     * {@code [start, end)} from the bin.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param start     first codepoint to remove (inclusive)
+     * @param end       one past the last codepoint to remove (exclusive)
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation snip(StringWriteOptions options, String binName, int start, int end, CTX... ctx) {
+        return snip(options.toFlags(), binName, start, end, ctx);
     }
 
     /**
@@ -568,6 +694,27 @@ public final class StringOperation {
         validateWriteFlags("string_snip", flags, false, ctx);
         byte[] bytes = Pack.pack(SNIP, start, end, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code replace} operation that replaces the first occurrence of
+     * {@code needle} with {@code replacement}.
+     *
+     * @param options       write options.
+     * @param binName       name of the string bin
+     * @param needle        substring to find
+     * @param replacement   text to substitute (may be empty to delete the match)
+     * @param ctx           optional path into a string nested inside a list or map
+     * @return              modify operation
+     */
+    public static Operation replace(
+        StringWriteOptions options,
+        String binName,
+        String needle,
+        String replacement,
+        CTX... ctx
+    ) {
+        return replace(options.toFlags(), binName, needle, replacement, ctx);
     }
 
     /**
@@ -592,6 +739,27 @@ public final class StringOperation {
      * Create string {@code replaceAll} operation that replaces every occurrence of
      * {@code needle} with {@code replacement}.
      *
+     * @param options       write options.
+     * @param binName       name of the string bin
+     * @param needle        substring to find
+     * @param replacement   text to substitute (may be empty to delete each match)
+     * @param ctx           optional path into a string nested inside a list or map
+     * @return              modify operation
+     */
+    public static Operation replaceAll(
+        StringWriteOptions options,
+        String binName,
+        String needle,
+        String replacement,
+        CTX... ctx
+    ) {
+        return replaceAll(options.toFlags(), binName, needle, replacement, ctx);
+    }
+
+    /**
+     * Create string {@code replaceAll} operation that replaces every occurrence of
+     * {@code needle} with {@code replacement}.
+     *
      * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName       name of the string bin
      * @param needle        substring to find
@@ -604,6 +772,18 @@ public final class StringOperation {
         List<Value> list = pair(needle, replacement);
         byte[] bytes = Pack.pack(REPLACE_ALL, list, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code upper} operation that uppercases the bin in place.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation upper(StringWriteOptions options, String binName, CTX... ctx) {
+        return upper(options.toFlags(), binName, ctx);
     }
 
     /**
@@ -623,6 +803,18 @@ public final class StringOperation {
     /**
      * Create string {@code lower} operation that lowercases the bin in place.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation lower(StringWriteOptions options, String binName, CTX... ctx) {
+        return lower(options.toFlags(), binName, ctx);
+    }
+
+    /**
+     * Create string {@code lower} operation that lowercases the bin in place.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -632,6 +824,19 @@ public final class StringOperation {
         validateWriteFlags("string_lower", flags, false, ctx);
         byte[] bytes = Pack.pack(LOWER, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code caseFold} operation that applies a locale-independent case
+     * fold (lowercase) to the bin. Useful for normalized comparison keys.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation caseFold(StringWriteOptions options, String binName, CTX... ctx) {
+        return caseFold(options.toFlags(), binName, ctx);
     }
 
     /**
@@ -653,6 +858,19 @@ public final class StringOperation {
      * Create string {@code normalizeNFC} operation that normalizes the bin to Unicode
      * NFC form. Already-normalized strings are unchanged.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation normalizeNFC(StringWriteOptions options, String binName, CTX... ctx) {
+        return normalizeNFC(options.toFlags(), binName, ctx);
+    }
+
+    /**
+     * Create string {@code normalizeNFC} operation that normalizes the bin to Unicode
+     * NFC form. Already-normalized strings are unchanged.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -662,6 +880,19 @@ public final class StringOperation {
         validateWriteFlags("string_normalize_nfc", flags, false, ctx);
         byte[] bytes = Pack.pack(NORMALIZE_NFC, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code trimStart} operation that removes whitespace from the start
+     * of the bin.
+     *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation trimStart(StringWriteOptions options, String binName, CTX... ctx) {
+        return trimStart(options.toFlags(), binName, ctx);
     }
 
     /**
@@ -683,6 +914,19 @@ public final class StringOperation {
      * Create string {@code trimEnd} operation that removes whitespace from the end of
      * the bin.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation trimEnd(StringWriteOptions options, String binName, CTX... ctx) {
+        return trimEnd(options.toFlags(), binName, ctx);
+    }
+
+    /**
+     * Create string {@code trimEnd} operation that removes whitespace from the end of
+     * the bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -698,6 +942,19 @@ public final class StringOperation {
      * Create string {@code trim} operation that removes whitespace from both ends of
      * the bin.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation trim(StringWriteOptions options, String binName, CTX... ctx) {
+        return trim(options.toFlags(), binName, ctx);
+    }
+
+    /**
+     * Create string {@code trim} operation that removes whitespace from both ends of
+     * the bin.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param ctx       optional path into a string nested inside a list or map
@@ -707,6 +964,28 @@ public final class StringOperation {
         validateWriteFlags("string_trim", flags, false, ctx);
         byte[] bytes = Pack.pack(TRIM, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code padStart} operation that prepends {@code padString}
+     * repeatedly until the bin reaches {@code targetLength} codepoints. No-op when the
+     * bin is already at or above the target length.
+     *
+     * @param options       write options.
+     * @param binName       name of the string bin
+     * @param targetLength  codepoint length to pad up to
+     * @param padString     text used to fill (repeated as needed)
+     * @param ctx           optional path into a string nested inside a list or map
+     * @return              modify operation
+     */
+    public static Operation padStart(
+        StringWriteOptions options,
+        String binName,
+        int targetLength,
+        String padString,
+        CTX... ctx
+    ) {
+        return padStart(options.toFlags(), binName, targetLength, padString, ctx);
     }
 
     /**
@@ -732,6 +1011,28 @@ public final class StringOperation {
      * until the bin reaches {@code targetLength} codepoints. No-op when the bin is
      * already at or above the target length.
      *
+     * @param options       write options.
+     * @param binName       name of the string bin
+     * @param targetLength  codepoint length to pad up to
+     * @param padString     text used to fill (repeated as needed)
+     * @param ctx           optional path into a string nested inside a list or map
+     * @return              modify operation
+     */
+    public static Operation padEnd(
+        StringWriteOptions options,
+        String binName,
+        int targetLength,
+        String padString,
+        CTX... ctx
+    ) {
+        return padEnd(options.toFlags(), binName, targetLength, padString, ctx);
+    }
+
+    /**
+     * Create string {@code padEnd} operation that appends {@code padString} repeatedly
+     * until the bin reaches {@code targetLength} codepoints. No-op when the bin is
+     * already at or above the target length.
+     *
      * @param flags         write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName       name of the string bin
      * @param targetLength  codepoint length to pad up to
@@ -749,6 +1050,20 @@ public final class StringOperation {
      * Create string {@code repeat} operation that repeats the bin contents {@code count}
      * times.
      *
+     * @param options   write options.
+     * @param binName   name of the string bin
+     * @param count     number of repetitions (must be non-negative)
+     * @param ctx       optional path into a string nested inside a list or map
+     * @return          modify operation
+     */
+    public static Operation repeat(StringWriteOptions options, String binName, int count, CTX... ctx) {
+        return repeat(options.toFlags(), binName, count, ctx);
+    }
+
+    /**
+     * Create string {@code repeat} operation that repeats the bin contents {@code count}
+     * times.
+     *
      * @param flags     write flags. See {@link com.aerospike.client.sdk.operation.StringWriteFlags}
      * @param binName   name of the string bin
      * @param count     number of repetitions (must be non-negative)
@@ -759,6 +1074,31 @@ public final class StringOperation {
         validateWriteFlags("string_repeat", flags, true, ctx);
         byte[] bytes = Pack.pack(REPEAT, count, flags, ctx);
         return new Operation(Operation.Type.STRING_MODIFY, binName, new Value.BytesValue(bytes, ParticleType.STRING));
+    }
+
+    /**
+     * Create string {@code regexReplace} operation that replaces the first match of
+     * {@code pattern} with {@code replacement}. Pass {@link StringRegexFlags#GLOBAL}
+     * to replace every match. Flag values from {@link StringRegexFlags} may be combined
+     * with bitwise OR.
+     *
+     * @param options       write options.
+     * @param binName       name of the string bin
+     * @param pattern       ICU-syntax regex pattern (must be valid UTF-8)
+     * @param replacement   replacement text (must be valid UTF-8)
+     * @param regexFlags    bitwise-OR of {@link StringRegexFlags} constants
+     * @param ctx           optional path into a string nested inside a list or map
+     * @return              modify operation
+     */
+    public static Operation regexReplace(
+        StringWriteOptions options,
+        String binName,
+        String pattern,
+        String replacement,
+        int regexFlags,
+        CTX... ctx
+    ) {
+        return regexReplace(options.toFlags(), binName, pattern, replacement, regexFlags, ctx);
     }
 
     /**

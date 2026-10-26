@@ -92,7 +92,10 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * Adds a filter condition using an Exp operation.
      *
      * <p>Note: This method may be deprecated in the future -- use a string version instead.</p>
-     * <p>Note: If this method is used, no secondary index can be used.</p>
+     * <p>This form does not perform automatic secondary-index selection. On builders that also
+     * expose an explicit {@code filter(Filter)} method, such as dataset queries and background
+     * update/delete/touch operations, it can coexist with that secondary-index filter as a residual
+     * predicate.</p>
      *
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>
@@ -107,7 +110,10 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * Adds a filter condition using an Expression operation.
      *
      * <p>Note: This method may be deprecated in the future -- use a string version instead.</p>
-     * <p>Note: If this method is used, no secondary index can be used.</p>
+     * <p>This form does not perform automatic secondary-index selection. On builders that also
+     * expose an explicit {@code filter(Filter)} method, such as dataset queries and background
+     * update/delete/touch operations, it can coexist with that secondary-index filter as a residual
+     * predicate.</p>
      *
      * <p>Only one filter condition can be specified per operation. Multiple calls
      * to this method or other where variants will throw an exception.</p>

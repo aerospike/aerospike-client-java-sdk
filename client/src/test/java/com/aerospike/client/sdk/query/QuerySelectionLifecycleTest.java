@@ -254,8 +254,14 @@ public class QuerySelectionLifecycleTest extends ClusterTest {
 
     // ------------------------------------------------------------------------------------ helpers
 
+    /**
+     * The scan-fallback half of every pairing below: no hint, and scans permitted, so the query
+     * runs whether or not an index can serve it. The shipped default forbids the fallback
+     * (CLIENT-5483), which would turn "degrades to a scan" into INDEX_NOTFOUND and hide the very
+     * behavior these tests pin.
+     */
     private static List<Integer> agesWhere(String where) {
-        return collectAges(session.query(dataSet)
+        return collectAges(sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(ageBin)
             .where(where)
             .execute());

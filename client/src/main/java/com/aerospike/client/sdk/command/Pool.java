@@ -205,6 +205,13 @@ public final class Pool {
     }
 
     /**
+     * Get total connection.
+     */
+    public int getTotal() {
+        return total.get();
+    }
+
+    /**
      * Increment total connections count.
      */
     public int incrTotal() {

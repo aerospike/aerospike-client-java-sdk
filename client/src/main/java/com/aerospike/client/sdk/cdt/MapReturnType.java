@@ -80,12 +80,7 @@ public final class MapReturnType {
     public static final int VALUE = 7;
 
     /**
-     * Return key/value items. The possible return types are:
-     * <ul>
-     * <li>HashMap : Returned for unordered maps</li>
-     * <li>TreeMap : Returned for key ordered maps</li>
-     * <li>List&lt;Entry&gt; : Returned for range results where range order needs to be preserved.</li>
-     * </ul>
+     * Return AerospikeMap of keys/values.
      */
     public static final int KEY_VALUE = 8;
 

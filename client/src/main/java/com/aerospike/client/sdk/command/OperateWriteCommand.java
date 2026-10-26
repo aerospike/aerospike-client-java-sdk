@@ -33,10 +33,10 @@ public class OperateWriteCommand extends WriteCommand {
     public OperateWriteCommand(
         Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops,
         OperateArgs args, OpType type, int gen, int ttl, Expression filterExp,
-        boolean failOnFilteredOut, ResolvedSettings settings
+        boolean failOnFilteredOut, ResolvedSettings settings, boolean latencyEnabled
     ) {
         super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, settings,
-            null, null);
+            null, null, latencyEnabled);
         this.ops = ops;
         this.args = args;
     }
@@ -45,10 +45,10 @@ public class OperateWriteCommand extends WriteCommand {
         Cluster cluster, Partitions partitions, Txn txn, Key key, List<Operation> ops,
         OperateArgs args, OpType type, int gen, int ttl, Expression filterExp,
         boolean failOnFilteredOut, ResolvedSettings settings, Boolean durableDeleteDefault,
-        Boolean durableDeleteOverride
+        Boolean durableDeleteOverride, boolean latencyEnabled
     ) {
         super(cluster, partitions, txn, key, type, gen, ttl, filterExp, failOnFilteredOut, settings,
-            durableDeleteDefault, durableDeleteOverride);
+            durableDeleteDefault, durableDeleteOverride, latencyEnabled);
         this.ops = ops;
         this.args = args;
     }

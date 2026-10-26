@@ -30,11 +30,11 @@ public final class AelMaterializer {
      */
     public static Expression expressionFromString(Cluster cluster, String ael) {
         if (cluster.supportsAel()) {
-            return Expression.fromServerCompiledFilter(ael);
+            return Expression.getCompiledFilter(ael);
         }
         throw AerospikeException.toException(ResultCode.OP_NOT_APPLICABLE,
                 "Aerospike Expression Language (AEL) requires server version 8.2.0+. Server version is " +
-                        cluster.getVersion());
+                        cluster.getServerVersion());
     }
 
     public static Expression expressionFromString(Cluster cluster, String ael, Object[] params) {

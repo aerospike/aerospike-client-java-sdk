@@ -27,11 +27,11 @@ import com.aerospike.client.sdk.metrics.LatencyType;
 public final class ReadExecutor extends SyncExecutor {
     private final ReadCommand read;
     private Record record;
+    private int resultCode = ResultCode.OK;
 
     public ReadExecutor(Cluster cluster, ReadCommand cmd) {
         super(cluster, cmd);
         this.read = cmd;
-        cluster.addCommandCount();
     }
 
     @Override
@@ -54,11 +54,11 @@ public final class ReadExecutor extends SyncExecutor {
     @Override
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
-        rp.parseFields(cmd.txn, read.key, false);
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        rp.parseFields(cmd.txn, read.key, false);
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
+
+        resultCode = rp.resultCode;
 
         if (rp.resultCode == ResultCode.OK) {
             record = rp.parseRecord(true);
@@ -87,5 +87,9 @@ public final class ReadExecutor extends SyncExecutor {
 
     public final Record getRecord() {
         return record;
+    }
+
+    public final int getResultCode() {
+        return resultCode;
     }
 }

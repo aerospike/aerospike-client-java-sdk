@@ -162,6 +162,10 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * server-side AEL on the wire ({@linkplain com.aerospike.client.sdk.util.Version#SERVER_VERSION_8_2}),
      * the DSL may be compiled on the server; parsing still runs locally first whenever secondary-index selection applies.</p>
      *
+     * <p>Dataset queries with {@link IndexBasedQueryBuilderInterface#filter(Filter)} bypass automatic
+     * index selection; this AEL is then sent as a residual filter expression and requires server-side
+     * AEL support ({@code 8.2+}).</p>
+     *
      * @param ael the AEL filter expression
      * @param params The params used to replace arguments in the AEL string (used by {@code String.format(ael, params)}
      * @return this QueryBuilder for method chaining
@@ -189,6 +193,9 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
+     * <p>On dataset queries with {@link IndexBasedQueryBuilderInterface#filter(Filter)}, this expression
+     * is sent as a residual filter beside the explicit index filter.</p>
+     *
      * @param ael the BooleanExpression filter
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
@@ -201,6 +208,9 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
      *
+     * <p>On dataset queries with {@link IndexBasedQueryBuilderInterface#filter(Filter)}, this expression
+     * is sent as a residual filter beside the explicit index filter.</p>
+     *
      * @param exp filter expression
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
@@ -212,6 +222,9 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
      *
      * <p>Only one filter condition can be specified per query. Multiple calls
      * to this method or {@link #where(String)} will throw an exception.</p>
+     *
+     * <p>On dataset queries with {@link IndexBasedQueryBuilderInterface#filter(Filter)}, this expression
+     * is sent as a residual filter beside the explicit index filter.</p>
      *
      * @param exp filter expression
      * @return this QueryBuilder for method chaining

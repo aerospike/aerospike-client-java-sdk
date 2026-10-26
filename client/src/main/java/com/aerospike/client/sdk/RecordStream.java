@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -40,6 +41,12 @@ import com.aerospike.client.sdk.util.ContainerString;
 
 public class RecordStream implements Iterator<RecordResult>, Closeable {
     private final RecordStreamImpl impl;
+
+    /**
+     * Set when this stream's KEY_NOT_FOUND entries are present because the caller asked for them
+     * with {@code includeMissingKeys()}. See {@link #markMissingKeysExpected()}.
+     */
+    private boolean missingKeysExpected;
 
     // ========================================
     // Unconsumed error stream detection (disabled)
@@ -198,11 +205,29 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public RecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize,
                         ErrorHandler errorHandler) {
+        this(stream, () -> cmd, limit, recordQueueSize, errorHandler);
+    }
+
+    /**
+     * Creates a chunked RecordStream whose query command is supplied on demand.
+     *
+     * <p>For asynchronous index queries: planning happens off the calling thread, so the command does
+     * not exist yet when the stream is handed back. The supplier waits for it, and is consulted only
+     * when a second chunk is requested - after the caller has drained the first.</p>
+     *
+     * @param stream first-chunk async buffer (see {@link ChunkedRecordStream})
+     * @param commandSupplier supplies the query command that loads each chunk
+     * @param limit maximum records to yield; non-positive values are treated as unbounded
+     * @param recordQueueSize async queue capacity per chunk
+     * @param errorHandler handler for per-record errors, or {@code null} to leave them in the stream
+     */
+    public RecordStream(AsyncRecordStream stream, Supplier<QueryCommand> commandSupplier, long limit,
+                        int recordQueueSize, ErrorHandler errorHandler) {
         if (limit <= 0) {
             limit = Long.MAX_VALUE;
         }
 
-        impl = new ChunkedRecordStream(stream, cmd, limit, recordQueueSize, errorHandler);
+        impl = new ChunkedRecordStream(stream, commandSupplier, limit, recordQueueSize, errorHandler);
     }
 
     /**
@@ -1101,11 +1126,36 @@ public class RecordStream implements Iterator<RecordResult>, Closeable {
      */
     public Optional<RecordResult> pop(boolean throwException) {
         if (hasNext()) {
-            return throwException
-                ? Optional.of(next().orThrow())
-                : Optional.of(next());
+            RecordResult result = next();
+
+            return Optional.of(throwException && ! isExpectedMissingKey(result) ? result.orThrow() : result);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Marks this stream's KEY_NOT_FOUND entries as an expected outcome rather than an error.
+     *
+     * <p>Called by the builders when the caller asked for missing keys with
+     * {@code includeMissingKeys()}. Such an entry is in the stream precisely because it was
+     * requested, so {@link #pop()} and {@link #getFirst()} hand it back for inspection instead of
+     * throwing. Only KEY_NOT_FOUND is affected: every other non-OK result code still throws, and
+     * the entry still reports {@code isOk() == false} and its own result code.</p>
+     *
+     * <p>The accessors that promise a {@link Record} - {@link #popRecord()},
+     * {@link #getFirstRecord()} and the {@link RecordMapper} variants - are deliberately not
+     * relaxed. A missing key carries no record, so they would have to return null.</p>
+     *
+     * @return this stream
+     */
+    RecordStream markMissingKeysExpected() {
+        missingKeysExpected = true;
+        return this;
+    }
+
+    /** True when {@code result} is a missing key this stream was asked to carry. */
+    private boolean isExpectedMissingKey(RecordResult result) {
+        return missingKeysExpected && result.getResultCode() == ResultCode.KEY_NOT_FOUND_ERROR;
     }
 
     /**

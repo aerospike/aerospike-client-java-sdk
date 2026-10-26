@@ -365,6 +365,7 @@ session.query(dataSet)
     ├── .bin(name)                        → QueryBuilderBinBuilder
     │       └── .selectFrom(expr)
     │
+    ├── .filter(Filter)                   // Explicit secondary-index access path
     ├── .where(String, Object...)
     ├── .where(BooleanExpression)
     ├── .where(Expression)
@@ -443,6 +444,7 @@ ObjectBuilder (after .object()):
 session.backgroundTask().update(dataSet)
     ├── .bin(name)                        → BinBuilder
     │
+    ├── .filter(Filter)                   // Explicit secondary-index access path
     ├── .where(String, Object...)
     ├── .where(BooleanExpression)
     ├── .where(PreparedAel, Object...)

@@ -1,0 +1,273 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.sdk.metrics;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import com.aerospike.client.sdk.metrics.MetricsExtended.MetricsExtendedTweaks;
+import com.aerospike.client.sdk.util.Util;
+
+/**
+ * Metrics settings that apply to an entire Cluster instance.
+ */
+public class MetricsSettings {
+    private final MetricsExporterType exporterType;
+    private final List<IMetricsExporter> exporters;
+    private final Map<String,String> labels;
+    private final String reportDir;
+    private final Long reportSizeLimit;
+    private final Double exportSampleRate;
+    private final Duration exportInterval;
+    private final Boolean enabled;
+    private final MetricsExtended extended;
+
+    public MetricsSettings(Builder builder) {
+        this.exporterType = builder.exporterType;
+        this.exporters = builder.exporters;
+        this.labels = builder.labels;
+        this.reportDir = builder.reportDir;
+        this.reportSizeLimit = builder.reportSizeLimit;
+        this.exportSampleRate = builder.exportSampleRate;
+        this.exportInterval = builder.exportInterval;
+        this.enabled = builder.enabled;
+        this.extended = new MetricsExtended(builder.extended);
+   }
+
+    /**
+     * Creates a new builder for MetricsSettings.
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Merges this settings instance with a base, using base values for any null fields.
+     * This enables the 4-level priority hierarchy.
+     *
+     * @param base the base settings to use for null fields
+     * @return a new MetricsSettings with merged values
+     */
+    public Builder mergeWith(MetricsSettings base) {
+        Builder merged = builder();
+
+        merged.exporterType = this.exporterType != null
+            ? this.exporterType : base.exporterType;
+        merged.exporters = this.exporters != null
+            ? this.exporters : base.exporters;
+        merged.labels = this.labels != null
+            ? this.labels : base.labels;
+        merged.reportDir = this.reportDir != null
+            ? this.reportDir : base.reportDir;
+        merged.reportSizeLimit = this.reportSizeLimit != null
+            ? this.reportSizeLimit : base.reportSizeLimit;
+        merged.exportSampleRate = this.exportSampleRate != null
+            ? this.exportSampleRate : base.exportSampleRate;
+        merged.exportInterval = this.exportInterval != null
+            ? this.exportInterval : base.exportInterval;
+        merged.enabled = this.enabled != null
+            ? this.enabled : base.enabled;
+
+        merged.extended = this.extended.mergeWith(base.extended);
+
+        return merged;
+    }
+
+    // Getters
+    public MetricsExporterType getExporterType() { return exporterType; }
+    public List<IMetricsExporter> getExporters() { return exporters; }
+    public Map<String,String> getLabels() { return labels; }
+    public String getReportDir() { return reportDir; }
+    public Long getReportSizeLimit() { return reportSizeLimit; }
+    public Double getExportSampleRate() { return exportSampleRate; }
+    public Duration getExportInterval() { return exportInterval; }
+    public Boolean getEnabled() { return enabled; }
+    public MetricsExtended getExtended() { return extended; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        MetricsSettings that = (MetricsSettings) o;
+        return
+            Objects.equals(exporterType, that.exporterType) &&
+            Objects.equals(exporters, that.exporters) &&
+            Objects.equals(labels, that.labels) &&
+            Objects.equals(reportDir, that.reportDir) &&
+            Objects.equals(reportSizeLimit, that.reportSizeLimit) &&
+            Objects.equals(exportSampleRate, that.exportSampleRate) &&
+            Objects.equals(exportInterval, that.exportInterval) &&
+            Objects.equals(enabled, that.enabled) &&
+            Objects.equals(extended, that.extended);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(exporterType, exporters, labels, reportDir, reportSizeLimit, exportSampleRate,
+            exportInterval, enabled, extended);
+    }
+
+    @Override
+    public String toString() {
+        return "MetricsSettings{" +
+            "exporters=" + ((exporters != null)
+                ? exporters.stream()
+                    .map(e -> (e != null)? e.getClass().getName() : "null")
+                    .collect(Collectors.joining(", ", "[", "]"))
+                : "null") +
+            ", exporterType=" + exporterType +
+            ", labels=" + labels +
+            ", reportDir=" + reportDir +
+            ", reportSizeLimit=" + reportSizeLimit +
+            ", exportSampleRate=" + exportSampleRate +
+            ", exportInterval=" + exportInterval +
+            ", enabled=" + enabled +
+            ", extended=" + extended +
+            '}';
+    }
+
+    /**
+     * Builder for metrics settings with lambda-based configuration.
+     */
+    public static class Builder {
+        private MetricsExporterType exporterType;
+        private List<IMetricsExporter> exporters;
+        private Map<String,String> labels;
+        private String reportDir;
+        private Long reportSizeLimit;
+        private Double exportSampleRate;
+        private Duration exportInterval;
+        private Boolean enabled;
+        private MetricsExtended.Builder extended = MetricsExtended.builder();
+
+        /**
+         * Builds the MetricsSettings instance.
+         */
+        public MetricsSettings build() {
+            return new MetricsSettings(this);
+        }
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Tweaks interfaces for lambda-based configuration
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * Interface for configuring metrics signal related settings.
+     */
+    public interface MetricsTweaks {
+        MetricsTweaks addExporter(IMetricsExporter exporter);
+        MetricsTweaks exporter(MetricsExporterType exporter);
+        MetricsTweaks labels(Map<String,String> labels);
+        MetricsTweaks reportDir(String dir);
+        MetricsTweaks reportSizeLimit(Long limit);
+
+        /**
+         * Set report size limit from a size string such as {@code "10mb"}.
+         * See {@link com.aerospike.client.sdk.util.Util#parseSize(String)} for the format.
+         */
+        MetricsTweaks reportSizeLimit(String limit);
+        MetricsTweaks exportSampleRate(Double rate);
+        MetricsTweaks exportInterval(Duration interval);
+        MetricsTweaks enabled(Boolean b);
+        MetricsTweaks extended(Consumer<MetricsExtendedTweaks> configurator);
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Internal implementations of tweaks interfaces
+    // -----------------------------------------------------------------------------------
+
+    public static class MetricsTweaksImpl implements MetricsTweaks {
+        private final Builder builder;
+
+        public MetricsTweaksImpl(Builder builder) {
+            this.builder = builder;
+        }
+
+        @Override
+        public MetricsTweaks addExporter(IMetricsExporter exporter) {
+            if (builder.exporters == null) {
+                builder.exporters = new ArrayList<>();
+            }
+            builder.exporters.add(exporter);
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks exporter(MetricsExporterType exporter) {
+            builder.exporterType = exporter;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks labels(Map<String,String> labels) {
+            builder.labels = labels;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks reportDir(String dir) {
+            builder.reportDir = dir;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks reportSizeLimit(Long limit) {
+            builder.reportSizeLimit = limit;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks reportSizeLimit(String limit) {
+            builder.reportSizeLimit = Util.parseSize(limit);
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks exportSampleRate(Double rate) {
+            builder.exportSampleRate = rate;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks exportInterval(Duration interval) {
+            builder.exportInterval = interval;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks enabled(Boolean b) {
+            builder.enabled = b;
+            return this;
+        }
+
+        @Override
+        public MetricsTweaks extended(Consumer<MetricsExtendedTweaks> configurator) {
+            configurator.accept(new MetricsExtended.MetricsExtendedTweaksImpl(builder.extended));
+            return this;
+        }
+    }
+}

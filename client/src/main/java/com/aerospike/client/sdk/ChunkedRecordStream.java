@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk;
 
+import java.util.function.Supplier;
+
 import com.aerospike.client.sdk.command.QueryCommand;
 import com.aerospike.client.sdk.query.RecordStreamImpl;
 
@@ -38,7 +40,13 @@ import com.aerospike.client.sdk.query.RecordStreamImpl;
  * </ul>
  */
 public class ChunkedRecordStream implements RecordStreamImpl {
-    private final QueryCommand cmd;
+    /**
+     * Resolved at the first chunk boundary rather than at construction, so an asynchronous query can
+     * hand back a stream before its plan exists. The first {@link #hasMoreChunks()} short-circuits,
+     * so by the time this is read the caller has drained chunk one and planning has finished.
+     */
+    private final Supplier<QueryCommand> commandSupplier;
+    private QueryCommand cmd;
     private final long limit;
     private long recordCount = 0;
     private AsyncRecordStream stream;
@@ -65,11 +73,33 @@ public class ChunkedRecordStream implements RecordStreamImpl {
      */
     public ChunkedRecordStream(AsyncRecordStream stream, QueryCommand cmd, long limit, int recordQueueSize,
                               ErrorHandler errorHandler) {
-        this.cmd = cmd;
+        this(stream, () -> cmd, limit, recordQueueSize, errorHandler);
+    }
+
+    /**
+     * Same as {@link #ChunkedRecordStream(AsyncRecordStream, QueryCommand, long, int, ErrorHandler)},
+     * with the command supplied on demand.
+     *
+     * <p>Used by asynchronous index queries, whose plan is produced off the calling thread: the
+     * supplier waits for that plan, and is not consulted until a second chunk is requested.</p>
+     *
+     * @param commandSupplier supplies the command that loads each chunk; called at most once
+     */
+    public ChunkedRecordStream(AsyncRecordStream stream, Supplier<QueryCommand> commandSupplier, long limit,
+                              int recordQueueSize, ErrorHandler errorHandler) {
+        this.commandSupplier = commandSupplier;
         this.limit = limit;
         this.recordQueueSize = recordQueueSize;
         this.errorHandler = errorHandler;
         this.stream = stream;
+    }
+
+    /** The query command, resolved once on first use. */
+    private QueryCommand command() {
+        if (cmd == null) {
+            cmd = commandSupplier.get();
+        }
+        return cmd;
     }
 
     /**
@@ -85,7 +115,9 @@ public class ChunkedRecordStream implements RecordStreamImpl {
             return true;
         }
 
-        if (cmd.isDone() || (limit > 0 && recordCount >= limit)) {
+        QueryCommand command = command();
+
+        if (command.isDone() || (limit > 0 && recordCount >= limit)) {
             return false;
         }
 
@@ -94,7 +126,7 @@ public class ChunkedRecordStream implements RecordStreamImpl {
         if (errorHandler != null) {
             stream.withErrorHandler(errorHandler);
         }
-        cmd.execute(stream);
+        command.execute(stream);
         return true;
     }
 

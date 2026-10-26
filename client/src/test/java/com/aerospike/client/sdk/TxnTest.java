@@ -24,18 +24,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
-
-import com.aerospike.client.sdk.command.Txn;
-import com.aerospike.client.sdk.policy.Behavior;
-
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import com.aerospike.client.sdk.command.CommitError;
+import com.aerospike.client.sdk.command.Txn;
+import com.aerospike.client.sdk.policy.Behavior;
 
 public class TxnTest extends ClusterTest {
     private static final String binName = "bin";
@@ -114,11 +113,6 @@ public class TxnTest extends ClusterTest {
     }
 
     @Test
-    @Tag(KnownDefect.TAG)
-    @Disabled("Known defect, and a different one from the query/transaction cases: this test writes real"
-        + " keys, but it commits against a cluster it has only just connected. TxnRoll reads"
-        + " cluster.getPartitionMap() before tend has filled it and throws InvalidNamespace with"
-        + " 'Partition map empty'. Commit should wait for, or tolerate, an unpopulated partition map.")
     public void txnTransactionLevelRetryRunsLambdaOncePerAttempt() throws Exception {
         Key key = args.set.id("txnTxnRetryLambdaCount");
         final int expectedTxnAttempts = 3;
@@ -225,6 +219,30 @@ public class TxnTest extends ClusterTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void txnAbortAllowedAfterVerifyFailure() {
+        Key key = args.set.id("txnAbortAllowedAfterVerifyFailure");
+
+        session.upsert(key)
+            .bin(binName).setTo("val1")
+            .execute();
+
+        AerospikeException.Commit aec = assertThrows(AerospikeException.Commit.class, () ->
+            session.doInTransaction(txnSession -> {
+                txnSession.query(key)
+                    .execute()
+                    .getFirstRecord();
+
+                session.upsert(key)
+                    .bin(binName).setTo("val3")
+                    .execute();
+            })
+        );
+
+        assertEquals(ResultCode.TXN_FAILED, aec.getResultCode());
+        assertEquals(CommitError.VERIFY_FAIL, aec.error);
     }
 
     @Test
@@ -545,6 +563,16 @@ public class TxnTest extends ClusterTest {
             rs.next().recordOrThrow();
         }));
         assertEquals(ResultCode.MRT_EXPIRED, ae.getResultCode());
+    }
+
+    @Test
+    public void txnEmpty() {
+        session.doInTransaction(txn -> {
+        });
+
+        session.doInTransaction(txn -> {
+            txn.abort();
+        });
     }
 
     private void assertBatchEqual(java.util.List<Key> keys, RecordStream recs, int expected) {

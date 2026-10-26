@@ -31,6 +31,7 @@ import com.aerospike.client.sdk.DataSet;
 import com.aerospike.client.sdk.Key;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.exp.Exp;
 
 /**
  * What an application sees when it mixes a secondary-index query into a transaction.
@@ -150,14 +151,18 @@ public class QueryInTransactionVisibilityTest extends ClusterTest {
     }
 
     private static int countMatching(Session session, int value) {
-        return drain(session.query(dataSet).where("$." + BIN + " == " + value).execute());
+        return drain(session.query(dataSet).where(matchValue(value)).execute());
     }
 
     private static int countMatchingOutsideTransaction(Session session, int value) {
         return drain(session.query(dataSet)
-            .where("$." + BIN + " == " + value)
+            .where(matchValue(value))
             .notInAnyTransaction()
             .execute());
+    }
+
+    private static Exp matchValue(int value) {
+        return Exp.eq(Exp.intBin(BIN), Exp.val(value));
     }
 
     private static int drain(RecordStream rs) {

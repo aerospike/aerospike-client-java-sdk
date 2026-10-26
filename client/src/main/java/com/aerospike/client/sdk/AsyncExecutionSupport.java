@@ -28,6 +28,27 @@ public final class AsyncExecutionSupport {
     private AsyncExecutionSupport() {}
 
     /**
+     * Runs {@code work} on a cluster virtual thread. On success the stream is completed;
+     * on failure it is terminated with {@link AsyncRecordStream#error(Throwable)} and is
+     * not completed normally. Callers must not {@code complete()} the stream themselves.
+     *
+     * @param cluster the cluster whose thread factory starts the work
+     * @param stream the stream returned to the {@code executeAsync} caller
+     * @param work I/O and planning that must not run on the calling thread
+     */
+    public static void runOnVirtualThread(Cluster cluster, AsyncRecordStream stream, Runnable work) {
+        cluster.startVirtualThread(() -> {
+            try {
+                work.run();
+                stream.complete();
+            }
+            catch (Throwable t) {
+                stream.error(t);
+            }
+        });
+    }
+
+    /**
      * Creates an {@link AsyncRecordStream} with optional publish-time error routing.
      *
      * @param capacity minimum queue capacity (at least 1)

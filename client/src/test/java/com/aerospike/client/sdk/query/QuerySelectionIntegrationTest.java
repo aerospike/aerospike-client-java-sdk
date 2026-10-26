@@ -50,6 +50,7 @@ import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.ResultCode;
+import com.aerospike.client.sdk.TestClusters;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.Command;
 import com.aerospike.client.sdk.command.CommandBuffer;
@@ -111,7 +112,8 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()));
 
-        assertEquals(0, countRecords(session.query(dataSet)
+        // The plan above is PRIMARY_INDEX, so the read needs the same fallback permitted.
+        assertEquals(0, countRecords(sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(COUNTRY_BIN)
             .where(where)
             .execute()));
@@ -151,7 +153,8 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             () -> assertNull(plan.getIndexName()),
             () -> assertNull(plan.getIndexRangeBytes()));
 
-        assertEquals(0, countRecords(session.query(dataSet)
+        // The plan above is PRIMARY_INDEX, so the read needs the same fallback permitted.
+        assertEquals(0, countRecords(sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(AGE_BIN)
             .where(where)
             .execute()));
@@ -282,7 +285,9 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     void executePrimaryIndexPredicateReturnsMatchingRecords() {
         String where = "$.country == 'US'";
 
-        RecordStream rs = session.query(dataSet)
+        // Primary-index by construction: country carries no index, so this query exists precisely
+        // to exercise the scan fallback.
+        RecordStream rs = sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(COUNTRY_BIN)
             .where(where)
             .execute();
@@ -530,10 +535,10 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
     @Test
     void gateOffStringAelFailsAtExecute() {
         String where = "$.age >= 14 and $.age <= 18";
-        Version saved = cluster.getVersion();
+        Version saved = cluster.getServerVersion();
 
         try {
-            cluster.setVersion(Version.SERVER_VERSION_8_1_2);
+            TestClusters.setServerVersion(cluster, Version.SERVER_VERSION_8_1_2);
             assumeFalse(cluster.supportsQuerySelection(),
                 "server version below 8.2.0 should not use query selection");
             assumeFalse(cluster.supportsAel(),
@@ -548,7 +553,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             assertEquals(ResultCode.OP_NOT_APPLICABLE, ex.getResultCode());
         }
         finally {
-            cluster.setVersion(saved);
+            TestClusters.setServerVersion(cluster, saved);
         }
     }
 
@@ -722,7 +727,7 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
 
         ResolvedSettings settings = session.getBehavior().getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
-        QueryCommand cmd = QueryCommand.forPlan(cluster, dataSet, plan, settings, qb);
+        QueryCommand cmd = QueryCommand.forPlan(cluster, dataSet, plan, settings, qb, false);
         CommandBuffer cb = encodeExecuteQuery(cmd);
 
         assertArrayEquals(plan.getExecuteWhereBytes(), fieldBytes(cb, FieldType.WHERE));
@@ -740,14 +745,14 @@ public class QuerySelectionIntegrationTest extends ClusterTest {
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
 
         byte[] serverLed44 = fieldBytes(
-            encodeExecuteQuery(QueryCommand.forPlan(cluster, dataSet, plan, settings, serverLedQb)),
+            encodeExecuteQuery(QueryCommand.forPlan(cluster, dataSet, plan, settings, serverLedQb, false)),
             FieldType.WHERE);
 
         QueryBuilder legacyQb = session.query(dataSet)
             .where(where)
             .withHint(hint -> hint.forBin(AGE_BIN));
         QueryCommand legacyCmd = IndexProbePlanner.buildCommand(
-            session, dataSet, legacyQb.getAel(), legacyQb.getQueryHint(), settings, legacyQb);
+            session, dataSet, legacyQb.getAel(), legacyQb.getQueryHint(), settings, legacyQb, false);
         byte[] legacy43 = fieldBytes(encodeExecuteQuery(legacyCmd), FieldType.FILTER_EXP);
 
         assertArrayEquals(plan.getExecuteWhereBytes(), serverLed44);

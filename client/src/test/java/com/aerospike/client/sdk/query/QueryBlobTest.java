@@ -139,7 +139,9 @@ public class QueryBlobTest extends ClusterTest {
         // Server AEL: index segment + .exists() (legacy [=X'…'] / get(return: EXISTS) was client-only).
         String where = "$." + binNameList + ".[0].exists() == true";
 
-        RecordStream rs = session.query(dataSet)
+        // A positional element check has no index that can serve it, so the primary-index
+        // fallback is what runs this query; the assertions below are about the rows.
+        RecordStream rs = sessionAllowingScansWithWhere().query(dataSet)
             .readingOnlyBins(binName, binNameList)
             .where(where)
             .execute();

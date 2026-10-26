@@ -71,14 +71,15 @@ final class IndexProbePlanner {
         WhereClauseProcessor where,
         QueryHint.Result hint,
         ResolvedSettings policy,
-        QueryBuilder qb
+        QueryBuilder qb,
+        boolean latencyEnabled
     ) {
         Cluster cluster = session.getCluster();
-        if (!useServerQuerySelection(cluster, where, hint)) {
-            return legacyCommand(cluster, dataSet, where, policy, qb);
+        if (!useServerQuerySelection(cluster, where, hint, qb.getFilter())) {
+            return legacyCommand(cluster, dataSet, where, policy, qb, latencyEnabled);
         }
         QueryPlan plan = plan(session, dataSet, where, hint);
-        return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb);
+        return QueryCommand.forPlan(cluster, dataSet, plan, policy, qb, latencyEnabled);
     }
 
     /**
@@ -92,8 +93,12 @@ final class IndexProbePlanner {
     static boolean useServerQuerySelection(
         Cluster cluster,
         WhereClauseProcessor where,
-        QueryHint.Result hint
+        QueryHint.Result hint,
+        Filter filter
     ) {
+        if (filter != null) {
+            return false;
+        }
         if (!cluster.supportsQuerySelection()) {
             return false;
         }
@@ -120,20 +125,22 @@ final class IndexProbePlanner {
 
     /**
      * Field {@code 44} WHERE flag byte for explain from hint policy flags.
+     *
+     * <p>The scan policy is resolved before any hint-specific handling: a hint overrides the
+     * behavior setting when it states one, but a query with no hint still gets the setting's
+     * value. Returning early on a null hint would leave {@code REQUIRE_INDEX} unreachable and
+     * silently turn an unservable where clause into a primary-index scan (CLIENT-5483).</p>
      */
     static int explainWhereFlags(ResolvedSettings settings, QueryHint.Result hint) {
         int flags = QueryWhereWire.FLAG_EXPLAIN;
-        if (hint == null) {
-            return flags;
-        }
 
-        Boolean b = hint.getAllowScansWithWhere();
+        Boolean b = (hint != null)? hint.getAllowScansWithWhere() : null;
         boolean allowScansWithWhere = (b != null)? b : settings.getAllowScansWithWhere();
 
         if (!allowScansWithWhere) {
             flags |= QueryWhereWire.FLAG_REQUIRE_INDEX;
         }
-        if (hint.isHardHint()) {
+        if (hint != null && hint.isHardHint()) {
             flags |= QueryWhereWire.FLAG_HARD_HINT;
         }
         return flags;
@@ -144,12 +151,16 @@ final class IndexProbePlanner {
         DataSet dataSet,
         WhereClauseProcessor where,
         ResolvedSettings policy,
-        QueryBuilder qb
+        QueryBuilder qb,
+        boolean latencyEnabled
     ) {
         Expression filterExp = null;
         if (where != null) {
             filterExp = where.toFilterExpression(cluster);
         }
-        return new QueryCommand(cluster, dataSet, null, filterExp, policy, qb);
+        if (qb.getFilter() != null) {
+            return QueryCommand.forExplicitFilter(cluster, dataSet, qb.getFilter(), filterExp, policy, qb, latencyEnabled);
+        }
+        return new QueryCommand(cluster, dataSet, null, filterExp, policy, qb, latencyEnabled);
     }
 }

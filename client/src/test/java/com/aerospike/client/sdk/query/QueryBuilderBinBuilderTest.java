@@ -84,7 +84,7 @@ public class QueryBuilderBinBuilderTest extends ClusterTest {
     @BeforeAll
     public static void prepare() {
         Assumptions.assumeTrue(
-            session.getCluster().getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
+            session.getCluster().getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
             "dataset bin projection requires server 8.1.2+");
         assumeSupportsAel();
 

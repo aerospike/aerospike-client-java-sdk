@@ -76,6 +76,14 @@ public final class BatchStatus implements BatchNodes.IBatchStatus {
         }
     }
 
+    /**
+     * Return true if a command level exception occurred. Key specific (row) errors are not
+     * considered command exceptions.
+     */
+    public boolean hasException() {
+        return exception != null;
+    }
+
     public void checkException() {
         if (exception != null) {
             exception.setSubExceptions(subExceptions);

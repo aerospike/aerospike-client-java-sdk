@@ -61,14 +61,14 @@ class VectorWriteGuardWireTest {
             VectorDistanceMetric.EUCLIDEAN,
             Vector.ofFloat32(new float[] {0.0f, 0.0f}),
             Exp.vectorBin("embedding")));
-        QueryCommand vectorCmd = new QueryCommand(null, dataSet, null, null, settings, vectorQuery);
+        QueryCommand vectorCmd = new QueryCommand(null, dataSet, null, null, settings, vectorQuery, false);
         buffer.setQuery(vectorCmd, new PartitionTracker(vectorCmd, new Node[1], PartitionFilter.all()), null, 1L);
         assertTrue(buffer.hasVector());
 
         // Reuse clears the flag.
         QueryBuilder plainQuery = new QueryBuilder(session, dataSet);
         plainQuery.bin("copy").selectFrom(Exp.intBin("n"));
-        QueryCommand plainCmd = new QueryCommand(null, dataSet, null, null, settings, plainQuery);
+        QueryCommand plainCmd = new QueryCommand(null, dataSet, null, null, settings, plainQuery, false);
         buffer.setQuery(plainCmd, new PartitionTracker(plainCmd, new Node[1], PartitionFilter.all()), null, 2L);
         assertFalse(buffer.hasVector(), "hasVector must reset when the buffer builds a later non-vector command");
     }
@@ -90,7 +90,7 @@ class VectorWriteGuardWireTest {
 
         ResolvedSettings settings = Behavior.DEFAULT.getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
-        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder);
+        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder, false);
 
         PartitionTracker tracker = new PartitionTracker(command, new Node[1], PartitionFilter.all());
         CommandBuffer buffer = new CommandBuffer();

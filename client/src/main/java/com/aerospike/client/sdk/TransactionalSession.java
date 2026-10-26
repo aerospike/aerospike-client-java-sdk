@@ -17,11 +17,11 @@
 package com.aerospike.client.sdk;
 
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 
-import com.aerospike.client.sdk.command.AbortStatus;
-import com.aerospike.client.sdk.command.CommitStatus;
 import com.aerospike.client.sdk.command.Txn;
 import com.aerospike.client.sdk.command.TxnRoll;
+import com.aerospike.client.sdk.command.TxnStatus;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
 import com.aerospike.client.sdk.policy.Behavior.OpKind;
@@ -124,7 +124,7 @@ public class TransactionalSession extends Session{
      * @param operation the transactional operation to execute
      * @return the result of the operation
      * <p>The return value carries the operation's result, so there is no room for a
-     * {@link CommitStatus}. An abandoned roll-forward is therefore thrown rather than reported,
+     * {@link TxnStatus}. An abandoned roll-forward is therefore thrown rather than reported,
      * since returning normally would present provisional writes as committed. Use
      * {@link #doInTransaction(Session.TransactionalVoid)} to inspect the status instead.</p>
      *
@@ -143,7 +143,10 @@ public class TransactionalSession extends Session{
             }
             else {
                 // Outermost transaction, commit when complete.
-                SystemSettings settings = getCluster().getSystemSettings();
+                Cluster cluster = getCluster();
+                cluster.addTransactionCount();
+
+                SystemSettings settings = cluster.getSystemSettings();
                 int maxAttempts = settings.getNumberOfAttempts();
                 Duration sleepBetweenAttempts = settings.getSleepBetweenAttempts();
 
@@ -154,14 +157,13 @@ public class TransactionalSession extends Session{
                         result = operation.execute(this);
                     }
                     catch (AbortException abortex) {
-                        abortTxn();
+                        abortTxnOrThrow();
                         return null;
                     }
                     catch (AerospikeException ae) {
                         abortTxn();
 
-                        if (retryCommit(ae) && attempt < maxAttempts) {
-                            sleepBetweenRetries(sleepBetweenAttempts);
+                        if (attempt < maxAttempts && retryCommit(ae, sleepBetweenAttempts)) {
                             txn = new Txn();
                             continue;
                         }
@@ -212,7 +214,7 @@ public class TransactionalSession extends Session{
      * });
      * }</pre>
      *
-     * <p><b>Check the returned status.</b> {@link CommitStatus#ROLL_FORWARD_ABANDONED} means the
+     * <p><b>Check the returned status.</b> {@link TxnStatus#ROLL_FORWARD_ABANDONED} means the
      * writes are still provisional and not yet visible, even though no exception was thrown. A
      * caller that ignores it will read pre-transaction values back.</p>
      *
@@ -224,7 +226,7 @@ public class TransactionalSession extends Session{
      * @throws RuntimeException if any other exception occurs during execution
      * @see #doInTransactionReturning(Transactional)
      */
-    public CommitStatus doInTransaction(TransactionalVoid operation) {
+    public TxnStatus doInTransaction(TransactionalVoid operation) {
         try {
             if (++count > 1) {
                 // Nested transaction, do not enforce transaction semantics
@@ -233,7 +235,10 @@ public class TransactionalSession extends Session{
             }
             else {
                 // Outermost transaction, commit when complete.
-                SystemSettings settings = getCluster().getSystemSettings();
+                Cluster cluster = getCluster();
+                cluster.addTransactionCount();
+
+                SystemSettings settings = cluster.getSystemSettings();
                 int maxAttempts = settings.getNumberOfAttempts();
                 Duration sleepBetweenAttempts = settings.getSleepBetweenAttempts();
 
@@ -242,14 +247,12 @@ public class TransactionalSession extends Session{
                         operation.execute(this);
                     }
                     catch (AbortException abortex) {
-                        abortTxn();
-                        return null;
+                        return abortTxn();
                     }
                     catch (AerospikeException ae) {
                         abortTxn();
 
-                        if (retryCommit(ae) && attempt < maxAttempts) {
-                            sleepBetweenRetries(sleepBetweenAttempts);
+                        if (attempt < maxAttempts && retryCommit(ae, sleepBetweenAttempts)) {
                             txn = new Txn();
                             continue;
                         }
@@ -308,12 +311,16 @@ public class TransactionalSession extends Session{
         throw new AbortException();
     }
 
-    private boolean retryCommit(AerospikeException ae) {
+    private boolean retryCommit(AerospikeException ae, Duration sleepBetweenAttempts) {
         switch (ae.getResultCode()) {
-            case ResultCode.MRT_BLOCKED:
             case ResultCode.MRT_VERSION_MISMATCH:
+                // Retry immediately.
+                return true;
+
+            case ResultCode.MRT_BLOCKED:
             case ResultCode.TXN_FAILED:
-                // These can be retried from the beginning
+                // Sleep, then retry.
+                sleepBetweenRetries(sleepBetweenAttempts);
                 return true;
 
             default:
@@ -322,10 +329,23 @@ public class TransactionalSession extends Session{
         }
     }
 
+    /**
+     * Sleeps for {@code sleepBetweenAttempts} with +/-50% jitter so that concurrent transactions
+     * that collided do not retry in lockstep. The jitter is {@code floor(ms / 2)} and the actual
+     * sleep is uniformly distributed in {@code [ms - jitter, ms + jitter]} (inclusive), so the mean
+     * sleep is unchanged. For example, 5ms sleeps between 3ms and 7ms. A null or non-positive
+     * duration does not sleep.
+     */
     private static void sleepBetweenRetries(Duration sleepBetweenAttempts) {
         if (sleepBetweenAttempts != null && sleepBetweenAttempts.isPositive()) {
+            long sleepMillis = jitteredSleepMillis(sleepBetweenAttempts.toMillis());
+
+            if (sleepMillis <= 0) {
+                return;
+            }
+
             try {
-                Thread.sleep(sleepBetweenAttempts.toMillis());
+                Thread.sleep(sleepMillis);
             }
             catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
@@ -333,25 +353,50 @@ public class TransactionalSession extends Session{
         }
     }
 
-    private CommitStatus commitTxn() {
+    /**
+     * Returns {@code millis} adjusted by a uniformly random amount in
+     * {@code [-floor(millis / 2), +floor(millis / 2)]}. Package-private for testing.
+     */
+    static long jitteredSleepMillis(long millis) {
+        if (millis <= 0) {
+            return 0;
+        }
+        long jitter = millis / 2;
+
+        if (jitter == 0) {
+            return millis;
+        }
+        return millis + ThreadLocalRandom.current().nextLong(-jitter, jitter + 1);
+    }
+
+    private TxnStatus commitTxn() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.COMMITTED);
+            return TxnStatus.COMMITTED;
+        }
         return commitTxn(new TxnRoll(getCluster(), txn));
     }
 
     /**
      * Commits, throwing when the roll-forward was abandoned. Used where the caller has no way to
-     * receive a {@link CommitStatus}, so silence would leave provisional writes looking committed.
+     * receive a {@link TxnStatus}, so silence would leave provisional writes looking committed.
      * CLOSE_ABANDONED is not an error: those writes are durable and only the transaction monitor
      * cleanup was left to the server.
      */
     private void commitTxnOrThrow() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.COMMITTED);
+            return;
+        }
+
         TxnRoll tr = new TxnRoll(getCluster(), txn);
 
-        if (commitTxn(tr) == CommitStatus.ROLL_FORWARD_ABANDONED) {
+        if (commitTxn(tr) == TxnStatus.ROLL_FORWARD_ABANDONED) {
             throw tr.getRollForwardException();
         }
     }
 
-    private CommitStatus commitTxn(TxnRoll tr) {
+    private TxnStatus commitTxn(TxnRoll tr) {
         ResolvedSettings verifyPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_VERIFY, OpShape.SYSTEM, Mode.ANY);
         ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
@@ -362,17 +407,37 @@ public class TransactionalSession extends Session{
                 return tr.commit(rollPolicy);
 
             case VERIFIED:
+            case COMMIT_FAILED:
                 return tr.commit(rollPolicy);
 
             case COMMITTED:
-                return CommitStatus.ALREADY_COMMITTED;
+                return TxnStatus.ALREADY_COMMITTED;
 
             case ABORTED:
-                throw AerospikeException.toException(ResultCode.TXN_ALREADY_ABORTED, "Transaction already aborted");
+                throw AerospikeException.toException(ResultCode.TXN_ALREADY_ABORTED,
+                    "Transaction already aborted");
         }
     }
 
-    private AbortStatus abortTxn() {
+    private void abortTxnOrThrow() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.ABORTED);
+            return;
+        }
+
+        TxnStatus ts = abortTxn();
+
+        if (ts != TxnStatus.ABORTED) {
+            throw new AerospikeException.Abort(ts, ts.str);
+        }
+    }
+
+    private TxnStatus abortTxn() {
+        if (isTxnEmpty()) {
+            txn.setState(Txn.State.ABORTED);
+            return TxnStatus.ABORTED;
+        }
+
         TxnRoll tr = new TxnRoll(getCluster(), txn);
         ResolvedSettings rollPolicy = getBehavior().getSettings(OpKind.SYSTEM_TXN_ROLL, OpShape.SYSTEM, Mode.ANY);
 
@@ -382,12 +447,21 @@ public class TransactionalSession extends Session{
             case VERIFIED:
                 return tr.abort(rollPolicy);
 
+            case COMMIT_FAILED:
+                throw new AerospikeException.Abort(TxnStatus.COMMIT_FAILED,
+                    "Transaction commit failed. Abort is not allowed.");
+
             case COMMITTED:
-                throw AerospikeException.toException(ResultCode.TXN_ALREADY_COMMITTED, "Transaction already committed");
+                throw AerospikeException.toException(ResultCode.TXN_ALREADY_COMMITTED,
+                    "Transaction already committed");
 
             case ABORTED:
-                return AbortStatus.ALREADY_ABORTED;
+                return TxnStatus.ALREADY_ABORTED;
         }
+    }
+
+    private boolean isTxnEmpty() {
+        return txn.getNamespace() == null;
     }
 
     private static final class AbortException extends RuntimeException {

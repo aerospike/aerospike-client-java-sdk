@@ -82,7 +82,12 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         /** Iterate all children at the current path ({@link com.aerospike.client.sdk.cdt.CTX#allChildren()}). */
         ALL_CHILDREN,
         /** Iterate children matching a filter ({@link com.aerospike.client.sdk.cdt.CTX#allChildrenWithFilter}). */
-        ALL_CHILDREN_WITH_FILTER
+        ALL_CHILDREN_WITH_FILTER,
+        /**
+         * Filter the preceding selection with an expression ({@link com.aerospike.client.sdk.cdt.CTX#andFilter}).
+         * Only valid as a path segment, not as the target of a classic get/remove terminal.
+         */
+        AND_FILTER
     }
 
     /**
@@ -216,7 +221,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case MAP_BY_RANK:
             return opBuilder.addOp(MapOperation.removeByRank(binName, params.getInt1(), mapReturnType, params.context()));
         case MAP_BY_RANK_RANGE:
-            return opBuilder.addOp(MapOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), mapReturnType, params.context()));
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.removeByRankRange(binName, params.getInt1(), params.getInt2(), mapReturnType, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.removeByRankRange(binName, params.getInt1(), mapReturnType, params.context()));
+            }
         case MAP_BY_VALUE:
             return opBuilder.addOp(MapOperation.removeByValue(binName, params.getVal1(), mapReturnType, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -298,7 +307,11 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
         case MAP_BY_RANK:
             return opBuilder.addOp(MapOperation.getByRank(binName, params.getInt1(), mapReturnType, params.context()));
         case MAP_BY_RANK_RANGE:
-            return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), mapReturnType, params.context()));
+            if (params.hasInt2()) {
+                return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), mapReturnType, params.context()));
+            } else {
+                return opBuilder.addOp(MapOperation.getByRankRange(binName, params.getInt1(), mapReturnType, params.context()));
+            }
         case MAP_BY_VALUE:
             return opBuilder.addOp(MapOperation.getByValue(binName, params.getVal1(), mapReturnType, params.context()));
         case MAP_BY_VALUE_LIST:
@@ -431,7 +444,7 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     }
 
     /**
-     * Read key-value pairs for the current map selection (maps only).
+     * Read key-value pairs into an AerospikeMap for the current map selection (maps only).
      *
      * @return the parent operation builder for chaining
      */
@@ -486,6 +499,17 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     public CdtContextNonInvertableBuilder<T> onEachChild(PreparedAel ael, Object... bindParams) {
         CdtPathExpressionAel.throwPreparedAelNotSupported(ael, bindParams);
         throw new AssertionError("unreachable");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see CdtContextNonInvertableBuilder#andFilter(Exp)
+     */
+    @Override
+    public CdtContextNonInvertableBuilder<T> andFilter(Exp filter) {
+        params.pushCurrentToContextAndReplaceWithAndFilter(filter);
+        return this;
     }
 
     /**
@@ -2510,6 +2534,12 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      * Navigate to map items by a list of keys.
      * Server selects map items identified by keys.
      *
+     * <p>In a path expression — followed by {@code onEachChild}, {@code andFilter}, or a {@code collect*},
+     * {@code modifyBy}, or {@code removeMatches} terminal — this step becomes a
+     * {@link com.aerospike.client.sdk.cdt.CTX#mapKeysIn(Value...)} context (server 8.1.2+). Each key is
+     * converted with {@link Value#get(Object)}, so {@code byte[]} keys are sent as blobs and key types may
+     * be mixed.</p>
+     *
      * @param keys the list of keys to match
      * @return builder for continued chaining (invertable for list operations)
      */
@@ -3842,26 +3872,20 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
     // =================================
 
     /**
-     * @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering.
-     * Read results as an unordered map (map selections only).
+     * Read keys/values into unordered AerospikeMap.
      *
      * @return the parent operation builder for chaining
      */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
     public T getAsMap() {
         validateMapOnly("getAsMap");
         return dispatchGet(MapReturnType.UNORDERED_MAP, 0);
     }
 
     /**
-     * @deprecated Will be replaced by AerospikeMap which intrinsically supports ordering.
-     * Read results as an ordered map (map selections only).
+     * Read keys/values into an ordered AerospikeMap.
      *
      * @return the parent operation builder for chaining
      */
-    // TODO: Replace with AerospikeMap
-    @Deprecated
     public T getAsOrderedMap() {
         validateMapOnly("getAsOrderedMap");
         return dispatchGet(MapReturnType.ORDERED_MAP, 0);

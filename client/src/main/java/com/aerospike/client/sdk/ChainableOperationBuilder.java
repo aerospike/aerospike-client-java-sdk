@@ -1185,16 +1185,11 @@ public class ChainableOperationBuilder extends AbstractOperationBuilder<Chainabl
     }
 
     private void startAsyncWork(AsyncRecordStream asyncStream, ErrorHandler errorHandler) {
-        Cluster cluster = session.getCluster();
-        cluster.startVirtualThread(() -> {
-            try {
-                RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
-                    defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
-                    durableDeleteDefault);
-                syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
-            } finally {
-                asyncStream.complete();
-            }
+        AsyncExecutionSupport.runOnVirtualThread(session.getCluster(), asyncStream, () -> {
+            RecordStream syncResult = OperationSpecExecutor.execute(session, operationSpecs,
+                defaultWhereClause, defaultExpirationInSeconds, txnToUse, notInAnyTransaction,
+                durableDeleteDefault);
+            syncResult.forEach(result -> AbstractFilterableBuilder.dispatchResult(result, asyncStream, errorHandler));
         });
     }
 

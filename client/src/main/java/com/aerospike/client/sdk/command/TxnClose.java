@@ -43,7 +43,7 @@ public final class TxnClose extends SyncExecutor {
 
     @Override
     protected final LatencyType getLatencyType() {
-        return LatencyType.WRITE;
+        return LatencyType.NONE;
     }
 
     @Override
@@ -56,11 +56,9 @@ public final class TxnClose extends SyncExecutor {
     @Override
     protected void parseResult(Node node, Connection conn, byte[] buffer) throws IOException {
         RecordParser rp = new RecordParser(conn, buffer);
-        rp.skipFields();
 
-        if (node.isMetricsEnabled()) {
-            node.addBytesIn(cmd.namespace, rp.bytesIn);
-        }
+        rp.skipFields();
+        node.addBytesIn(cmd.namespace, rp.bytesIn);
 
         if (rp.resultCode == ResultCode.OK || rp.resultCode == ResultCode.KEY_NOT_FOUND_ERROR) {
             return;

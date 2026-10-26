@@ -50,7 +50,7 @@ public class QueryOperationsTest extends ClusterTest {
     @BeforeAll
     public static void prepare() {
         Assumptions.assumeTrue(
-            session.getCluster().getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
+            session.getCluster().getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_2),
             "Ops projection extended requires server version 8.1.2 or later");
 
         try {

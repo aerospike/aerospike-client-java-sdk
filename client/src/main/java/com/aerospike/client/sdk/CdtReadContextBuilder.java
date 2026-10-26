@@ -217,8 +217,8 @@ public interface CdtReadContextBuilder<T>
     /**
      * Descend into every child at the current path using {@link com.aerospike.client.sdk.cdt.CTX#allChildren()}.
      *
-     * <p>Requires at least one {@code onEachChild()} (or filtered variant) before a {@code collect*}
-     * terminal on this path. Intended for {@code session.query(...)} read chains.</p>
+     * <p>Requires at least one {@code onEachChild()} (or filtered variant), {@code onMapKeyList}, or
+     * {@code andFilter} before a {@code collect*} terminal on this path. Intended for {@code session.query(...)} read chains.</p>
      *
      * <p><b>Example</b> — read every title under {@code catalog.book[*].title}:</p>
      * <pre>{@code
@@ -260,6 +260,17 @@ public interface CdtReadContextBuilder<T>
      * @throws UnsupportedOperationException always, until AEL path support ships
      */
     CdtReadContextBuilder<T> onEachChild(PreparedAel ael, Object... bindParams);
+
+    /**
+     * Narrow the current selection with a filter expression
+     * ({@link com.aerospike.client.sdk.cdt.CTX#andFilter(com.aerospike.client.sdk.exp.Exp)}). Server 8.1.2+.
+     *
+     * @param filter server-side {@link Exp} predicate; entries where it is false are dropped
+     * @return this path builder for further navigation or a path terminal
+     * @throws IllegalStateException if the current step is {@code onEachChild} or another {@code andFilter}
+     * @see CdtContextNonInvertableBuilder#andFilter(Exp)
+     */
+    CdtReadContextBuilder<T> andFilter(Exp filter);
 
     /**
      * Read terminal: flat list of matched leaf values via CDT {@code selectByPath}

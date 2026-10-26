@@ -731,6 +731,20 @@ for (RecordResult result : rs) {
 }
 ```
 
+Attach `filter(Filter)` when you want to name the secondary-index access path
+explicitly. The filter selects index candidates; any `where(...)` chained beside it
+is sent as a residual expression that decides which candidate records are returned.
+Because the explicit filter is authoritative, `forIndex`, `forBin`, `hardHint`, and
+scan-policy hints do not rewrite it; a hard hint naming another index is accepted and
+ignored. `queryDuration` still applies.
+
+```java
+RecordStream rs = session.query(users)
+    .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
+    .where("$.status == 'active'")
+    .execute();
+```
+
 ### Pagination and sorting
 
 Use `NavigatableRecordStream` for page-based iteration with client-side
@@ -790,16 +804,20 @@ RecordStream rs = session.query(users)
 
 ## Error Handling
 
-By default, all operations throw exceptions on failure. Two alternative
-modes are available that embed errors into the `RecordStream` instead of
-throwing, making per-key error handling straightforward in batch
-scenarios.
+Failures fall into three channels. Details: [error-handling.md](error-handling.md).
 
-| Mode | How errors are delivered |
-|---|---|
-| **Throw** (default) | Unchecked `AerospikeException` thrown immediately |
-| `ErrorStrategy.IN_STREAM` | Errors appear as `RecordResult` entries — check `result.isOk()` |
-| `ErrorHandler` (callback) | Errors dispatched to a callback; stream contains only successes |
+| Kind | Sync | Async |
+|---|---|---|
+| Programming error (null strategy, empty builder) | Throw from the call | Throw from the call |
+| Terminal (planning, cluster down, txn namespace mismatch) | Throw from `execute()` | Stream / CF / publisher fails; not an error row; handler not called |
+| Per-key (batch item, `KEY_EXISTS`, `INVALID_NAMESPACE` outside a txn) | `IN_STREAM` / handler / single-key throw | Same, on the returned stream |
+
+`ErrorStrategy.IN_STREAM` and `ErrorHandler` are **per-record** only. They do not cover
+query planning or a transaction that rejects mixed namespaces before any key is sent.
+
+`KEY_NOT_FOUND` on reads is omitted unless `includeMissingKeys()`, in which case it is
+a stream row (not a throw or handler event); see
+[error-filtering-behavior.md](error-filtering-behavior.md).
 
 `ErrorStrategy` and `ErrorHandler` work on both synchronous `execute()`
 and asynchronous `executeAsync()`:
@@ -824,8 +842,9 @@ RecordStream rs = session.query(users.ids("alice", "bob"))
     .execute(err -> System.err.println("Failed: " + err.getKey()));
 ```
 
-For async usage, the same strategies are passed to `executeAsync()` — see
-[Async Operations](#async-operations).
+For async usage, the same **per-record** strategies are passed to `executeAsync()` — see
+[Async Operations](#async-operations). Terminal failures still fail the stream / future;
+they are not converted into `RecordResult` rows.
 
 ---
 
@@ -837,8 +856,9 @@ thread as results arrive from the server.
 
 ### Async error handling
 
-`executeAsync()` accepts the same `ErrorStrategy` / `ErrorHandler` as
-`execute()`:
+`executeAsync()` accepts the same **per-record** `ErrorStrategy` / `ErrorHandler` as
+`execute()`. Terminal failures (planning, txn namespace mismatch) terminate the stream
+instead; see [error-handling.md](error-handling.md).
 
 ```java
 // Errors embedded in the stream — caller checks each result
@@ -1028,6 +1048,7 @@ updates, deletes, or UDF execution across an entire set.
 // Bulk update
 ExecuteTask task = session.backgroundTask()
     .update(users)
+    .filter(Filter.rangeByIndex("idx_customer_age", 30, 65))
     .where("$.age > 30")
     .bin("category").setTo("senior")
     .execute();
@@ -1037,12 +1058,14 @@ task.waitTillComplete();
 // Bulk delete
 session.backgroundTask()
     .delete(users)
+    .filter(Filter.rangeByIndex("idx_last_login", 0, 1609459200000L))
     .where("$.lastLogin < 1609459200000")
     .execute();
 
 // Extend TTL for active users
 session.backgroundTask()
     .touch(users)
+    .filter(Filter.equalByIndex("idx_status", "active"))
     .where("$.status == 'active'")
     .expireRecordAfter(Duration.ofDays(30))
     .execute();
@@ -1055,6 +1078,14 @@ session.backgroundTask()
     .where("$.stock > 250")
     .execute();
 ```
+
+For background update, delete, and touch, `filter(Filter)` selects the indexed
+candidates and `where(...)` decides which of those candidates are written, deleted,
+or touched. The SDK still sends this residual predicate as `FILTER_EXP`, not a
+server-planned `WHERE`. Background UDFs intentionally remain limited to `where(...)`
+in this release. String and `PreparedAel` `where(...)` residuals require server
+8.2+ AEL support; use programmatic `Exp` or `Expression` residuals for
+baseline-compatible filtering.
 
 ---
 
@@ -1163,7 +1194,7 @@ Behavior highLoad = production.deriveWithChanges("highLoad", b -> b
 
 ### YAML layout (`BehaviorYamlLoader`)
 
-YAML under `behaviors:` mirrors the selector model: put policy fields (`sendKey`, `useCompression`, timeouts, retries, and so on) **inside** a named block such as `allOperations` (maps to `Selectors.all()`), `retryableWrites`, `consistencyModeReads`, `batchReads`, `query`, etc. Use `parent:` for inheritance. Do **not** place those policy keys directly under the behavior name beside `parent`; they are not part of the supported schema and will not load.
+All YAML keys are `snake_case`; they are bound to the camelCase configuration properties by the loader, and camelCase keys are **not** recognized. YAML under `behaviors:` mirrors the selector model: put policy fields (`send_key`, `use_compression`, timeouts, retries, and so on) **inside** a named block such as `all_operations` (maps to `Selectors.all()`), `retryable_writes`, `consistency_mode_reads`, `batch_reads`, `query`, etc. Use `parent:` for inheritance. Do **not** place those policy keys directly under the behavior name beside `parent`; they are not part of the supported schema and will not load.
 
 **YAML file reload:** When a behavior file is reloaded (for example via `Behavior.startMonitoring` / `ClusterDefinition` config path), existing **registered** profiles are updated **in place** on the same `Behavior` instance. Sessions and other code that already hold a reference to that profile therefore pick up new settings without creating a new session.
 

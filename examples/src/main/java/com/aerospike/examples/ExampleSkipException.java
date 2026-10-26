@@ -20,6 +20,8 @@ package com.aerospike.examples;
  * Signals that an example is not applicable to the current server/configuration.
  */
 public class ExampleSkipException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     public ExampleSkipException(String message) {
         super(message);
     }

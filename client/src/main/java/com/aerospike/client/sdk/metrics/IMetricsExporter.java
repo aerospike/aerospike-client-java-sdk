@@ -14,20 +14,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk.command;
+package com.aerospike.client.sdk.metrics;
 
 /**
- * Transaction abort status code.
+ * Client metrics exporter interface.
  */
-public enum AbortStatus {
-    OK("Abort succeeded"),
-    ALREADY_ABORTED("Already aborted"),
-    ROLL_BACK_ABANDONED("Transaction client roll back abandoned. Server will eventually abort the transaction."),
-    CLOSE_ABANDONED("Transaction has been rolled back, but transaction client close was abandoned. Server will eventually close the transaction.");
-
-    public final String str;
-
-    AbortStatus(String str) {
-        this.str = str;
-    }
+public interface IMetricsExporter {
+	/**
+	 * Export a batch of metrics. Called periodically based on the configured interval.
+	 */
+	public void export(MetricsSnapshot snapshot);
 }

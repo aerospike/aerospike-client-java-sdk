@@ -1443,7 +1443,7 @@ public abstract class Value {
 
         @Override
         public void pack(Packer packer) {
-            packer.packParticleBytes(bytes);
+            packer.packHLL(bytes);
         }
 
         @Override

@@ -38,9 +38,10 @@ public final class BatchCommand extends Command {
     public BatchCommand(
         Cluster cluster, Partitions partitions, Txn txn, String namespace,
         List<BatchRecord> records, Expression where, boolean includeMissingKeys,
-        boolean failOnFilteredOut, boolean linearize, ResolvedSettings settings
+        boolean failOnFilteredOut, boolean linearize, boolean latencyEnabled,
+        ResolvedSettings settings
     ) {
-        super(cluster, namespace, txn, where, settings.getReplicaOrder(), settings);
+        super(cluster, namespace, txn, where, settings.getReplicaOrder(), latencyEnabled, settings);
         this.records = records;
         this.partitions = partitions;
         this.replicaSC = Partition.getReplicaSC(settings.getReplicaOrder(), settings.getReadModeSC());

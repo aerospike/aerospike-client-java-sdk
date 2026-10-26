@@ -35,7 +35,7 @@ public class VectorLimitsProbeTest extends ClusterTest {
     @BeforeAll
     static void requireVectorServer() {
         Assumptions.assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
+            cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
             "VECTOR requires server version 8.1.3+");
     }
 

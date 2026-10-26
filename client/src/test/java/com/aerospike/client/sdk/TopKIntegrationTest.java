@@ -33,7 +33,7 @@ class TopKIntegrationTest extends ClusterTest {
     @BeforeAll
     static void requireTopKServer() {
         Assumptions.assumeTrue(
-            cluster.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
+            cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
             "Top-K requires server version 8.1.3+");
     }
 

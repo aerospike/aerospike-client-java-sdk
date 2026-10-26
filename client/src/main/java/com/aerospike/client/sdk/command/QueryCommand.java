@@ -59,9 +59,25 @@ public final class QueryCommand extends Command {
 
     public QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
-        ResolvedSettings settings, QueryBuilder qb
+        ResolvedSettings settings, QueryBuilder qb, boolean latencyEnabled
     ) {
-        this(cluster, set, filter, filterExp, settings, qb, null);
+        this(cluster, set, filter, filterExp, settings, qb, null, false, latencyEnabled);
+    }
+
+    /**
+     * Build a legacy execute command around a caller-supplied index filter.
+     * The filter is preserved verbatim; query hints do not rewrite its bin or index selector.
+     */
+    public static QueryCommand forExplicitFilter(
+        Cluster cluster,
+        DataSet set,
+        Filter filter,
+        Expression filterExp,
+        ResolvedSettings settings,
+        QueryBuilder qb,
+        boolean latencyEnabled
+    ) {
+        return new QueryCommand(cluster, set, filter, filterExp, settings, qb, null, true, latencyEnabled);
     }
 
     /**
@@ -74,7 +90,8 @@ public final class QueryCommand extends Command {
         DataSet set,
         QueryPlan plan,
         ResolvedSettings settings,
-        QueryBuilder qb
+        QueryBuilder qb,
+        boolean latencyEnabled
     ) {
         if (plan.isFilteredOut()) {
             throw AerospikeException.toException(
@@ -88,18 +105,19 @@ public final class QueryCommand extends Command {
             byte[] executeRange = IndexRangeWire.forExecuteWithIndexName(plan.getIndexRangeBytes());
             filter = Filter.fromWireRange(plan.getIndexName(), executeRange, plan.getIndexType());
         }
-        return new QueryCommand(cluster, set, filter, null, settings, qb, plan);
+        return new QueryCommand(cluster, set, filter, null, settings, qb, plan, false, latencyEnabled);
     }
 
     private QueryCommand(
         Cluster cluster, DataSet set, Filter filter, Expression filterExp,
-        ResolvedSettings settings, QueryBuilder qb, QueryPlan plan
+        ResolvedSettings settings, QueryBuilder qb, QueryPlan plan, boolean explicitFilter,
+        boolean latencyEnabled
     ) {
-        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), settings);
+        super(cluster, set.getNamespace(), null, filterExp, settings.getReplicaOrder(), latencyEnabled, settings);
         this.set = set.getSet();
         this.planDriven = plan != null;
         this.executeWhereBytes = plan != null ? plan.getExecuteWhereBytes() : null;
-        this.filter = planDriven ? filter : applyHintToFilter(filter, qb.getQueryHint());
+        this.filter = (planDriven || explicitFilter) ? filter : applyHintToFilter(filter, qb.getQueryHint());
 
         this.pf = PartitionFilter.range(qb.getStartPartition(),
             qb.getEndPartition() - qb.getStartPartition());
@@ -139,6 +157,9 @@ public final class QueryCommand extends Command {
 
     public void execute(AsyncRecordStream stream) {
         Node[] nodes = cluster.validateNodes();
+
+        cluster.addQueryCount(latencyEnabled);
+        cluster.addBlockingCount();
 
         PartitionTracker tracker = new PartitionTracker(this, nodes, pf);
         QueryExecutor exec = new QueryExecutor(cluster, this, nodes.length, tracker, stream);
