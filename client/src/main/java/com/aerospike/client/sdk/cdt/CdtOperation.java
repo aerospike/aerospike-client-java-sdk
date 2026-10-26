@@ -21,7 +21,6 @@ import com.aerospike.client.sdk.Bin;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
-import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.util.Pack;
 import com.aerospike.client.sdk.util.Packer;

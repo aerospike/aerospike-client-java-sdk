@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -62,24 +63,55 @@ public class VectorIntegrationTest extends ClusterTest {
         }
     }
 
-    /** A vector exercising special/boundary values for the given element type. */
+    /**
+     * A vector exercising special/boundary values for the given element type. Only finite values:
+     * the server rejects NaN and infinity (see {@link #nonFiniteElementsAreRejected}).
+     */
     private static Vector special(final ElementType t) {
         switch (t) {
             case FLOAT16:
-                // 0, -0, 1.0, -1.0, +Inf, -Inf, NaN, smallest subnormal.
+                // 0, -0, 1.0, -1.0, smallest subnormal, largest subnormal, smallest normal,
+                // largest finite (65504), most negative finite (-65504).
                 return Vector.ofFloat16(new short[] {
                     0x0000, (short)0x8000, 0x3c00, (short)0xbc00,
-                    0x7c00, (short)0xfc00, 0x7e00, 0x0001});
+                    0x0001, 0x03ff, 0x0400, 0x7bff, (short)0xfbff});
             case INT32:
                 return Vector.ofInt32(new int[] {Integer.MIN_VALUE, -1, 0, 1, Integer.MAX_VALUE});
             case FLOAT32:
                 return Vector.ofFloat32(new float[] {
-                    0.0f, -0.0f, 1.5f, -2.25f, Float.MIN_VALUE, Float.MAX_VALUE,
-                    Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY});
+                    0.0f, -0.0f, 1.5f, -2.25f, Float.MIN_VALUE, Float.MIN_NORMAL,
+                    Float.MAX_VALUE, -Float.MAX_VALUE});
             case FLOAT64:
                 return Vector.ofFloat64(new double[] {
-                    0.0, -0.0, 1.5, -2.25, Double.MIN_VALUE, Double.MAX_VALUE,
-                    Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY});
+                    0.0, -0.0, 1.5, -2.25, Double.MIN_VALUE, Double.MIN_NORMAL,
+                    Double.MAX_VALUE, -Double.MAX_VALUE});
+            default: throw new IllegalArgumentException(t.toString());
+        }
+    }
+
+    /**
+     * Vectors that each hold one non-finite element (NaN, +Inf, -Inf) among finite ones. INT32 has
+     * no non-finite values.
+     */
+    private static List<Vector> nonFinite(final ElementType t) {
+        switch (t) {
+            case FLOAT16:
+                // NaN (quiet), NaN (other payload), +Inf, -Inf.
+                return List.of(
+                    Vector.ofFloat16(new short[] {0x3c00, 0x7e00}),
+                    Vector.ofFloat16(new short[] {0x3c00, 0x7c01}),
+                    Vector.ofFloat16(new short[] {0x3c00, 0x7c00}),
+                    Vector.ofFloat16(new short[] {0x3c00, (short)0xfc00}));
+            case FLOAT32:
+                return List.of(
+                    Vector.ofFloat32(new float[] {1.5f, Float.NaN}),
+                    Vector.ofFloat32(new float[] {1.5f, Float.POSITIVE_INFINITY}),
+                    Vector.ofFloat32(new float[] {1.5f, Float.NEGATIVE_INFINITY}));
+            case FLOAT64:
+                return List.of(
+                    Vector.ofFloat64(new double[] {1.5, Double.NaN}),
+                    Vector.ofFloat64(new double[] {1.5, Double.POSITIVE_INFINITY}),
+                    Vector.ofFloat64(new double[] {1.5, Double.NEGATIVE_INFINITY}));
             default: throw new IllegalArgumentException(t.toString());
         }
     }
@@ -160,9 +192,27 @@ public class VectorIntegrationTest extends ClusterTest {
         assertNotNull(got);
         assertSame(t, got.elementType);
         assertEquals(v.dimensions, got.dimensions);
-        // Bit-exact comparison catches NaN payloads and negative zero.
+        // Bit-exact comparison catches negative zero and subnormals.
         assertArrayEquals(v.getElementBytes(), got.getElementBytes());
         assertEquals(v, got);
+    }
+
+    /**
+     * The server rejects any vector containing NaN or an infinite value (spec R8, R10). The client
+     * doesn't check for this itself (optional, R30), so the error comes back from the server.
+     */
+    @ParameterizedTest
+    @EnumSource(value = ElementType.class, mode = EnumSource.Mode.EXCLUDE, names = "INT32")
+    public void nonFiniteElementsAreRejected(final ElementType t) {
+        int i = 0;
+        for (final Vector v : nonFinite(t)) {
+            final Key key = key("vecnonfinite_" + t + "_" + i++);
+            final AerospikeException e = assertThrows(AerospikeException.class,
+                () -> session.upsert(key).bin(binName).setTo(v).execute(), v.toString());
+            assertEquals(ResultCode.PARAMETER_ERROR, e.getResultCode(), v.toString());
+            assertTrue(e.getMessage().contains("vector: elements must be finite (no NaN or infinity)"),
+                v + ": unexpected message: " + e.getMessage());
+        }
     }
 
     @ParameterizedTest
@@ -191,8 +241,8 @@ public class VectorIntegrationTest extends ClusterTest {
     }
 
     /**
-     * Round-trips a 9000-element fp64 vector (72,008 bytes), crossing the 16-bit msgpack length
-     * boundary. Covers both a top-level bin and a list element.
+     * Round-trips a 9000-element fp64 vector (72,006 bytes) in a top-level bin, crossing the 16-bit
+     * msgpack length boundary.
      */
     @Test
     public void largeVectorCrossingMsgpackLengthBoundaryRoundTrips() {
@@ -205,12 +255,6 @@ public class VectorIntegrationTest extends ClusterTest {
         assertEquals(9000, topGot.dimensions);
         assertArrayEquals(v.getElementBytes(), topGot.getElementBytes());
         assertEquals(v, topGot);
-
-        final Key listKey = key("vecbig_list");
-        session.upsert(listKey).bin("l").setTo(List.of(v)).execute();
-        final List<?> list = readRecord(listKey).getList("l");
-        assertEquals(1, list.size());
-        assertEquals(v, list.get(0));
     }
 
     /**
@@ -230,112 +274,53 @@ public class VectorIntegrationTest extends ClusterTest {
     }
 
     // ------------------------------------------------------------------
-    // element-type x container matrix
+    // Vectors in lists/maps are rejected (spec R71, R77)
     // ------------------------------------------------------------------
 
-    @Test
-    public void elementTypeTimesContainerMatrix() {
-        for (final ElementType t : ElementType.values()) {
-            final Vector v = sample(t);
+    /**
+     * A vector can't be an element of a list or a map, at any depth. The server rejects such a
+     * write with a parameter error and "list/map cannot hold a vector" (R71); vectors in lists and
+     * maps are not in Phase 1 (R77).
+     */
+    @ParameterizedTest
+    @EnumSource(ElementType.class)
+    public void vectorInListOrMapIsRejected(final ElementType t) {
+        final Vector v = sample(t);
 
-            // 1. Stored directly as a list bin element.
-            final Key listKey = key("vecmx_list_" + t);
-            session.upsert(listKey).bin("l").setTo(List.of(v)).execute();
-            final List<?> list = readRecord(listKey).getList("l");
-            assertEquals(1, list.size(), "list bin size for " + t);
-            assertEquals(v, list.get(0), "list bin element for " + t);
+        // Whole list/map bins.
+        assertNestedVectorRejected("list bin",
+            () -> session.upsert(key("vecnest_list_" + t)).bin("l").setTo(List.of(v)).execute());
+        assertNestedVectorRejected("map bin",
+            () -> session.upsert(key("vecnest_map_" + t)).bin("m").setTo(Map.of("k", v)).execute());
 
-            // 2. Stored directly as a map bin value.
-            final Key mapKey = key("vecmx_map_" + t);
-            session.upsert(mapKey).bin("m").setTo(Map.of("k", v)).execute();
-            final Map<?, ?> map = readRecord(mapKey).getMap("m");
-            assertEquals(v, map.get("k"), "map bin value for " + t);
+        // Mixed with scalars.
+        final List<Object> mixed = new ArrayList<>();
+        mixed.add(42L);
+        mixed.add("hello");
+        mixed.add(v);
+        assertNestedVectorRejected("mixed list bin",
+            () -> session.upsert(key("vecnest_mixed_" + t)).bin("l").setTo(mixed).execute());
 
-            // 3. Appended via the typed CDT list overload.
-            final Key cdtListKey = key("vecmx_cdtlist_" + t);
-            session.upsert(cdtListKey).bin("l").listAppend(v).execute();
-            assertEquals(v, readRecord(cdtListKey).getList("l").get(0),
-                "cdt listAppend element for " + t);
+        // Deeper nesting.
+        assertNestedVectorRejected("list in list",
+            () -> session.upsert(key("vecnest_ll_" + t)).bin("l").setTo(List.of(List.of(v))).execute());
+        assertNestedVectorRejected("map in list",
+            () -> session.upsert(key("vecnest_ml_" + t)).bin("l").setTo(List.of(Map.of("k", v))).execute());
+        assertNestedVectorRejected("list in map",
+            () -> session.upsert(key("vecnest_lm_" + t)).bin("m").setTo(Map.of("k", List.of(v))).execute());
 
-            // 4. Set via the typed CDT map-setter overload.
-            final Key cdtMapKey = key("vecmx_cdtmap_" + t);
-            session.upsert(cdtMapKey).bin("m").onMapKey("k").setTo(v).execute();
-            assertEquals(v, readRecord(cdtMapKey).getMap("m").get("k"),
-                "cdt map setTo value for " + t);
-        }
+        // CDT operations.
+        assertNestedVectorRejected("cdt listAppend",
+            () -> session.upsert(key("vecnest_cdtlist_" + t)).bin("l").listAppend(v).execute());
+        assertNestedVectorRejected("cdt map setTo",
+            () -> session.upsert(key("vecnest_cdtmap_" + t)).bin("m").onMapKey("k").setTo(v).execute());
     }
 
-    @Test
-    public void mixedTypeListPreservesVectorsAndScalars() {
-        final Key key = key("vecmixedlist");
-        final Vector vf = Vector.ofFloat32(new float[] {1.0f, 2.0f});
-        final Vector vi = Vector.ofInt32(new int[] {3, 4, 5});
-
-        final List<Object> input = new ArrayList<>();
-        input.add(42L);
-        input.add("hello");
-        input.add(vf);
-        input.add(vi);
-
-        session.upsert(key).bin("l").setTo(input).execute();
-
-        final List<?> got = readRecord(key).getList("l");
-        assertEquals(4, got.size());
-        assertEquals(42L, got.get(0));
-        assertEquals("hello", got.get(1));
-        assertEquals(vf, got.get(2));
-        assertEquals(vi, got.get(3));
-    }
-
-    @Test
-    public void allElementTypesInOneList() {
-        final Key key = key("vecalltypeslist");
-        final List<Object> input = new ArrayList<>();
-        for (final ElementType t : ElementType.values()) {
-            input.add(sample(t));
-        }
-
-        session.upsert(key).bin("l").setTo(input).execute();
-
-        final List<?> got = readRecord(key).getList("l");
-        assertEquals(ElementType.values().length, got.size());
-
-        int i = 0;
-        for (final ElementType t : ElementType.values()) {
-            final Object element = got.get(i++);
-            assertEquals(sample(t), element, "element " + t);
-            assertSame(t, ((Vector)element).elementType);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // CDT read-back via server operations
-    // ------------------------------------------------------------------
-
-    @Test
-    public void cdtReadBackViaListAndMapOps() {
-        final Vector va = Vector.ofFloat32(new float[] {1.0f, 2.0f, 3.0f});
-        final Vector vb = Vector.ofInt32(new int[] {4, 5, 6});
-
-        // List: read a single element back via listGet.
-        final Key listKey = key("veccdtread_list");
-        session.upsert(listKey).bin("l").setTo(List.of(va, vb)).execute();
-
-        final RecordStream rs = session.upsert(listKey)
-            .bin("l").listGet(1)
-            .execute();
-        final Record rec = rs.next().recordOrThrow();
-        assertEquals(vb, rec.operationResult(0).getVector());
-
-        // Map: read a single value back via a CDT map-key projection.
-        final Key mapKey = key("veccdtread_map");
-        session.upsert(mapKey).bin("m").setTo(Map.of("k1", va, "k2", vb)).execute();
-
-        final Record mapRec = session.query(mapKey)
-            .bin("m").onMapKey("k2").getValues()
-            .execute()
-            .getFirstRecord();
-        assertEquals(vb, mapRec.getVector("m"));
+    private static void assertNestedVectorRejected(final String what, final Runnable write) {
+        final AerospikeException e = assertThrows(AerospikeException.class, write::run, what);
+        assertEquals(ResultCode.PARAMETER_ERROR, e.getResultCode(), what);
+        assertTrue(e.getMessage().contains("list/map cannot hold a vector"),
+            what + ": unexpected message: " + e.getMessage());
     }
 
     // ------------------------------------------------------------------

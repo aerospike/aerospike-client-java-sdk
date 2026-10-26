@@ -163,10 +163,10 @@ public class VectorTest {
 
     @Test
     void wireSize() {
-        assertEquals(8 + 3 * 2, Vector.ofFloat16(new short[3]).getWireSize());
-        assertEquals(8 + 4 * 4, Vector.ofInt32(new int[4]).getWireSize());
-        assertEquals(8 + 5 * 4, Vector.ofFloat32(new float[5]).getWireSize());
-        assertEquals(8 + 2 * 8, Vector.ofFloat64(new double[2]).getWireSize());
+        assertEquals(6 + 3 * 2, Vector.ofFloat16(new short[3]).getWireSize());
+        assertEquals(6 + 4 * 4, Vector.ofInt32(new int[4]).getWireSize());
+        assertEquals(6 + 5 * 4, Vector.ofFloat32(new float[5]).getWireSize());
+        assertEquals(6 + 2 * 8, Vector.ofFloat64(new double[2]).getWireSize());
     }
 
     //-------------------------------------------------------
@@ -220,7 +220,7 @@ public class VectorTest {
         assertHeader(buffer, ElementType.FLOAT32, data.length);
 
         for (int i = 0; i < data.length; i++) {
-            final int bits = decodeIntLE(buffer, 8 + i * 4);
+            final int bits = decodeIntLE(buffer, 6 + i * 4);
             assertEquals(data[i], Float.intBitsToFloat(bits), 0.0f);
         }
     }
@@ -237,7 +237,7 @@ public class VectorTest {
         assertHeader(buffer, ElementType.FLOAT64, data.length);
 
         for (int i = 0; i < data.length; i++) {
-            final long bits = decodeLongLE(buffer, 8 + i * 8);
+            final long bits = decodeLongLE(buffer, 6 + i * 8);
             assertEquals(data[i], Double.longBitsToDouble(bits), 0.0);
         }
     }
@@ -254,7 +254,7 @@ public class VectorTest {
         assertHeader(buffer, ElementType.INT32, data.length);
 
         for (int i = 0; i < data.length; i++) {
-            assertEquals(data[i], decodeIntLE(buffer, 8 + i * 4));
+            assertEquals(data[i], decodeIntLE(buffer, 6 + i * 4));
         }
     }
 
@@ -270,7 +270,7 @@ public class VectorTest {
         assertHeader(buffer, ElementType.FLOAT16, data.length);
 
         for (int i = 0; i < data.length; i++) {
-            assertEquals(data[i], decodeShortLE(buffer, 8 + i * 2));
+            assertEquals(data[i], decodeShortLE(buffer, 6 + i * 2));
         }
     }
 
@@ -336,12 +336,10 @@ public class VectorTest {
     }
 
     @Test
-    void fromPreservesUnknownVersionAndReservedBytesOnReencode() {
+    void fromPreservesUnknownVersionOnReencode() {
         final Vector original = Vector.ofFloat32(new float[] {1.5f, -2.25f});
         final byte[] received = original.getWireBytes();
         received[0] = 42;
-        received[6] = (byte)0xa5;
-        received[7] = 0x5a;
 
         final Vector decoded = Vector.from(received, 0, received.length);
 
@@ -604,8 +602,6 @@ public class VectorTest {
         final Vector vector = Vector.ofInt32(new int[] {1, 2, 3});
         final byte[] bytes = vector.getWireBytes();
         bytes[0] = 7;
-        bytes[6] = 1;
-        bytes[7] = 2;
         final Vector decoded = Vector.from(bytes, 0, bytes.length);
 
         assertEquals(vector, decoded);
@@ -713,8 +709,6 @@ public class VectorTest {
         assertEquals(Vector.VERSION, buffer[0]);
         assertEquals(type.getCode(), buffer[1]);
         assertEquals(dimensions, decodeIntLE(buffer, 2));
-        assertEquals(0, buffer[6]);
-        assertEquals(0, buffer[7]);
     }
 
     // Vector wire format is little-endian.

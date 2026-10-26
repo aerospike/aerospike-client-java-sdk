@@ -31,8 +31,7 @@ import com.aerospike.client.sdk.command.Buffer;
  * 0       1             version       The version of the vector format.
  * 1       1             element_type  Enum identifying the element type (see {@link ElementType}).
  * 2       4             dimensions    Number of dimensions (elements).
- * 6       2             reserved      Reserved for future use &amp; 8-byte alignment.
- * 8       variable      data          Contiguous array of elements.
+ * 6       variable      data          Contiguous array of elements.
  * </pre>
  *
  * <p>Construct a vector with one of the {@code of*} factory methods and store it
@@ -46,9 +45,9 @@ public final class Vector {
     public static final byte VERSION = 1;
 
     /**
-     * Size in bytes of the fixed header (version + element_type + dimensions + reserved).
+     * Size in bytes of the fixed header (version + element_type + dimensions).
      */
-    public static final int HEADER_SIZE = 8;
+    public static final int HEADER_SIZE = 6;
 
     /**
      * Vector element type. The wire code and per-element byte size are fixed by
@@ -128,23 +127,15 @@ public final class Vector {
     public final int dimensions;
 
     private final Object data;
-    // Preserved reserved header bytes.
-    private final byte[] reserved;
 
     private Integer wireSize;
     private Integer hash;
 
     private Vector(final byte version, final ElementType elementType, final int dimensions, final Object data) {
-        this(version, elementType, dimensions, data, new byte[2]);
-    }
-
-    private Vector(final byte version, final ElementType elementType, final int dimensions, final Object data,
-        final byte[] reserved) {
         this.version = version;
         this.elementType = elementType;
         this.dimensions = dimensions;
         this.data = data;
-        this.reserved = reserved.clone();
     }
 
     /**
@@ -197,8 +188,6 @@ public final class Vector {
         buffer[pos++] = elementType.getCode();
         Buffer.intToLittleBytes(dimensions, buffer, pos);
         pos += 4;
-        buffer[pos++] = reserved[0];
-        buffer[pos++] = reserved[1];
 
         final int dataSize = dimensions * elementType.getByteSize();
         final ByteBuffer view = ByteBuffer.wrap(buffer, pos, dataSize).order(ByteOrder.LITTLE_ENDIAN);
@@ -281,7 +270,6 @@ public final class Vector {
         final byte version = buffer[offset];
         final ElementType elementType = ElementType.fromCode(buffer[offset + 1]);
         final int dimensions = Buffer.littleBytesToInt(buffer, offset + 2);
-        final byte[] reserved = Arrays.copyOfRange(buffer, offset + 6, offset + HEADER_SIZE);
 
         if (dimensions < 0) {
             throw new IllegalArgumentException("Invalid vector dimensions: " + dimensions);
@@ -334,7 +322,7 @@ public final class Vector {
                 throw new IllegalStateException("Unsupported vector element type: " + elementType);
         }
 
-        return new Vector(version, elementType, dimensions, data, reserved);
+        return new Vector(version, elementType, dimensions, data);
     }
 
     /**
