@@ -204,6 +204,24 @@
           <sourcepath>${basedir}/src/main/java</sourcepath>
           <sourceFileIncludes>
             <include>com/aerospike/client/sdk/*</include>
+            <include>com/aerospike/client/sdk/ael/*</include>
+            <include>com/aerospike/client/sdk/cdt/*</include>
+            <include>com/aerospike/client/sdk/cdt/path/*</include>
+            <include>com/aerospike/client/sdk/exp/*</include>
+            <include>com/aerospike/client/sdk/metrics/*</include>
+            <include>com/aerospike/client/sdk/operation/*</include>
+            <include>com/aerospike/client/sdk/policy/*</include>
+            <include>com/aerospike/client/sdk/query/*</include>
+            <include>com/aerospike/client/sdk/task/*</include>
+            <include>com/aerospike/client/sdk/info/classes/*</include>
+            <include>com/aerospike/client/sdk/info/InfoCommands.java</include>
+            <include>com/aerospike/client/sdk/command/BatchRecord.java</include>
+            <include>com/aerospike/client/sdk/command/CommitError.java</include>
+            <include>com/aerospike/client/sdk/command/ParticleType.java</include>
+            <include>com/aerospike/client/sdk/command/Txn.java</include>
+            <include>com/aerospike/client/sdk/command/TxnStatus.java</include>
+            <include>com/aerospike/client/sdk/util/Counter.java</include>
+            <include>com/aerospike/client/sdk/util/Version.java</include>
           </sourceFileIncludes>
         </configuration>
       </plugin>
