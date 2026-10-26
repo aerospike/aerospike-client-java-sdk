@@ -39,15 +39,13 @@ public class VectorLimitsProbeTest extends ClusterTest {
             "VECTOR requires server version 8.1.3+");
     }
 
+    /**
+     * Empty vectors are rejected by the client before anything is sent (PRD R30): building one
+     * fails, so no write reaches the server.
+     */
     @Test
-    public void emptyVectorRejectedCleanly() {
-        final Key key = key("vecempty");
-
-        final AerospikeException ae = assertThrows(AerospikeException.class, () ->
-            session.upsert(key).bin(binName).setTo(Vector.ofFloat32(new float[0])).execute());
-        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
-
-        assertNodeAlive();
+    public void emptyVectorRejectedByClient() {
+        assertThrows(IllegalArgumentException.class, () -> Vector.ofFloat32(new float[0]));
     }
 
     @Test

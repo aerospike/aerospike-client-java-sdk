@@ -157,6 +157,14 @@ public class VectorTest {
         assertThrows(IllegalStateException.class, v::getInt32Data);
     }
 
+    @Test
+    void emptyArrayThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Vector.ofFloat16(new short[0]));
+        assertThrows(IllegalArgumentException.class, () -> Vector.ofInt32(new int[0]));
+        assertThrows(IllegalArgumentException.class, () -> Vector.ofFloat32(new float[0]));
+        assertThrows(IllegalArgumentException.class, () -> Vector.ofFloat64(new double[0]));
+    }
+
     //-------------------------------------------------------
     // Wire size
     //-------------------------------------------------------
@@ -362,6 +370,29 @@ public class VectorTest {
 
         // Claim there's one fewer byte than the data actually requires.
         assertThrows(IllegalArgumentException.class, () -> Vector.from(buffer, 0, buffer.length - 1));
+    }
+
+    @Test
+    void fromZeroDimensionsThrows() {
+        // Header only: valid version and element type, dimension count 0.
+        final byte[] buffer = new byte[Vector.HEADER_SIZE];
+        buffer[0] = Vector.VERSION;
+        buffer[1] = ElementType.FLOAT32.getCode();
+
+        assertThrows(IllegalArgumentException.class, () -> Vector.from(buffer, 0, buffer.length));
+    }
+
+    @Test
+    void fromNegativeDimensionsThrows() {
+        final byte[] buffer = new byte[Vector.HEADER_SIZE];
+        buffer[0] = Vector.VERSION;
+        buffer[1] = ElementType.FLOAT32.getCode();
+        buffer[2] = (byte)0xff;
+        buffer[3] = (byte)0xff;
+        buffer[4] = (byte)0xff;
+        buffer[5] = (byte)0xff;
+
+        assertThrows(IllegalArgumentException.class, () -> Vector.from(buffer, 0, buffer.length));
     }
 
     @Test

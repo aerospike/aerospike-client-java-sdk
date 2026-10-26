@@ -35,8 +35,9 @@ import com.aerospike.client.sdk.command.Buffer;
  * </pre>
  *
  * <p>Construct a vector with one of the {@code of*} factory methods and store it
- * in a bin, or nest it inside a list or map bin. Instances are immutable; the
- * factory methods and typed accessors copy their input/output arrays.</p>
+ * in a bin. A vector must have at least 1 dimension. The server does not allow a
+ * vector inside a list or map bin. Instances are immutable; the factory methods
+ * and typed accessors copy their input/output arrays.</p>
  */
 public final class Vector {
     /**
@@ -142,30 +143,49 @@ public final class Vector {
      * Create a vector of raw float16 (IEEE 754 half precision) elements. Since
      * Java has no native float16 type, each element is passed as its raw 16-bit
      * bit pattern.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
      */
     public static Vector ofFloat16(final short[] data) {
+        requireDimensions(data.length);
         return new Vector(VERSION, ElementType.FLOAT16, data.length, data.clone());
     }
 
     /**
      * Create a vector of int32 elements.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
      */
     public static Vector ofInt32(final int[] data) {
+        requireDimensions(data.length);
         return new Vector(VERSION, ElementType.INT32, data.length, data.clone());
     }
 
     /**
      * Create a vector of float (fp32) elements.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
      */
     public static Vector ofFloat32(final float[] data) {
+        requireDimensions(data.length);
         return new Vector(VERSION, ElementType.FLOAT32, data.length, data.clone());
     }
 
     /**
      * Create a vector of double (fp64) elements.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
      */
     public static Vector ofFloat64(final double[] data) {
+        requireDimensions(data.length);
         return new Vector(VERSION, ElementType.FLOAT64, data.length, data.clone());
+    }
+
+    private static void requireDimensions(final int dimensions) {
+        if (dimensions < 1) {
+            throw new IllegalArgumentException(
+                "Invalid vector dimensions: " + dimensions + " (must have at least 1 dimension)");
+        }
     }
 
     /**
@@ -261,6 +281,8 @@ public final class Vector {
      * @param offset    offset in buffer where the vector starts
      * @param length    number of bytes available for this vector (must be at least
      *                  {@link #HEADER_SIZE})
+     * @throws IllegalArgumentException if the bytes are not a valid vector, including a dimension
+     *                  count less than 1
      */
     public static Vector from(final byte[] buffer, final int offset, final int length) {
         if (offset < 0 || length < HEADER_SIZE || offset > buffer.length - length) {
@@ -271,9 +293,7 @@ public final class Vector {
         final ElementType elementType = ElementType.fromCode(buffer[offset + 1]);
         final int dimensions = Buffer.littleBytesToInt(buffer, offset + 2);
 
-        if (dimensions < 0) {
-            throw new IllegalArgumentException("Invalid vector dimensions: " + dimensions);
-        }
+        requireDimensions(dimensions);
 
         // Validate encoded length before allocation.
         final long dataSizeLong = (long)dimensions * elementType.getByteSize();

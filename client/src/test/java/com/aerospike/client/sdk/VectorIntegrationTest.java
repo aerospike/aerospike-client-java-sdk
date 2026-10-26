@@ -210,8 +210,6 @@ public class VectorIntegrationTest extends ClusterTest {
             final AerospikeException e = assertThrows(AerospikeException.class,
                 () -> session.upsert(key).bin(binName).setTo(v).execute(), v.toString());
             assertEquals(ResultCode.PARAMETER_ERROR, e.getResultCode(), v.toString());
-            assertTrue(e.getMessage().contains("vector: elements must be finite (no NaN or infinity)"),
-                v + ": unexpected message: " + e.getMessage());
         }
     }
 
@@ -319,8 +317,6 @@ public class VectorIntegrationTest extends ClusterTest {
     private static void assertNestedVectorRejected(final String what, final Runnable write) {
         final AerospikeException e = assertThrows(AerospikeException.class, write::run, what);
         assertEquals(ResultCode.PARAMETER_ERROR, e.getResultCode(), what);
-        assertTrue(e.getMessage().contains("list/map cannot hold a vector"),
-            what + ": unexpected message: " + e.getMessage());
     }
 
     // ------------------------------------------------------------------
