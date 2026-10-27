@@ -58,7 +58,7 @@ class VectorWriteGuardWireTest {
 
         QueryBuilder vectorQuery = new QueryBuilder(session, dataSet);
         vectorQuery.bin("dist").selectFrom(VectorExp.distance(
-            VectorDistanceMetric.EUCLIDEAN,
+            VectorDistanceMetric.EUCLIDEAN_SQUARED,
             Vector.ofFloat32(new float[] {0.0f, 0.0f}),
             Exp.vectorBin("embedding")));
         QueryCommand vectorCmd = new QueryCommand(null, dataSet, null, null, settings, vectorQuery, false);
@@ -80,7 +80,7 @@ class VectorWriteGuardWireTest {
 
         if (withVectorDistance) {
             builder.bin("dist").selectFrom(VectorExp.distance(
-                VectorDistanceMetric.EUCLIDEAN,
+                VectorDistanceMetric.EUCLIDEAN_SQUARED,
                 Vector.ofFloat32(new float[] {0.0f, 0.0f}),
                 Exp.vectorBin("embedding")));
         }

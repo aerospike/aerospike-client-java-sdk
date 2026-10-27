@@ -1627,9 +1627,9 @@ public abstract class Exp {
 
     static int vectorDistOpcode(final com.aerospike.client.sdk.vector.VectorDistanceMetric metric) {
         return switch (metric) {
-            case EUCLIDEAN -> VECTOR_EUCLIDEAN_DIST;
+            case EUCLIDEAN_SQUARED -> VECTOR_EUCLIDEAN_DIST;
             case DOT_PRODUCT -> VECTOR_DOT_PRODUCT;
-            case COSINE -> VECTOR_COSINE_SIM;
+            case COSINE_SIMILARITY -> VECTOR_COSINE_SIM;
         };
     }
 

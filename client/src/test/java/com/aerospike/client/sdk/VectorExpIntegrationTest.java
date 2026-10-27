@@ -77,7 +77,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
 
     @Test
     public void euclideanDistanceProjection() {
-        assertDistanceProjectionComputes(VectorDistanceMetric.EUCLIDEAN);
+        assertDistanceProjectionComputes(VectorDistanceMetric.EUCLIDEAN_SQUARED);
     }
 
     @Test
@@ -87,7 +87,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
 
     @Test
     public void cosineDistanceProjection() {
-        assertDistanceProjectionComputes(VectorDistanceMetric.COSINE);
+        assertDistanceProjectionComputes(VectorDistanceMetric.COSINE_SIMILARITY);
     }
 
     private void assertDistanceProjectionComputes(final VectorDistanceMetric metric) {
@@ -123,7 +123,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
 
         final RecordStream rs = session.query(keys)
             .bin(distBin).selectFrom(
-                VectorExp.distance(VectorDistanceMetric.EUCLIDEAN, query(self), Exp.vectorBin(vecBin)))
+                VectorExp.distance(VectorDistanceMetric.EUCLIDEAN_SQUARED, query(self), Exp.vectorBin(vecBin)))
             .execute();
 
         double nearestDistance = Double.POSITIVE_INFINITY;
@@ -149,7 +149,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
         double best = Double.NEGATIVE_INFINITY;
         try (RecordStream rs = session.query(keys)
             .bin(distBin).selectFrom(
-                VectorExp.distance(VectorDistanceMetric.COSINE, query(self), Exp.vectorBin(vecBin)))
+                VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, query(self), Exp.vectorBin(vecBin)))
             .execute()) {
             while (rs.hasNext()) {
                 best = Math.max(best, rs.next().recordOrThrow().getDouble(distBin));
@@ -206,7 +206,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
         final List<Double> distances = new ArrayList<>();
         try (RecordStream rs = session.query(dataSet)
             .bin(distBin).selectFrom(VectorExp.distance(
-                VectorDistanceMetric.EUCLIDEAN,
+                VectorDistanceMetric.EUCLIDEAN_SQUARED,
                 Vector.ofFloat32(new float[] {0.0f, 0.0f}),
                 Exp.vectorBin(vecBin)))
             .orderBy(distBin, OrderByType.DOUBLE, Order.ASC)
@@ -234,7 +234,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
 
         Record result = session.query(key)
             .bin(distBin).selectFrom(
-                VectorExp.distance(VectorDistanceMetric.EUCLIDEAN, query(0), Exp.vectorBin(vecBin)),
+                VectorExp.distance(VectorDistanceMetric.EUCLIDEAN_SQUARED, query(0), Exp.vectorBin(vecBin)),
                 options -> options.ignoreEvalFailure())
             .execute()
             .getFirstRecord();

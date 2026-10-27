@@ -27,7 +27,7 @@ public enum VectorDistanceMetric {
     /**
      * Squared Euclidean (L2²) distance. Smaller values indicate closer vectors.
      */
-    EUCLIDEAN(0),
+    EUCLIDEAN_SQUARED(0),
 
     /**
      * Dot product. Larger values indicate more similar vectors.
@@ -37,7 +37,7 @@ public enum VectorDistanceMetric {
     /**
      * Cosine similarity. Larger values indicate closer vectors.
      */
-    COSINE(2);
+    COSINE_SIMILARITY(2);
 
     private final int code;
 

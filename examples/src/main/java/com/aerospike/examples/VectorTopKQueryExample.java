@@ -81,7 +81,7 @@ public class VectorTopKQueryExample extends Example {
             .bin("name").get()
             .bin("stock").get()
             .bin("similarity").selectFrom(
-                VectorExp.distance(VectorDistanceMetric.COSINE, queryVector, Exp.vectorBin("embedding")))
+                VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, queryVector, Exp.vectorBin("embedding")))
             .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)   // COSINE: higher = closer
             .topK(10)
             .execute();

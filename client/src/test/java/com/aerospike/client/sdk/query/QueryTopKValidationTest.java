@@ -315,7 +315,7 @@ public class QueryTopKValidationTest extends ClusterTest {
                 Exp.eq(Exp.stringBin("category"), Exp.val("electronics")),
                 Exp.gt(Exp.intBin("stock"), Exp.val(0))));
         qb.bin("similarity").selectFrom(
-            VectorExp.distance(VectorDistanceMetric.COSINE, queryVector, Exp.vectorBin("embedding")));
+            VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, queryVector, Exp.vectorBin("embedding")));
         qb.readingOnlyBins("name", "stock", "similarity")
             .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
             .topK(10);
@@ -332,7 +332,7 @@ public class QueryTopKValidationTest extends ClusterTest {
                 Exp.eq(Exp.stringBin("category"), Exp.val("electronics")),
                 Exp.gt(Exp.intBin("stock"), Exp.val(0))));
         qb.bin("similarity").selectFrom(
-            VectorExp.distance(VectorDistanceMetric.COSINE, queryVector, Exp.vectorBin("embedding")));
+            VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, queryVector, Exp.vectorBin("embedding")));
         qb.readingOnlyBins("name", "stock", "similarity")
             .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
             .topK(10);
