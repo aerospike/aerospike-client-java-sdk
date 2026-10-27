@@ -1562,20 +1562,35 @@ public abstract class Exp {
         private final byte[] bytes;
         private final int retType;
         private final int module;
+        private final boolean hasVector;
 
         public Module(Exp bin, byte[] bytes, int retType, int module) {
+            this(bin, bytes, retType, module, false);
+        }
+
+        public Module(Exp bin, byte[] bytes, int retType, int module, boolean hasVector) {
             this.bin = bin;
             this.bytes = bytes;
             this.retType = retType;
             this.module = module;
+            this.hasVector = hasVector;
         }
 
         public String toString() {
-            return "Module [bin=" + bin + ", bytes=" + bytes + ", retType=" + retType + ", module=" + module + "]";
+            return "Module{"
+                + "bin=" + bin
+                + ", bytes=" + bytes
+                + ", retType=" + retType
+                + ", module=" + module
+                + ", hasVector=" + hasVector
+                + '}';
         }
 
         @Override
         public void pack(Packer packer) {
+            if (hasVector) {
+                packer.markVector();
+            }
             packer.packArrayBegin(5);
             packer.packInt(Exp.CALL);
             packer.packInt(retType);
