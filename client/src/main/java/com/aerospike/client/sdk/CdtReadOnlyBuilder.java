@@ -337,13 +337,33 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.INDEX, params.context()));
             }
         case LIST_BY_INDEX:
+            return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.INDEX, params.context()));
         case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.INDEX, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), ListReturnType.INDEX, params.context()));
+            }
         case LIST_BY_RANK:
+            return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.INDEX, params.context()));
         case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.INDEX, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), ListReturnType.INDEX, params.context()));
+            }
         case LIST_BY_VALUE:
+            return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.INDEX, params.context()));
         case LIST_BY_VALUE_LIST:
+            return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), ListReturnType.INDEX, params.context()));
         case LIST_BY_VALUE_RANGE:
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.INDEX, params.context()));
         case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.INDEX, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.INDEX, params.context()));
+            }
         default:
             throw new IllegalArgumentException("getIndexes() does not know how to handle an operation of " + params.getOperation());
         }
@@ -394,13 +414,33 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.REVERSE_INDEX, params.context()));
             }
         case LIST_BY_INDEX:
+            return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.REVERSE_INDEX, params.context()));
         case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.REVERSE_INDEX, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), ListReturnType.REVERSE_INDEX, params.context()));
+            }
         case LIST_BY_RANK:
+            return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.REVERSE_INDEX, params.context()));
         case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.REVERSE_INDEX, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), ListReturnType.REVERSE_INDEX, params.context()));
+            }
         case LIST_BY_VALUE:
+            return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.REVERSE_INDEX, params.context()));
         case LIST_BY_VALUE_LIST:
+            return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), ListReturnType.REVERSE_INDEX, params.context()));
         case LIST_BY_VALUE_RANGE:
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.REVERSE_INDEX, params.context()));
         case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.REVERSE_INDEX, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.REVERSE_INDEX, params.context()));
+            }
         default:
             throw new IllegalArgumentException("getReverseIndexes() does not know how to handle an operation of " + params.getOperation());
         }
@@ -451,13 +491,33 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.RANK, params.context()));
             }
         case LIST_BY_INDEX:
+            return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.RANK, params.context()));
         case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.RANK, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), ListReturnType.RANK, params.context()));
+            }
         case LIST_BY_RANK:
+            return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.RANK, params.context()));
         case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.RANK, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), ListReturnType.RANK, params.context()));
+            }
         case LIST_BY_VALUE:
+            return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.RANK, params.context()));
         case LIST_BY_VALUE_LIST:
+            return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), ListReturnType.RANK, params.context()));
         case LIST_BY_VALUE_RANGE:
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.RANK, params.context()));
         case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.RANK, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.RANK, params.context()));
+            }
         default:
             throw new IllegalArgumentException("getRanks() does not know how to handle an operation of " + params.getOperation());
         }
@@ -508,13 +568,33 @@ public class CdtReadOnlyBuilder<T> implements CdtReadContextBuilder<T>,
                 return addOpAndReturn(MapOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), MapReturnType.REVERSE_RANK, params.context()));
             }
         case LIST_BY_INDEX:
+            return addOpAndReturn(ListOperation.getByIndex(binName, params.getInt1(), ListReturnType.REVERSE_RANK, params.context()));
         case LIST_BY_INDEX_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), params.getInt2(), ListReturnType.REVERSE_RANK, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByIndexRange(binName, params.getInt1(), ListReturnType.REVERSE_RANK, params.context()));
+            }
         case LIST_BY_RANK:
+            return addOpAndReturn(ListOperation.getByRank(binName, params.getInt1(), ListReturnType.REVERSE_RANK, params.context()));
         case LIST_BY_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), params.getInt2(), ListReturnType.REVERSE_RANK, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByRankRange(binName, params.getInt1(), ListReturnType.REVERSE_RANK, params.context()));
+            }
         case LIST_BY_VALUE:
+            return addOpAndReturn(ListOperation.getByValue(binName, params.getVal1(), ListReturnType.REVERSE_RANK, params.context()));
         case LIST_BY_VALUE_LIST:
+            return addOpAndReturn(ListOperation.getByValueList(binName, params.getValues(), ListReturnType.REVERSE_RANK, params.context()));
         case LIST_BY_VALUE_RANGE:
+            return addOpAndReturn(ListOperation.getByValueRange(binName, params.getVal1(), params.getVal2(), ListReturnType.REVERSE_RANK, params.context()));
         case LIST_BY_VALUE_REL_RANK_RANGE:
+            if (params.hasInt2()) {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), params.getInt2(), ListReturnType.REVERSE_RANK, params.context()));
+            } else {
+                return addOpAndReturn(ListOperation.getByValueRelativeRankRange(binName, params.getVal1(), params.getInt1(), ListReturnType.REVERSE_RANK, params.context()));
+            }
         default:
             throw new IllegalArgumentException("getReverseRanks() does not know how to handle an operation of " + params.getOperation());
         }

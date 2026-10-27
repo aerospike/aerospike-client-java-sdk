@@ -23,8 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Assumptions;
@@ -2208,5 +2210,84 @@ public class CdtOperateTest extends ClusterTest {
         CdtOperation.modifyByPath(BIN_NAME, ModifyFlags.NO_FAIL, modExp, CTX.allChildren());
         CdtExp.selectByPath(Exp.Type.LIST, SelectFlags.NO_FAIL, Exp.mapBin(BIN_NAME), CTX.allChildren());
         CdtExp.modifyByPath(Exp.Type.MAP, ModifyFlags.NO_FAIL, modExp2, Exp.mapBin(BIN_NAME), CTX.allChildren());
+    }
+
+    // ------------------------------------------------------------------
+    // List selectors with index/rank return types (CdtReadOnlyBuilder).
+    //
+    // All four tests use the unordered list [40, 10, 50, 20, 30]:
+    //   index:          0   1   2   3   4
+    //   value:         40  10  50  20  30
+    //   rank:           3   0   4   1   2
+    //   reverse index:  4   3   2   1   0
+    //   reverse rank:   1   4   0   3   2
+    // Multi-element results are compared as sets so the test doesn't depend on the
+    // order the server returns them in.
+    // ------------------------------------------------------------------
+
+    private Key writeIndexRankList(String id) {
+        Key rkey = args.set.id(id);
+        session.delete(rkey).execute();
+        session.upsert(rkey)
+            .bin(BIN_NAME).setTo(List.of(40L, 10L, 50L, 20L, 30L))
+            .execute();
+        return rkey;
+    }
+
+    @Test
+    public void testListGetIndexesByValueRelativeRankRange() {
+        Key rkey = writeIndexRankList("testListGetIndexesByValueRelRankRange");
+
+        // LIST_BY_VALUE_REL_RANK_RANGE: 20 has rank 1, so relative ranks 1..2 are ranks 2..3,
+        // the values 30 and 40 at indexes 4 and 0.
+        Record result = session.query(rkey)
+            .bin(BIN_NAME).onListValueRelativeRankRange(20L, 1, 2).getIndexes()
+            .execute()
+            .getFirstRecord();
+
+        assertNotNull(result);
+        assertEquals(Set.of(0L, 4L), new HashSet<>(result.getList(BIN_NAME)));
+    }
+
+    @Test
+    public void testListGetReverseIndexesByIndex() {
+        Key rkey = writeIndexRankList("testListGetReverseIndexesByIndex");
+
+        // LIST_BY_INDEX: index 1 is reverse index 5 - 1 - 1 = 3.
+        Record result = session.query(rkey)
+            .bin(BIN_NAME).onListIndex(1).getReverseIndexes()
+            .execute()
+            .getFirstRecord();
+
+        assertNotNull(result);
+        assertEquals(3L, result.getLong(BIN_NAME));
+    }
+
+    @Test
+    public void testListGetRanksByValueRange() {
+        Key rkey = writeIndexRankList("testListGetRanksByValueRange");
+
+        // LIST_BY_VALUE_RANGE: [20, 41) selects 40, 20 and 30, whose ranks are 3, 1 and 2.
+        Record result = session.query(rkey)
+            .bin(BIN_NAME).onListValueRange(20L, 41L).getRanks()
+            .execute()
+            .getFirstRecord();
+
+        assertNotNull(result);
+        assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(result.getList(BIN_NAME)));
+    }
+
+    @Test
+    public void testListGetReverseRanksByValue() {
+        Key rkey = writeIndexRankList("testListGetReverseRanksByValue");
+
+        // LIST_BY_VALUE: 40 has rank 3, so its reverse rank is 5 - 1 - 3 = 1.
+        Record result = session.query(rkey)
+            .bin(BIN_NAME).onListValue(40L).getReverseRanks()
+            .execute()
+            .getFirstRecord();
+
+        assertNotNull(result);
+        assertEquals(List.of(1L), result.getList(BIN_NAME));
     }
 }
