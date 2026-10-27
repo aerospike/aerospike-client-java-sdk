@@ -290,6 +290,11 @@ public final class Vector {
         }
 
         final byte version = buffer[offset];
+
+        if (version != VERSION) {
+            throw new IllegalArgumentException("Invalid vector version: Expected " + VERSION + ". Received " + version + '.');
+        }
+
         final ElementType elementType = ElementType.fromCode(buffer[offset + 1]);
         final int dimensions = Buffer.littleBytesToInt(buffer, offset + 2);
 

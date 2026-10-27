@@ -41,6 +41,7 @@ import com.aerospike.client.sdk.cdt.MapOperation;
 import com.aerospike.client.sdk.cdt.MapPolicy;
 import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.command.Buffer;
+import com.aerospike.client.sdk.command.IndexProbeCommand;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.util.Packer;
 import com.aerospike.client.sdk.util.Unpacker;
@@ -349,10 +350,9 @@ public class VectorTest {
         final byte[] received = original.getWireBytes();
         received[0] = 42;
 
-        final Vector decoded = Vector.from(received, 0, received.length);
-
-        assertEquals(42, decoded.version);
-        assertArrayEquals(received, decoded.getWireBytes());
+        assertThrows(IllegalArgumentException.class, () -> {
+            Vector.from(received, 0, received.length);
+        });
     }
 
     @Test
@@ -633,10 +633,10 @@ public class VectorTest {
         final Vector vector = Vector.ofInt32(new int[] {1, 2, 3});
         final byte[] bytes = vector.getWireBytes();
         bytes[0] = 7;
-        final Vector decoded = Vector.from(bytes, 0, bytes.length);
 
-        assertEquals(vector, decoded);
-        assertEquals(vector.hashCode(), decoded.hashCode());
+        assertThrows(IllegalArgumentException.class, () -> {
+            Vector.from(bytes, 0, bytes.length);
+        });
     }
 
     @Test
