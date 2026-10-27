@@ -21,7 +21,6 @@ import com.aerospike.client.sdk.Bin;
 import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.Value;
-import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.exp.Expression;
 import com.aerospike.client.sdk.util.Pack;
 import com.aerospike.client.sdk.util.Packer;
@@ -87,7 +86,7 @@ public class CdtOperation {
             packedBytes = packCdtSelect(CDT.Type.SELECT, flags, ctx);
         }
 
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(packedBytes, ParticleType.BLOB));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(packedBytes));
     }
 
 	/**
@@ -147,7 +146,7 @@ public class CdtOperation {
             packedBytes = packCdtModify(CDT.Type.SELECT, flags, modifyExp, ctx);
         }
 
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(packedBytes, ParticleType.BLOB));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(packedBytes));
     }
 
     /**
