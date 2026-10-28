@@ -55,7 +55,7 @@ public final class Filter {
      */
     public static Filter equal(Expression exp, long value) {
         Value val = Value.get(value);
-        return new Filter(null, exp.getBytes(), IndexCollectionType.DEFAULT, val.getType(), val, val);
+        return new Filter(exp, IndexCollectionType.DEFAULT, val.getType(), val, val);
     }
 
     /**
@@ -92,7 +92,7 @@ public final class Filter {
      */
     public static Filter equal(Expression exp, String value) {
         Value val = Value.get(value);
-        return new Filter(null, exp.getBytes(), IndexCollectionType.DEFAULT, val.getType(), val, val);
+        return new Filter(exp, IndexCollectionType.DEFAULT, val.getType(), val, val);
     }
 
     /**
@@ -130,7 +130,7 @@ public final class Filter {
      */
     public static Filter equal(Expression exp, byte[] value) {
         Value val = Value.get(value);
-        return new Filter(null, exp.getBytes(), IndexCollectionType.DEFAULT, val.getType(), val, val);
+        return new Filter(exp, IndexCollectionType.DEFAULT, val.getType(), val, val);
     }
 
     /**
@@ -170,7 +170,7 @@ public final class Filter {
      */
     public static Filter contains(Expression exp, IndexCollectionType type, long value) {
         Value val = Value.get(value);
-        return new Filter(null, exp.getBytes(), type, val.getType(), val, val);
+        return new Filter(exp, type, val.getType(), val, val);
     }
 
     /**
@@ -212,7 +212,7 @@ public final class Filter {
      */
     public static Filter contains(Expression exp, IndexCollectionType type, String value) {
         Value val = Value.get(value);
-        return new Filter(null, exp.getBytes(), type, val.getType(), val, val);
+        return new Filter(exp, type, val.getType(), val, val);
     }
 
     /**
@@ -254,7 +254,7 @@ public final class Filter {
      */
     public static Filter contains(Expression exp, IndexCollectionType type, byte[] value) {
         Value val = Value.get(value);
-        return new Filter(null, exp.getBytes(), type, val.getType(), val, val);
+        return new Filter(exp, type, val.getType(), val, val);
     }
 
     /**
@@ -298,7 +298,7 @@ public final class Filter {
      * @return              filter instance
      */
     public static Filter range(Expression exp, long begin, long end) {
-        return new Filter(null, exp.getBytes(), IndexCollectionType.DEFAULT, ParticleType.INTEGER,
+        return new Filter(exp, IndexCollectionType.DEFAULT, ParticleType.INTEGER,
                 Value.get(begin), Value.get(end));
     }
 
@@ -346,7 +346,7 @@ public final class Filter {
      * @return              filter instance
      */
     public static Filter range(Expression exp, IndexCollectionType type, long begin, long end) {
-        return new Filter(null, exp.getBytes(), type, ParticleType.INTEGER, Value.get(begin), Value.get(end));
+        return new Filter(exp, type, ParticleType.INTEGER, Value.get(begin), Value.get(end));
     }
 
     /**
@@ -386,7 +386,7 @@ public final class Filter {
      * @return              filter instance
      */
     public static Filter geoWithinRegion(Expression exp, String region) {
-        return new Filter(null, exp.getBytes(), IndexCollectionType.DEFAULT, ParticleType.GEOJSON, Value.get(region), Value.get(region));
+        return new Filter(exp, IndexCollectionType.DEFAULT, ParticleType.GEOJSON, Value.get(region), Value.get(region));
     }
 
     /**
@@ -424,7 +424,7 @@ public final class Filter {
      * @return              filter instance
      */
     public static Filter geoWithinRegion(Expression exp, IndexCollectionType type, String region) {
-        return new Filter(null, exp.getBytes(), type, ParticleType.GEOJSON, Value.get(region), Value.get(region));
+        return new Filter(exp, type, ParticleType.GEOJSON, Value.get(region), Value.get(region));
     }
 
     /**
@@ -473,7 +473,7 @@ public final class Filter {
                 String.format("{ \"type\": \"AeroCircle\", "
                               + "\"coordinates\": [[%.8f, %.8f], %f] }",
                               lng, lat, radius);
-        return new Filter(null, exp.getBytes(), IndexCollectionType.DEFAULT, ParticleType.GEOJSON, Value.get(rgnstr), Value.get(rgnstr));
+        return new Filter(exp, IndexCollectionType.DEFAULT, ParticleType.GEOJSON, Value.get(rgnstr), Value.get(rgnstr));
     }
 
     /**
@@ -529,7 +529,7 @@ public final class Filter {
                 String.format("{ \"type\": \"AeroCircle\", "
                               + "\"coordinates\": [[%.8f, %.8f], %f] }",
                               lng, lat, radius);
-        return new Filter(null, exp.getBytes(), type, ParticleType.GEOJSON, Value.get(rgnstr), Value.get(rgnstr));
+        return new Filter(exp, type, ParticleType.GEOJSON, Value.get(rgnstr), Value.get(rgnstr));
     }
 
     /**
@@ -572,7 +572,7 @@ public final class Filter {
      * @return              filter instance
      */
     public static Filter geoContains(Expression exp, String point) {
-        return new Filter(null, exp.getBytes(), IndexCollectionType.DEFAULT, ParticleType.GEOJSON, Value.get(point), Value.get(point));
+        return new Filter(exp, IndexCollectionType.DEFAULT, ParticleType.GEOJSON, Value.get(point), Value.get(point));
     }
 
     /**
@@ -610,7 +610,7 @@ public final class Filter {
      * @return              filter instance
      */
     public static Filter geoContains(Expression exp, IndexCollectionType type, String point) {
-        return new Filter(null, exp.getBytes(), type, ParticleType.GEOJSON, Value.get(point), Value.get(point));
+        return new Filter(exp, type, ParticleType.GEOJSON, Value.get(point), Value.get(point));
     }
 
     /**
@@ -643,21 +643,11 @@ public final class Filter {
             source.colType, source.valType,
             source.begin, source.end,
             source.packedCtx, source.packedExp,
-            source.wireRangeBytes
+            source.wireRangeBytes, source.hasVector
         );
     }
 
-    /**
-     * Replay opaque {@code INDEX_RANGE} field body on execute (field {@code 22}).
-     * Bytes must already be in execute shape ({@code bin_name_len = 0} when paired with field {@code 21}).
-     *
-     * <p>Internal to the server-led two-phase query path ({@code QueryCommand.forPlan} only).
-     * Explain response validation ({@code QueryPlan.fromExplainResponse}) is the single gate for
-     * non-empty {@code INDEX_NAME} / {@code INDEX_RANGE} pairing.</p>
-     *
-     * @param indexName   secondary-index registry name from explain field {@code 21}
-     * @param rangeBytes  execute {@code INDEX_RANGE} payload (after {@code IndexRangeWire} transform)
-     */
+    /** Creates a filter from execute-ready index-range bytes. */
     public static Filter fromWireRange(String indexName, byte[] rangeBytes) {
         return fromWireRange(indexName, rangeBytes, IndexCollectionType.DEFAULT);
     }
@@ -671,7 +661,7 @@ public final class Filter {
         IndexCollectionType colType = collectionType != null
             ? collectionType
             : IndexCollectionType.DEFAULT;
-        return new Filter(null, indexName, colType, 0, null, null, null, null, rangeBytes);
+        return new Filter(null, indexName, colType, 0, null, null, null, null, rangeBytes, false);
     }
 
     private final String name;
@@ -683,17 +673,23 @@ public final class Filter {
     private final Value end;
     private final byte[] packedExp;
     private final byte[] wireRangeBytes;
+    private final boolean hasVector;
 
     private Filter(String name, IndexCollectionType colType, int valType, Value begin, Value end, CTX[] ctx) {
-        this(name, null, colType, valType, begin, end, (ctx != null && ctx.length > 0) ? Pack.pack(ctx) : null, null, null);
+        this(name, null, colType, valType, begin, end, (ctx != null && ctx.length > 0) ? Pack.pack(ctx) : null,
+            null, null, CTX.hasVector(ctx));
+    }
+
+    private Filter(Expression exp, IndexCollectionType colType, int valType, Value begin, Value end) {
+        this(null, null, colType, valType, begin, end, null, exp.getBytes(), null, exp.hasVector());
     }
 
     private Filter(String indexName, byte[] exp, IndexCollectionType colType, int valType, Value begin, Value end) {
-        this(null, indexName, colType, valType, begin, end, null, exp, null);
+        this(null, indexName, colType, valType, begin, end, null, exp, null, false);
     }
 
     Filter(String name, String indexName, IndexCollectionType colType, int valType, Value begin, Value end,
-           byte[] packedCtx, byte[] packedExp, byte[] wireRangeBytes) {
+           byte[] packedCtx, byte[] packedExp, byte[] wireRangeBytes, boolean hasVector) {
         this.name = name;
         this.indexName = indexName;
         this.colType = colType;
@@ -703,6 +699,8 @@ public final class Filter {
         this.packedCtx = packedCtx;
         this.packedExp = packedExp;
         this.wireRangeBytes = wireRangeBytes;
+        this.hasVector = hasVector ||
+            (begin != null && begin.hasVector()) || (end != null && end.hasVector());
     }
 
     /**
@@ -723,6 +721,11 @@ public final class Filter {
      */
     public boolean hasWireRange() {
         return wireRangeBytes != null;
+    }
+
+    /** Whether this filter carries a VECTOR in a range endpoint or context. */
+    public boolean hasVector() {
+        return hasVector;
     }
 
     /**

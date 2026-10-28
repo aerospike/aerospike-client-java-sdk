@@ -16,8 +16,6 @@
  */
 package com.aerospike.client.sdk.query;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -107,6 +105,10 @@ public class IndexQueryBuilderImpl extends QueryImpl {
         AsyncRecordStream stream = newStream(policy, handler);
         cmd.execute(stream);
 
+        if (qb.getOrderBySpec() != null) {
+            return TopKMergingRecordStream.merge(stream, qb.getOrderBySpecs(), qb.getTopK());
+        }
+
         if (qb.getChunkSize() == 0) {
             // Normal query
             return new RecordStream(stream);
@@ -189,6 +191,8 @@ public class IndexQueryBuilderImpl extends QueryImpl {
     private void validate(Session session, QueryBuilder qb) {
         Cluster cluster = session.getCluster();
 
+        // Validate Top-K configuration.
+        qb.validateTopKQueryState();
         warnQueryDoesNotParticipateInTransaction(qb);
 
         // Check for operations - not supported on servers < 8.1.2

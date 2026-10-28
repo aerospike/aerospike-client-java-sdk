@@ -120,6 +120,7 @@ For comprehensive documentation with code examples for every feature, see the
 | **Behavior (policy config)** | Cascading, selector-based configuration — separate dev concerns from ops concerns | [Behavior](docs/key-features.md#behavior-policy-configuration) |
 | **Object mapping** | `RecordMapper` and `TypedDataSet` for mapping Java objects to/from records | [Object Mapping](docs/key-features.md#object-mapping) |
 | **Queries & scans** | Dataset-level queries with pagination, sorting, partition targeting, and throttling | [Queries](docs/key-features.md#queries-and-scans) |
+| **VECTOR & Top-K** | Native VECTOR bins, vector-distance expressions, and globally merged one/two-key Top-K queries | `VectorTopKQueryExample` |
 | **Background operations** | Server-side bulk updates, deletes, and UDF execution across entire sets | [Background Ops](docs/key-features.md#background-operations) |
 | **UDFs** | Register, execute, and chain Lua User Defined Functions | [UDFs](docs/key-features.md#udfs) |
 | **Secondary indexes** | Create and drop indexes; AEL queries use them automatically | [Indexes](docs/key-features.md#secondary-indexes) |

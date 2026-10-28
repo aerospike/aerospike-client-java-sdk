@@ -16,6 +16,7 @@
  */
 package com.aerospike.client.sdk.command;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.Deflater;
 
@@ -36,6 +37,7 @@ import com.aerospike.client.sdk.policy.QueryDuration;
 import com.aerospike.client.sdk.policy.ReadModeAP;
 import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.query.IndexCollectionType;
+import com.aerospike.client.sdk.query.OrderBySpec;
 import com.aerospike.client.sdk.query.plan.QueryWhereWire;
 import com.aerospike.client.sdk.util.Packer;
 
@@ -51,6 +53,7 @@ public final class CommandBuffer {
     private byte[] dataBuffer;
     private int dataOffset;
     private Long version;
+    private boolean hasVector;
 
     //--------------------------------------------------
     // Operate
@@ -269,7 +272,7 @@ public final class CommandBuffer {
             fieldCount++;
         }
 
-        byte[] argBytes = Packer.pack(cmd.args);
+        byte[] argBytes = packArgs(cmd.args);
         fieldCount += estimateUdfSize(cmd.packageName, cmd.functionName, argBytes);
 
         sizeBuffer();
@@ -292,7 +295,7 @@ public final class CommandBuffer {
         Expression where = (rec.where != null)? rec.where : cmd.where;
         int fieldCount = estimateKeyAttrSize(cmd, rec, where);
 
-        byte[] argBytes = Packer.pack(rec.functionArgs);
+        byte[] argBytes = packArgs(rec.functionArgs);
         fieldCount += estimateUdfSize(rec.packageName, rec.functionName, argBytes);
 
         sizeBuffer();
@@ -538,6 +541,7 @@ public final class CommandBuffer {
                         writeField(bu.packageName, FieldType.UDF_PACKAGE_NAME);
                         writeField(bu.functionName, FieldType.UDF_FUNCTION);
                         writeField(bu.argBytes, FieldType.UDF_ARGLIST);
+                        hasVector |= bu.hasVector;
                         break;
                     }
 
@@ -900,6 +904,24 @@ public final class CommandBuffer {
             operationCount = binNames.length;
         }
 
+        // Write Top-K fields.
+        List<byte[]> orderByNameBytes = null;
+
+        if (cmd.shouldSendTopK()) {
+            orderByNameBytes = new ArrayList<>(cmd.orderBySpecs.size());
+            int orderByBodySize = 0;
+            for (OrderBySpec spec : cmd.orderBySpecs) {
+                byte[] nameBytes = Buffer.stringToUtf8(spec.getBinName());
+                orderByNameBytes.add(nameBytes);
+                orderByBodySize += 4 + nameBytes.length;
+            }
+            dataOffset += Command.FIELD_HEADER_SIZE + orderByBodySize;
+            fieldCount++;
+
+            dataOffset += 4 + Command.FIELD_HEADER_SIZE;
+            fieldCount++;
+        }
+
         sizeBuffer();
 
         int readAttr = Command.INFO1_READ;
@@ -1025,6 +1047,11 @@ public final class CommandBuffer {
             writeField(maxRecords, FieldType.MAX_RECORDS);
         }
 
+        if (cmd.shouldSendTopK()) {
+            writeFieldOrderBy(cmd.orderBySpecs, orderByNameBytes);
+            writeField(cmd.topK, FieldType.TOP_K);
+        }
+
         if (cmd.ops != null) {
             for (Operation op : cmd.ops) {
                 writeOperation(op);
@@ -1037,6 +1064,28 @@ public final class CommandBuffer {
         }
 
         end();
+    }
+
+    /** Write one or two ORDER_BY specs. */
+    private void writeFieldOrderBy(
+        List<OrderBySpec> specs,
+        List<byte[]> nameBytes
+    ) {
+        int bodySize = 0;
+        for (byte[] bytes : nameBytes) {
+            bodySize += 4 + bytes.length;
+        }
+        writeFieldHeader(bodySize, FieldType.ORDER_BY);
+        for (int i = 0; i < specs.size(); i++) {
+            OrderBySpec spec = specs.get(i);
+            byte[] bytes = nameBytes.get(i);
+            dataBuffer[dataOffset++] = (byte)spec.getType().getWireCode();
+            dataBuffer[dataOffset++] = (byte)spec.getDirection().getWireCode();
+            dataBuffer[dataOffset++] = (byte)spec.getFlags();
+            dataBuffer[dataOffset++] = (byte)bytes.length;
+            System.arraycopy(bytes, 0, dataBuffer, dataOffset, bytes.length);
+            dataOffset += bytes.length;
+        }
     }
 
     /**
@@ -1191,7 +1240,7 @@ public final class CommandBuffer {
             dataOffset += Buffer.estimateSizeUtf8(cmd.functionName) + Command.FIELD_HEADER_SIZE;
 
             if (cmd.functionArgs.length > 0) {
-                functionArgBuffer = Packer.pack(cmd.functionArgs);
+                functionArgBuffer = packArgs(cmd.functionArgs);
             }
             else {
                 functionArgBuffer = new byte[0];
@@ -1832,6 +1881,7 @@ public final class CommandBuffer {
     }
 
     private void writeFieldExpression(Expression exp) {
+        hasVector |= exp.hasVector();
         byte[] bytes = exp.getBytes();
         writeFieldHeader(bytes.length, FieldType.FILTER_EXP);
         System.arraycopy(bytes, 0, dataBuffer, dataOffset, bytes.length);
@@ -1895,6 +1945,7 @@ public final class CommandBuffer {
     }
 
     private void writeOperation(Bin bin, Operation.Type operation) {
+        hasVector |= bin.value.hasVector();
         int nameLength = Buffer.stringToUtf8(bin.name, dataBuffer, dataOffset + Command.OPERATION_HEADER_SIZE);
         int valueLength = bin.value.write(dataBuffer, dataOffset + Command.OPERATION_HEADER_SIZE + nameLength);
 
@@ -1908,6 +1959,8 @@ public final class CommandBuffer {
     }
 
     private void writeOperation(Operation operation) {
+        // Propagate VECTOR presence from the operation value.
+        hasVector |= operation.value.hasVector();
         int nameLength = Buffer.stringToUtf8(operation.binName, dataBuffer, dataOffset + Command.OPERATION_HEADER_SIZE);
         int valueLength = operation.value.write(dataBuffer, dataOffset + Command.OPERATION_HEADER_SIZE + nameLength);
 
@@ -1947,6 +2000,22 @@ public final class CommandBuffer {
 
     private void begin() {
         dataOffset = Command.MSG_TOTAL_HEADER_SIZE;
+        hasVector = false;
+    }
+
+    /** Whether this command contains a VECTOR payload. */
+    public boolean hasVector() {
+        return hasVector;
+    }
+
+    /** Pack UDF arguments and retain the VECTOR flag. */
+    private byte[] packArgs(Value[] args) {
+        Packer packer = new Packer();
+        packer.packValueArray(args);
+        packer.createBuffer();
+        packer.packValueArray(args);
+        hasVector |= packer.hasVector();
+        return packer.getBuffer();
     }
 
     private void end() {
@@ -1991,6 +2060,7 @@ public final class CommandBuffer {
     }
 
     private int writeIndexRangeBody(Filter filter, int offset) {
+        hasVector |= filter.hasVector();
         if (filter.hasWireRange()) {
             return filter.write(dataBuffer, offset);
         }

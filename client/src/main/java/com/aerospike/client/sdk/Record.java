@@ -24,6 +24,7 @@ import java.util.Objects;
 
 import com.aerospike.client.sdk.Value.GeoJSONValue;
 import com.aerospike.client.sdk.Value.HLLValue;
+import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.util.ContainerString;
 
 /**
@@ -207,6 +208,13 @@ public final class Record {
      */
     public AerospikeMap<?,?> getMap(String name) {
         return (AerospikeMap<?,?>)getValue(name);
+    }
+
+    /**
+     * Get bin value as a vector.
+     */
+    public Vector getVector(final String name) {
+        return (Vector)getValue(name);
     }
 
     /**

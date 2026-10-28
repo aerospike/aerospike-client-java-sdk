@@ -120,6 +120,9 @@ public class Cluster implements Closeable {
     private boolean serverVersionGE8;
     private boolean serverVersionGE812;
     private boolean serverVersionGE82;
+    // private boolean serverVersionGE821; // TODO Restore
+    private boolean versionGETopK;   // TODO Delete
+    private volatile boolean allNodesSupportVector = true; // TODO Delete
     private boolean metricsEnabled;
     private boolean metricsOperationalEnabled;
     private boolean metricsUsageEnabled;
@@ -1112,6 +1115,15 @@ public class Cluster implements Closeable {
      * @param nodes the new array of nodes for the cluster
      */
     public final void setNodes(Node[] nodes) {
+        // Update the capability before publishing nodes.
+        boolean supportsVector = true;
+        for (Node node : nodes) {
+            if (!node.getVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3)) {
+                supportsVector = false;
+                break;
+            }
+        }
+        this.allNodesSupportVector = supportsVector;
         this.nodes = nodes;
         setMinServerVersion();
     }
@@ -1204,6 +1216,21 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Whether this cluster's minimum server version supports Top-K queries
+     * ({@code orderBy(...)}/{@code topK(...)} on {@link com.aerospike.client.sdk.query.QueryBuilder}).
+     *
+     * <p>Requires server version 8.1.3 or newer on every connected node.</p>
+     */
+    public boolean supportsTopK() {
+        return versionGETopK;
+    }
+
+    /** Whether all connected nodes support VECTOR. */
+    public boolean supportsVector() {
+        return allNodesSupportVector;
+    }
+
+    /**
      * Sets the minimum server version for the cluster. For internal use only.
      *
      * <p>This method is typically called by the cluster tend mechanism when
@@ -1233,6 +1260,8 @@ public class Cluster implements Closeable {
         this.serverVersionGE8 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
         this.serverVersionGE812 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
         this.serverVersionGE82 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
+        //this.serverVersionGE821 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2_1); TODO Restore
+        this.versionGETopK = min.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);  // TODO Delete
     }
 
     /**
