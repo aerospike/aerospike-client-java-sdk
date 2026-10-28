@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk.vector;
 
+import com.aerospike.client.sdk.query.Order;
+
 /**
  * Distance metric used to compare two vectors in a vector distance expression.
  * See {@link com.aerospike.client.sdk.exp.VectorExp#distance}.
@@ -27,22 +29,24 @@ public enum VectorDistanceMetric {
     /**
      * Squared Euclidean (L2²) distance. Smaller values indicate closer vectors.
      */
-    EUCLIDEAN_SQUARED(0),
+    EUCLIDEAN_SQUARED(0, Order.ASC),
 
     /**
      * Dot product. Larger values indicate more similar vectors.
      */
-    DOT_PRODUCT(1),
+    DOT_PRODUCT(1, Order.DESC),
 
     /**
      * Cosine similarity. Larger values indicate closer vectors.
      */
-    COSINE_SIMILARITY(2);
+    COSINE_SIMILARITY(2, Order.DESC);
 
     private final int code;
+    private final Order order;
 
-    VectorDistanceMetric(final int code) {
+    VectorDistanceMetric(final int code, final Order order) {
         this.code = code;
+        this.order = order;
     }
 
     /**
@@ -50,5 +54,12 @@ public enum VectorDistanceMetric {
      */
     public int getCode() {
         return code;
+    }
+
+    /**
+     * Return nearest order for this metric.
+     */
+    public Order nearestOrder() {
+        return order;
     }
 }
