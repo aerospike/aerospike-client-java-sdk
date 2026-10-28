@@ -1214,25 +1214,6 @@ public final class StringOperation {
     }
 
     private static Value toBytesValue(byte[] bytes) {
-        return new BytesStringValue(bytes);
-    }
-
-    // The server requires string operations to be packed with ParticleType.STRING.
-    // This code needs to be private since users should not be allowed to directly encode
-    // bytes with a sub-type other than ParticleType.BLOB.
-    private static final class BytesStringValue extends Value.BytesValue {
-        private BytesStringValue(byte[] bytes) {
-            super(bytes);
-        }
-
-        @Override
-        public void pack(Packer packer) {
-            packer.packParticleBytes(bytes, ParticleType.STRING);
-        }
-
-        @Override
-        public int getType() {
-            return ParticleType.STRING;
-        }
+        return new Value.BytesValue(bytes, ParticleType.STRING);
     }
 }
