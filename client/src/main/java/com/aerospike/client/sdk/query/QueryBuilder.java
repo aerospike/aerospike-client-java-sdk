@@ -352,10 +352,18 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "orderBy contains unsupported flags: " + flags);
         }
+
+        if ((flags & OrderByFlags.CASE_INSENSITIVE) != 0) {
+            throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
+                "orderBy flag CASE_INSENSITIVE is only valid with type STRING");
+        }
+        /** TODO Implement when server supports string order.
         if ((flags & OrderByFlags.CASE_INSENSITIVE) != 0 && type != OrderByType.STRING) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "orderBy flag CASE_INSENSITIVE is only valid with type STRING");
         }
+        */
+
         return new OrderBySpec(binName, type, direction, flags);
     }
 

@@ -25,7 +25,7 @@ package com.aerospike.client.sdk.query;
 public enum OrderByType {
     INTEGER(1),
     DOUBLE(2),
-    STRING(3),
+    //STRING(3), TODO Implement when server supports string order.
     BYTES(4);
 
     private final int wireCode;

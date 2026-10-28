@@ -17,8 +17,6 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,11 +33,11 @@ import com.aerospike.client.sdk.command.QueryCommand;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Order;
-import com.aerospike.client.sdk.query.OrderByFlags;
 import com.aerospike.client.sdk.query.OrderByType;
 import com.aerospike.client.sdk.query.QueryBuilder;
 
 class QueryTopKWireTest {
+    /* TODO Implement when server supports string order.
     @Test
     void concatenatesTwoOrderBySpecsAndBigEndianLimit() {
         QueryCommand command = command(true);
@@ -51,6 +49,7 @@ class QueryTopKWireTest {
         }, fields.get(FieldType.ORDER_BY));
         assertArrayEquals(new byte[] {0, 0, 0, 25}, fields.get(FieldType.TOP_K));
     }
+    */
 
     @Test
     void singleSpecOrderByIsByteIdenticalToLegacyFormat() {
@@ -69,6 +68,7 @@ class QueryTopKWireTest {
         assertArrayEquals(new byte[] {0, 0, 0, 3}, fields.get(FieldType.TOP_K));
     }
 
+    /* TODO Implement when server supports string order.
     @Test
     void omitsPushdownFieldsForMixedVersionFallback() {
         Map<Integer, byte[]> fields = fields(command(false));
@@ -77,7 +77,9 @@ class QueryTopKWireTest {
         assertFalse(fields.containsKey(FieldType.TOP_K));
         assertTrue(fields.containsKey(FieldType.NAMESPACE));
     }
+    */
 
+    /* TODO Implement when server supports string order.
     private static QueryCommand command(boolean sendTopK) {
         Session session = new Session(null, Behavior.DEFAULT);
         DataSet dataSet = DataSet.of("test", "topk_wire");
@@ -91,6 +93,7 @@ class QueryTopKWireTest {
         command.setSendTopK(sendTopK);
         return command;
     }
+    */
 
     private static Map<Integer, byte[]> fields(QueryCommand command) {
         PartitionTracker tracker = new PartitionTracker(command, new Node[1], PartitionFilter.all());

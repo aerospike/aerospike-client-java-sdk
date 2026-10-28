@@ -116,7 +116,8 @@ final class TopKMerge {
         return switch (spec.getType()) {
             case INTEGER -> (raw instanceof Long) ? raw : null;
             case DOUBLE -> (raw instanceof Double) ? raw : null;
-            case STRING -> extractStringKey(raw, spec);
+            // TODO Implement when server supports string order.
+            //case STRING -> extractStringKey(raw, spec);
             case BYTES -> (raw instanceof byte[]) ? raw : null;
         };
     }
@@ -173,9 +174,16 @@ final class TopKMerge {
             }
             return Double.compare(a, b);
         }
+
+        if (type == OrderByType.BYTES) {
+            return compareBytes((byte[])keyA, (byte[])keyB);
+        }
+        /* TODO Implement when server supports string order.
         if (type == OrderByType.BYTES || type == OrderByType.STRING) {
             return compareBytes((byte[])keyA, (byte[])keyB);
         }
+        */
+
         return ((Comparable<Object>)keyA).compareTo(keyB);
     }
 
