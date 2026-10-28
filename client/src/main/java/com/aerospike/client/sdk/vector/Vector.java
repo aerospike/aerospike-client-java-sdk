@@ -142,7 +142,9 @@ public final class Vector {
     /**
      * Create a vector of raw float16 (IEEE 754 half precision) elements. Since
      * Java has no native float16 type, each element is passed as its raw 16-bit
-     * bit pattern.
+     * bit pattern. Use {@link Float#floatToFloat16(float)} to convert from a 32 bit float to a
+     * 16 bit short. Use {@link Float#float16ToFloat(short)} to convert a 16 bit short to a
+     * 32 bit float.
      *
      * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
      */
