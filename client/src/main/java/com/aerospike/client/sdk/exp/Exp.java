@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.aerospike.client.sdk.util.Packer;
+import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
 /**
  * Expression generator.
@@ -1615,7 +1616,7 @@ public abstract class Exp {
         }
     }
 
-    static int vectorDistOpcode(final com.aerospike.client.sdk.vector.VectorDistanceMetric metric) {
+    static int vectorDistOpcode(final VectorDistanceMetric metric) {
         return switch (metric) {
             case EUCLIDEAN_SQUARED -> VECTOR_EUCLIDEAN_DIST;
             case DOT_PRODUCT -> VECTOR_DOT_PRODUCT;
