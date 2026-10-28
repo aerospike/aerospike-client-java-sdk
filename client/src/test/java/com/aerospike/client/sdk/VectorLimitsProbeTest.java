@@ -1,0 +1,87 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.sdk;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Assumptions;
+
+import com.aerospike.client.sdk.util.Version;
+import com.aerospike.client.sdk.vector.Vector;
+
+/** VECTOR dimension-limit integration tests. */
+public class VectorLimitsProbeTest extends ClusterTest {
+    private static final String binName = "vecbin";
+
+    private static final int FLOAT64_MAX_DIMS = (1 << 18) / 8;
+
+    @BeforeAll
+    static void requireVectorServer() {
+        Assumptions.assumeTrue(
+            cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_1_3),
+            "VECTOR requires server version 8.1.3+");
+    }
+
+    /**
+     * Empty vectors are rejected by the client before anything is sent (PRD R30): building one
+     * fails, so no write reaches the server.
+     */
+    @Test
+    public void emptyVectorRejectedByClient() {
+        assertThrows(IllegalArgumentException.class, () -> Vector.ofFloat32(new float[0]));
+    }
+
+    @Test
+    public void overMaxDimensionsRejectedCleanly() {
+        final Key key = key("vecovermax");
+
+        final AerospikeException ae = assertThrows(AerospikeException.class, () ->
+            session.upsert(key)
+                .bin(binName).setTo(Vector.ofFloat64(new double[FLOAT64_MAX_DIMS + 1]))
+                .execute());
+        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+
+        assertNodeAlive();
+    }
+
+    @Test
+    public void atMaxDimensionsRoundTrips() {
+        final Key key = key("vecatmax");
+
+        final Vector v = Vector.ofFloat64(new double[FLOAT64_MAX_DIMS]);
+        session.upsert(key).bin(binName).setTo(v).execute();
+
+        final Vector got = session.query(key).execute().getFirstRecord().getVector(binName);
+        assertEquals(FLOAT64_MAX_DIMS, got.dimensions);
+        assertEquals(v, got);
+    }
+
+    private void assertNodeAlive() {
+        final Key key = key("vecprobe_alive");
+        session.upsert(key).bin("ok").setTo(1).execute();
+        assertEquals(1, session.query(key).execute().getFirstRecord().getInt("ok"));
+    }
+
+    private Key key(final String id) {
+        final Key k = args.set.id(id);
+        session.delete(k).execute();
+        return k;
+    }
+}

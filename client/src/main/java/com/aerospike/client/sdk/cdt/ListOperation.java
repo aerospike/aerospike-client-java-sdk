@@ -89,6 +89,7 @@ public class ListOperation {
     private static final int REMOVE_BY_RANK_RANGE = 39;
     private static final int REMOVE_BY_VALUE_REL_RANK_RANGE = 40;
 
+
     /**
      * Create list create operation.
      * Server creates list at given context level.
@@ -106,7 +107,7 @@ public class ListOperation {
         }
 
         byte[] bytes = packCreate(order, pad, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -130,7 +131,7 @@ public class ListOperation {
 
         // Create nested list. persistIndex does not apply here, so ignore it.
         byte[] bytes = packCreate(order, pad, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     private static byte[] packCreate(ListOrder order, boolean pad, CTX[] ctx) {
@@ -155,7 +156,7 @@ public class ListOperation {
      */
     public static Operation setOrder(String binName, ListOrder order, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.SET_TYPE, order.attributes, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -176,7 +177,7 @@ public class ListOperation {
             attr |= 0x10;
         }
         byte[] bytes = Pack.pack(ListOperation.SET_TYPE, attr, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -186,7 +187,7 @@ public class ListOperation {
      */
     public static Operation append(String binName, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.APPEND, value, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -196,7 +197,7 @@ public class ListOperation {
      */
     public static Operation append(ListPolicy policy, String binName, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.APPEND, value, policy.attributes, policy.flags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -206,7 +207,7 @@ public class ListOperation {
      */
     public static Operation appendItems(String binName, List<Value> list, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.APPEND_ITEMS, list, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, Value.objectHasVector(list) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -216,7 +217,7 @@ public class ListOperation {
      */
     public static Operation appendItems(ListPolicy policy, String binName, List<Value> list, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.APPEND_ITEMS, list, policy.attributes, policy.flags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, Value.objectHasVector(list) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -226,7 +227,7 @@ public class ListOperation {
      */
     public static Operation insert(String binName, int index, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INSERT, index, value, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -236,7 +237,7 @@ public class ListOperation {
      */
     public static Operation insert(ListPolicy policy, String binName, int index, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INSERT, index, value, policy.flags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -246,7 +247,7 @@ public class ListOperation {
      */
     public static Operation insertItems(String binName, int index, List<Value> list, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INSERT_ITEMS, index, list, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, Value.objectHasVector(list) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -256,7 +257,7 @@ public class ListOperation {
      */
     public static Operation insertItems(ListPolicy policy, String binName, int index, List<Value> list, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INSERT_ITEMS, index, list, policy.flags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, Value.objectHasVector(list) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -266,7 +267,7 @@ public class ListOperation {
      */
     public static Operation increment(String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INCREMENT, index, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -276,7 +277,7 @@ public class ListOperation {
      */
     public static Operation increment(ListPolicy policy, String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INCREMENT, index, Value.get(1), policy.attributes, policy.flags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -287,7 +288,8 @@ public class ListOperation {
      */
     public static Operation increment(String binName, int index, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INCREMENT, index, value, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName,
+            Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -298,7 +300,8 @@ public class ListOperation {
      */
     public static Operation increment(ListPolicy policy, String binName, int index, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.INCREMENT, index, value, policy.attributes, policy.flags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName,
+            Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -307,7 +310,7 @@ public class ListOperation {
      */
     public static Operation pop(String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.POP, index, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -316,7 +319,7 @@ public class ListOperation {
      */
     public static Operation popRange(String binName, int index, int count, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.POP_RANGE, index, count, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -326,7 +329,7 @@ public class ListOperation {
      */
     public static Operation popRange(String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.POP_RANGE, index, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -336,7 +339,7 @@ public class ListOperation {
      */
     public static Operation remove(String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE, index, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -346,7 +349,7 @@ public class ListOperation {
      */
     public static Operation removeRange(String binName, int index, int count, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_RANGE, index, count, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -356,7 +359,7 @@ public class ListOperation {
      */
     public static Operation removeRange(String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_RANGE, index, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -366,7 +369,7 @@ public class ListOperation {
      */
     public static Operation set(String binName, int index, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.SET, index, value, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -376,7 +379,7 @@ public class ListOperation {
      */
     public static Operation set(ListPolicy policy, String binName, int index, Value value, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.SET, index, value, policy.flags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -387,7 +390,7 @@ public class ListOperation {
      */
     public static Operation trim(String binName, int index, int count, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.TRIM, index, count, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -397,7 +400,7 @@ public class ListOperation {
      */
     public static Operation clear(String binName, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.CLEAR, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -411,7 +414,7 @@ public class ListOperation {
      */
     public static Operation sort(String binName, int sortFlags, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.SORT, sortFlags, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -420,7 +423,7 @@ public class ListOperation {
      */
     public static Operation removeByValue(String binName, Value value, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_VALUE, returnType, value, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -429,7 +432,8 @@ public class ListOperation {
      */
     public static Operation removeByValueList(String binName, List<Value> values, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_VALUE_LIST, returnType, values, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName,
+            Value.get(bytes, Value.objectHasVector(values) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -442,7 +446,8 @@ public class ListOperation {
      */
     public static Operation removeByValueRange(String binName, Value valueBegin, Value valueEnd, int returnType, CTX... ctx) {
         byte[] bytes = CDT.packRangeOperation(ListOperation.REMOVE_BY_VALUE_INTERVAL, returnType, valueBegin, valueEnd, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName,
+            Value.get(bytes, Value.objectHasVector(valueBegin) || Value.objectHasVector(valueEnd) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -463,7 +468,7 @@ public class ListOperation {
      */
     public static Operation removeByValueRelativeRankRange(String binName, Value value, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -484,7 +489,7 @@ public class ListOperation {
      */
     public static Operation removeByValueRelativeRankRange(String binName, Value value, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, count, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -493,7 +498,7 @@ public class ListOperation {
      */
     public static Operation removeByIndex(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_INDEX, returnType, index, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -503,7 +508,7 @@ public class ListOperation {
      */
     public static Operation removeByIndexRange(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_INDEX_RANGE, returnType, index, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -512,7 +517,7 @@ public class ListOperation {
      */
     public static Operation removeByIndexRange(String binName, int index, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_INDEX_RANGE, returnType, index, count, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -521,7 +526,7 @@ public class ListOperation {
      */
     public static Operation removeByRank(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_RANK, returnType, rank, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -531,7 +536,7 @@ public class ListOperation {
      */
     public static Operation removeByRankRange(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_RANK_RANGE, returnType, rank, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -540,7 +545,7 @@ public class ListOperation {
      */
     public static Operation removeByRankRange(String binName, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.REMOVE_BY_RANK_RANGE, returnType, rank, count, ctx);
-        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_MODIFY, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -549,7 +554,7 @@ public class ListOperation {
      */
     public static Operation size(String binName, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.SIZE, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -563,7 +568,7 @@ public class ListOperation {
      */
     public static Operation join(String binName, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.STRING_LIST_JOIN, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -578,7 +583,7 @@ public class ListOperation {
      */
     public static Operation join(String binName, String separator, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.STRING_LIST_JOIN, Value.get(separator), ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -587,7 +592,7 @@ public class ListOperation {
      */
     public static Operation get(String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET, index, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -596,7 +601,7 @@ public class ListOperation {
      */
     public static Operation getRange(String binName, int index, int count, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_RANGE, index, count, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -605,7 +610,7 @@ public class ListOperation {
      */
     public static Operation getRange(String binName, int index, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_RANGE, index, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -614,7 +619,7 @@ public class ListOperation {
      */
     public static Operation getByValue(String binName, Value value, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_VALUE, returnType, value, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -627,7 +632,8 @@ public class ListOperation {
      */
     public static Operation getByValueRange(String binName, Value valueBegin, Value valueEnd, int returnType, CTX... ctx) {
         byte[] bytes = CDT.packRangeOperation(ListOperation.GET_BY_VALUE_INTERVAL, returnType, valueBegin, valueEnd, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName,
+            Value.get(bytes, Value.objectHasVector(valueBegin) || Value.objectHasVector(valueEnd) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -636,7 +642,7 @@ public class ListOperation {
      */
     public static Operation getByValueList(String binName, List<Value> values, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_VALUE_LIST, returnType, values, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, Value.objectHasVector(values) || CTX.hasVector(ctx)));
     }
 
     /**
@@ -657,7 +663,7 @@ public class ListOperation {
      */
     public static Operation getByValueRelativeRankRange(String binName, Value value, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -678,7 +684,7 @@ public class ListOperation {
      */
     public static Operation getByValueRelativeRankRange(String binName, Value value, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_VALUE_REL_RANK_RANGE, returnType, value, rank, count, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, value.hasVector() || CTX.hasVector(ctx)));
     }
 
     /**
@@ -688,7 +694,7 @@ public class ListOperation {
      */
     public static Operation getByIndex(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_INDEX, returnType, index, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -698,7 +704,7 @@ public class ListOperation {
      */
     public static Operation getByIndexRange(String binName, int index, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_INDEX_RANGE, returnType, index, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -708,7 +714,7 @@ public class ListOperation {
      */
     public static Operation getByIndexRange(String binName, int index, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_INDEX_RANGE, returnType, index, count, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -717,7 +723,7 @@ public class ListOperation {
      */
     public static Operation getByRank(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_RANK, returnType, rank, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -727,7 +733,7 @@ public class ListOperation {
      */
     public static Operation getByRankRange(String binName, int rank, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_RANK_RANGE, returnType, rank, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 
     /**
@@ -736,6 +742,6 @@ public class ListOperation {
      */
     public static Operation getByRankRange(String binName, int rank, int count, int returnType, CTX... ctx) {
         byte[] bytes = Pack.pack(ListOperation.GET_BY_RANK_RANGE, returnType, rank, count, ctx);
-        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes));
+        return new Operation(Operation.Type.CDT_READ, binName, Value.get(bytes, CTX.hasVector(ctx)));
     }
 }

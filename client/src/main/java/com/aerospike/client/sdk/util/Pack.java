@@ -819,6 +819,9 @@ public final class Pack {
                     c.value.pack(packer);
                 }
                 else {
+                    if (c.exp.hasVector()) {
+                        packer.markVector();
+                    }
                     packer.packByteArray(c.exp.getBytes(), 0, c.exp.getBytes().length);
                 }
             }
@@ -837,6 +840,9 @@ public final class Pack {
                 c.value.pack(packer);
             }
             else {
+                if (c.exp.hasVector()) {
+                    packer.markVector();
+                }
                 packer.packByteArray(c.exp.getBytes(), 0, c.exp.getBytes().length);
             }
         }
@@ -852,6 +858,9 @@ public final class Pack {
                 c.value.pack(packer);
             }
             else {
+                if (c.exp.hasVector()) {
+                    packer.markVector();
+                }
                 packer.packByteArray(c.exp.getBytes(), 0, c.exp.getBytes().length);
             }
         }

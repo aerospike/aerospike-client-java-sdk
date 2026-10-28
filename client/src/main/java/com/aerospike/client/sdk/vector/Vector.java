@@ -1,0 +1,471 @@
+/*
+ * Copyright 2012-2026 Aerospike, Inc.
+ *
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.aerospike.client.sdk.vector;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+
+import com.aerospike.client.sdk.command.Buffer;
+
+/**
+ * Dense vector of numeric elements, stored as the server {@code VECTOR} particle
+ * type. A vector is an immutable, typed array of elements serialized with the
+ * following little-endian wire format:
+ * <pre>
+ * Offset  Size (bytes)  Field         Description
+ * 0       1             version       The version of the vector format.
+ * 1       1             element_type  Enum identifying the element type (see {@link ElementType}).
+ * 2       4             dimensions    Number of dimensions (elements).
+ * 6       variable      data          Contiguous array of elements.
+ * </pre>
+ *
+ * <p>Construct a vector with one of the {@code of*} factory methods and store it
+ * in a bin. A vector must have at least 1 dimension. The server does not allow a
+ * vector inside a list or map bin. Instances are immutable; the factory methods
+ * and typed accessors copy their input/output arrays.</p>
+ */
+public final class Vector {
+    /**
+     * Current vector format version.
+     */
+    public static final byte VERSION = 1;
+
+    /**
+     * Size in bytes of the fixed header (version + element_type + dimensions).
+     */
+    public static final int HEADER_SIZE = 6;
+
+    /**
+     * Vector element type. The wire code and per-element byte size are fixed by
+     * the server's particle format.
+     */
+    public enum ElementType {
+        /**
+         * float16: high-density vectors (IEEE 754 half precision).
+         */
+        FLOAT16((byte)0x01, 2),
+
+        /**
+         * int32: integer-based embeddings.
+         */
+        INT32((byte)0x02, 4),
+
+        /**
+         * float (fp32): standard single precision.
+         */
+        FLOAT32((byte)0x03, 4),
+
+        /**
+         * double (fp64): high precision double.
+         */
+        FLOAT64((byte)0x04, 8);
+
+        private final byte code;
+        private final int byteSize;
+
+        ElementType(final byte code, final int byteSize) {
+            this.code = code;
+            this.byteSize = byteSize;
+        }
+
+        /**
+         * Return wire protocol code for this element type.
+         */
+        public byte getCode() {
+            return code;
+        }
+
+        /**
+         * Return the number of bytes used to encode a single element of this type.
+         */
+        public int getByteSize() {
+            return byteSize;
+        }
+
+        /**
+         * Lookup element type from its wire protocol code.
+         *
+         * @throws IllegalArgumentException if the code is not a known element type
+         */
+        public static ElementType fromCode(final byte code) {
+            for (final ElementType type : values()) {
+                if (type.code == code) {
+                    return type;
+                }
+            }
+            throw new IllegalArgumentException("Unknown vector element type code: " + code);
+        }
+    }
+
+    /**
+     * Vector format version.
+     */
+    public final byte version;
+
+    /**
+     * Vector element type.
+     */
+    public final ElementType elementType;
+
+    /**
+     * Number of dimensions (elements) in this vector.
+     */
+    public final int dimensions;
+
+    private final Object data;
+
+    private Integer wireSize;
+    private Integer hash;
+
+    private Vector(final byte version, final ElementType elementType, final int dimensions, final Object data) {
+        this.version = version;
+        this.elementType = elementType;
+        this.dimensions = dimensions;
+        this.data = data;
+    }
+
+    /**
+     * Create a vector of raw float16 (IEEE 754 half precision) elements. Since
+     * Java has no native float16 type, each element is passed as its raw 16-bit
+     * bit pattern. Use {@link Float#floatToFloat16(float)} to convert from a 32 bit float to a
+     * 16 bit short. Use {@link Float#float16ToFloat(short)} to convert a 16 bit short to a
+     * 32 bit float.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
+     */
+    public static Vector ofFloat16(final short[] data) {
+        requireDimensions(data.length);
+        return new Vector(VERSION, ElementType.FLOAT16, data.length, data.clone());
+    }
+
+    /**
+     * Create a vector of int32 elements.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
+     */
+    public static Vector ofInt32(final int[] data) {
+        requireDimensions(data.length);
+        return new Vector(VERSION, ElementType.INT32, data.length, data.clone());
+    }
+
+    /**
+     * Create a vector of float (fp32) elements.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
+     */
+    public static Vector ofFloat32(final float[] data) {
+        requireDimensions(data.length);
+        return new Vector(VERSION, ElementType.FLOAT32, data.length, data.clone());
+    }
+
+    /**
+     * Create a vector of double (fp64) elements.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
+     */
+    public static Vector ofFloat64(final double[] data) {
+        requireDimensions(data.length);
+        return new Vector(VERSION, ElementType.FLOAT64, data.length, data.clone());
+    }
+
+    private static void requireDimensions(final int dimensions) {
+        if (dimensions < 1) {
+            throw new IllegalArgumentException(
+                "Invalid vector dimensions: " + dimensions + " (must have at least 1 dimension)");
+        }
+    }
+
+    /**
+     * Return the number of bytes needed to serialize this vector in wire format
+     * (header plus element data). Computed lazily and cached on first call.
+     */
+    public int getWireSize() {
+        if (wireSize == null) {
+            wireSize = HEADER_SIZE + (dimensions * elementType.getByteSize());
+        }
+        return wireSize;
+    }
+
+    /** Serialize this vector at the specified buffer offset. */
+    public int writeTo(final byte[] buffer, final int offset) {
+        int pos = offset;
+
+        // Vector wire format is little-endian.
+        buffer[pos++] = version;
+        buffer[pos++] = elementType.getCode();
+        Buffer.intToLittleBytes(dimensions, buffer, pos);
+        pos += 4;
+
+        final int dataSize = dimensions * elementType.getByteSize();
+        final ByteBuffer view = ByteBuffer.wrap(buffer, pos, dataSize).order(ByteOrder.LITTLE_ENDIAN);
+
+        switch (elementType) {
+            case FLOAT16:
+                view.asShortBuffer().put((short[])data);
+                break;
+
+            case INT32:
+                view.asIntBuffer().put((int[])data);
+                break;
+
+            case FLOAT32:
+                view.asFloatBuffer().put((float[])data);
+                break;
+
+            case FLOAT64:
+                view.asDoubleBuffer().put((double[])data);
+                break;
+
+            default:
+                throw new IllegalStateException("Unsupported vector element type: " + elementType);
+        }
+        pos += dataSize;
+
+        return pos - offset;
+    }
+
+    /** Return complete wire bytes, including the header. */
+    public byte[] getWireBytes() {
+        final byte[] bytes = new byte[getWireSize()];
+        writeTo(bytes, 0);
+        return bytes;
+    }
+
+    /** Return element bytes without the header. */
+    public byte[] getElementBytes() {
+        final int dataSize = dimensions * elementType.getByteSize();
+        final byte[] bytes = new byte[dataSize];
+        final ByteBuffer view = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+
+        switch (elementType) {
+            case FLOAT16:
+                view.asShortBuffer().put((short[])data);
+                break;
+
+            case INT32:
+                view.asIntBuffer().put((int[])data);
+                break;
+
+            case FLOAT32:
+                view.asFloatBuffer().put((float[])data);
+                break;
+
+            case FLOAT64:
+                view.asDoubleBuffer().put((double[])data);
+                break;
+
+            default:
+                throw new IllegalStateException("Unsupported vector element type: " + elementType);
+        }
+
+        return bytes;
+    }
+
+    /**
+     * Deserialize a vector from wire format at the given buffer offset.
+     *
+     * @param buffer    buffer containing the vector wire format
+     * @param offset    offset in buffer where the vector starts
+     * @param length    number of bytes available for this vector (must be at least
+     *                  {@link #HEADER_SIZE})
+     * @throws IllegalArgumentException if the bytes are not a valid vector, including a dimension
+     *                  count less than 1
+     */
+    public static Vector from(final byte[] buffer, final int offset, final int length) {
+        if (offset < 0 || length < HEADER_SIZE || offset > buffer.length - length) {
+            throw new IllegalArgumentException("Invalid vector offset or length");
+        }
+
+        final byte version = buffer[offset];
+
+        if (version != VERSION) {
+            throw new IllegalArgumentException("Invalid vector version: Expected " + VERSION + ". Received " + version + '.');
+        }
+
+        final ElementType elementType = ElementType.fromCode(buffer[offset + 1]);
+        final int dimensions = Buffer.littleBytesToInt(buffer, offset + 2);
+
+        requireDimensions(dimensions);
+
+        // Validate encoded length before allocation.
+        final long dataSizeLong = (long)dimensions * elementType.getByteSize();
+
+        if (dataSizeLong > Integer.MAX_VALUE - HEADER_SIZE ||
+            length != HEADER_SIZE + dataSizeLong) {
+            throw new IllegalArgumentException("Invalid vector length: " + length +
+                ", expected exactly " + (HEADER_SIZE + dataSizeLong));
+        }
+
+        final int dataSize = (int)dataSizeLong;
+        final ByteBuffer view = ByteBuffer.wrap(buffer, offset + HEADER_SIZE, dataSize)
+            .order(ByteOrder.LITTLE_ENDIAN);
+        final Object data;
+
+        switch (elementType) {
+            case FLOAT16: {
+                final short[] arr = new short[dimensions];
+                view.asShortBuffer().get(arr);
+                data = arr;
+                break;
+            }
+
+            case INT32: {
+                final int[] arr = new int[dimensions];
+                view.asIntBuffer().get(arr);
+                data = arr;
+                break;
+            }
+
+            case FLOAT32: {
+                final float[] arr = new float[dimensions];
+                view.asFloatBuffer().get(arr);
+                data = arr;
+                break;
+            }
+
+            case FLOAT64: {
+                final double[] arr = new double[dimensions];
+                view.asDoubleBuffer().get(arr);
+                data = arr;
+                break;
+            }
+
+            default:
+                throw new IllegalStateException("Unsupported vector element type: " + elementType);
+        }
+
+        return new Vector(version, elementType, dimensions, data);
+    }
+
+    /**
+     * Return raw float16 data. Throws {@link IllegalStateException} if this
+     * vector's element type is not {@link ElementType#FLOAT16}.
+     */
+    public short[] getFloat16Data() {
+        validateType(ElementType.FLOAT16);
+        return ((short[])data).clone();
+    }
+
+    /**
+     * Return int32 data. Throws {@link IllegalStateException} if this vector's
+     * element type is not {@link ElementType#INT32}.
+     */
+    public int[] getInt32Data() {
+        validateType(ElementType.INT32);
+        return ((int[])data).clone();
+    }
+
+    /**
+     * Return float (fp32) data. Throws {@link IllegalStateException} if this
+     * vector's element type is not {@link ElementType#FLOAT32}.
+     */
+    public float[] getFloat32Data() {
+        validateType(ElementType.FLOAT32);
+        return ((float[])data).clone();
+    }
+
+    /**
+     * Return double (fp64) data. Throws {@link IllegalStateException} if this
+     * vector's element type is not {@link ElementType#FLOAT64}.
+     */
+    public double[] getFloat64Data() {
+        validateType(ElementType.FLOAT64);
+        return ((double[])data).clone();
+    }
+
+    private void validateType(final ElementType expected) {
+        if (elementType != expected) {
+            throw new IllegalStateException(
+                "Vector element type is " + elementType + ", not " + expected);
+        }
+    }
+
+    @Override
+    public String toString() {
+        switch (elementType) {
+            case FLOAT16:
+                return Arrays.toString((short[])data);
+            case INT32:
+                return Arrays.toString((int[])data);
+            case FLOAT32:
+                return Arrays.toString((float[])data);
+            case FLOAT64:
+                return Arrays.toString((double[])data);
+            default:
+                return data.toString();
+        }
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if (!(obj instanceof Vector)) {
+            return false;
+        }
+
+        final Vector other = (Vector)obj;
+
+        if (elementType != other.elementType || dimensions != other.dimensions) {
+            return false;
+        }
+
+        switch (elementType) {
+            case FLOAT16:
+                return Arrays.equals((short[])data, (short[])other.data);
+            case INT32:
+                return Arrays.equals((int[])data, (int[])other.data);
+            case FLOAT32:
+                return Arrays.equals((float[])data, (float[])other.data);
+            case FLOAT64:
+                return Arrays.equals((double[])data, (double[])other.data);
+            default:
+                return data.equals(other.data);
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        if (hash == null) {
+            int h = elementType.hashCode();
+            h = 31 * h + dimensions;
+
+            switch (elementType) {
+                case FLOAT16:
+                    h = 31 * h + Arrays.hashCode((short[])data);
+                    break;
+                case INT32:
+                    h = 31 * h + Arrays.hashCode((int[])data);
+                    break;
+                case FLOAT32:
+                    h = 31 * h + Arrays.hashCode((float[])data);
+                    break;
+                case FLOAT64:
+                    h = 31 * h + Arrays.hashCode((double[])data);
+                    break;
+                default:
+                    h = 31 * h + data.hashCode();
+                    break;
+            }
+            hash = h;
+        }
+        return hash;
+    }
+}

@@ -22,6 +22,7 @@ import java.util.Map.Entry;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.command.ParticleType;
+import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.util.ContainerString;
 
 import java.util.SortedMap;
@@ -69,7 +70,8 @@ public final class Bin {
 
     /**
      * Constructor, specifying bin name, byte array value and particle type.
-     * Supported particle types are {@link ParticleType#BLOB} or {@link ParticleType#STRING}.
+     * Supported particle types are {@link ParticleType#BLOB}, {@link ParticleType#STRING}
+     * or {@link ParticleType#VECTOR}.
      * For internal use only.
      *
      * @param name      bin name, current limit is 15 characters
@@ -258,6 +260,17 @@ public final class Bin {
     public Bin(String name, List<? extends Entry<?,?>> value, MapOrder mapOrder) {
         this.name = name;
         this.value = Value.get(value, mapOrder);
+    }
+
+    /**
+     * Create bin with a vector value.  The value is serialized as the server vector particle type.
+     *
+     * @param name      bin name, current limit is 15 characters
+     * @param value     bin value
+     */
+    public Bin(final String name, final Vector value) {
+        this.name = name;
+        this.value = Value.get(value);
     }
 
     /**

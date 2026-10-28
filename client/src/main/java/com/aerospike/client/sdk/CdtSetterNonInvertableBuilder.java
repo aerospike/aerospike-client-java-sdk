@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.vector.Vector;
+
 /**
  * This interface provides terminal methods to set values at the end of a CDT chain. The
  * only valid way of setting a value is to use onMapKey().set(...) style methods. There
@@ -132,6 +134,18 @@ public interface CdtSetterNonInvertableBuilder<T extends AbstractOperationBuilde
     public T upsert(List<?> value, MapEntryWriteOptions options);
     public T upsert(Map<?,?> value, MapEntryWriteOptions options);
     public <U> T upsert(U value, RecordMapper<U> mapper, MapEntryWriteOptions options);
+
+    // Vector overloads
+    public T setTo(Vector value);
+    public T insert(Vector value);
+    public T insert(Vector value, Consumer<MapEntryWriteOptions> options);
+    public T insert(Vector value, MapEntryWriteOptions options);
+    public T update(Vector value);
+    public T update(Vector value, Consumer<MapEntryWriteOptions> options);
+    public T update(Vector value, MapEntryWriteOptions options);
+    public T upsert(Vector value);
+    public T upsert(Vector value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(Vector value, MapEntryWriteOptions options);
 
     public T add(long value);
     public T add(double value);

@@ -30,6 +30,7 @@ import com.aerospike.client.sdk.cdt.ListOrder;
 import com.aerospike.client.sdk.cdt.MapOrder;
 import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
+import com.aerospike.client.sdk.vector.Vector;
 
 import java.util.UUID;
 
@@ -120,9 +121,20 @@ public final class Packer {
 
     private byte[] buffer;
     private int offset;
+    private boolean hasVector;
 
     public Packer() {
         // Default to null buffer in estimate buffer size mode.
+    }
+
+    /** Mark a VECTOR encoded as particle bytes. */
+    public void markVector() {
+        hasVector = true;
+    }
+
+    /** Whether this pack pass serialized a VECTOR. */
+    public boolean hasVector() {
+        return hasVector;
     }
 
     public void packValueArray(Value[] values) {
@@ -267,6 +279,9 @@ public final class Packer {
     }
 
     public void packParticleBytes(byte[] b, int type) {
+        if (type == ParticleType.VECTOR) {
+            hasVector = true;
+        }
         packByteArrayBegin(b.length + 1);
         packByte(type);
         packByteArray(b, 0, b.length);
@@ -283,6 +298,13 @@ public final class Packer {
         packByteArrayBegin(buffer.length + 1);
         packByte(ParticleType.GEOJSON);
         packByteArray(buffer, 0, buffer.length);
+    }
+
+    public void packVector(final Vector val) {
+        hasVector = true;
+        final byte[] buffer = new byte[val.getWireSize()];
+        val.writeTo(buffer, 0);
+        packParticleBytes(buffer, ParticleType.VECTOR);
     }
 
     public void packHLL(byte[] bytes) {
@@ -351,6 +373,11 @@ public final class Packer {
 
         if (obj instanceof Map<?,?>) {
             packMap((Map<?,?>)obj);
+            return;
+        }
+
+        if (obj instanceof Vector) {
+            packVector((Vector)obj);
             return;
         }
 
