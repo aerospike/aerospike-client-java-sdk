@@ -93,6 +93,13 @@ public final class SubCode {
     /** String or string op argument is not valid UTF-8. */
     public static final int PARAM_STRING_UTF8_INVALID = 11;
 
+    /**
+     * Top-K query (order-by / top-k fields) malformed, or not allowed with the
+     * query's type or other fields. The message names the rule broken.
+     * App use: fix the request - retrying it unchanged fails the same way.
+     */
+    public static final int PARAM_TOP_K_INVALID = 12;
+
     //-------------------------------------------------------
     // Pairs with ResultCode.PARTITION_UNAVAILABLE (11)  [AS_ERR_UNAVAILABLE]
     //-------------------------------------------------------

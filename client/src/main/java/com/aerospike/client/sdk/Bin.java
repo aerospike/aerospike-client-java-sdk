@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
+import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.util.ContainerString;
 
@@ -69,6 +70,8 @@ public final class Bin {
 
     /**
      * Constructor, specifying bin name, byte array value and particle type.
+     * Supported particle types are {@link ParticleType#BLOB}, {@link ParticleType#STRING}
+     * or {@link ParticleType#VECTOR}.
      * For internal use only.
      *
      * @param name      bin name, current limit is 15 characters

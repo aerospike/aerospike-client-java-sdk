@@ -74,6 +74,8 @@ public abstract class Value {
 
     /**
      * Get byte array with type or null value instance.
+     * Supported particle types are {@link ParticleType#BLOB}, {@link ParticleType#STRING}
+     * or {@link ParticleType#VECTOR}.
      */
     public static Value get(byte[] value, int type) {
         return (value == null)? NullValue.INSTANCE : new BytesValue(value, type);
@@ -531,6 +533,9 @@ public abstract class Value {
         }
 
         public BytesValue(byte[] bytes, int type) {
+            if (! (type == ParticleType.BLOB || type == ParticleType.STRING || type == ParticleType.VECTOR)) {
+                throw new IllegalArgumentException("Bytes ParticleType must be BLOB, STRING or VECTOR");
+            }
             this.bytes = bytes;
             this.type = type;
         }
