@@ -174,7 +174,13 @@ public class TransactionalSession extends Session{
                         throw e;
                     }
 
-                    commitTxnOrThrow();
+                    if (isTxnEmpty()) {
+                        txn.setState(Txn.State.COMMITTED);
+                    }
+                    else {
+                        commitTxnWithRetryOrThrow(attempt, maxAttempts, sleepBetweenAttempts);
+                    }
+
                     return result;
                 }
             }
@@ -263,7 +269,12 @@ public class TransactionalSession extends Session{
                         throw e;
                     }
 
-                    return commitTxn();
+                    if (isTxnEmpty()) {
+                        txn.setState(Txn.State.COMMITTED);
+                        return TxnStatus.COMMITTED;
+                    }
+
+                    return commitTxnWithRetry(attempt, maxAttempts, sleepBetweenAttempts);
                 }
             }
         }
@@ -369,31 +380,57 @@ public class TransactionalSession extends Session{
         return millis + ThreadLocalRandom.current().nextLong(-jitter, jitter + 1);
     }
 
-    private TxnStatus commitTxn() {
-        if (isTxnEmpty()) {
-            txn.setState(Txn.State.COMMITTED);
-            return TxnStatus.COMMITTED;
-        }
-        return commitTxn(new TxnRoll(getCluster(), txn));
-    }
-
     /**
      * Commits, throwing when the roll-forward was abandoned. Used where the caller has no way to
      * receive a {@link TxnStatus}, so silence would leave provisional writes looking committed.
      * CLOSE_ABANDONED is not an error: those writes are durable and only the transaction monitor
      * cleanup was left to the server.
      */
-    private void commitTxnOrThrow() {
-        if (isTxnEmpty()) {
-            txn.setState(Txn.State.COMMITTED);
-            return;
+    private void commitTxnWithRetryOrThrow(
+        int currentAttempt, int maxAttempts, Duration sleepBetweenAttempts
+    ) {
+        for (int attempt = currentAttempt; ; attempt++) {
+            try {
+                TxnRoll tr = new TxnRoll(getCluster(), txn);
+                TxnStatus status = commitTxn(tr);
+
+                if (status == TxnStatus.ROLL_FORWARD_ABANDONED) {
+                    throw tr.getRollForwardException();
+                }
+            }
+            catch (AerospikeException.Commit aec) {
+                handleCommitError(attempt, maxAttempts, sleepBetweenAttempts, aec);
+            }
+        }
+    }
+
+    private TxnStatus commitTxnWithRetry(
+        int currentAttempt, int maxAttempts, Duration sleepBetweenAttempts
+    ) {
+        for (int attempt = currentAttempt; ; attempt++) {
+            try {
+                TxnRoll tr = new TxnRoll(getCluster(), txn);
+                return commitTxn(tr);
+            }
+            catch (AerospikeException.Commit aec) {
+                handleCommitError(attempt, maxAttempts, sleepBetweenAttempts, aec);
+            }
+        }
+    }
+
+    private void handleCommitError(
+        int attempt, int maxAttempts, Duration sleepBetweenAttempts, AerospikeException.Commit aec
+    ) {
+        // COMMIT_FAILED is reached only after an in-doubt commit.
+        boolean retry = txn.getState() == Txn.State.COMMIT_FAILED
+            && attempt < maxAttempts
+            && aec.resultCode != ResultCode.MRT_EXPIRED;
+
+        if (!retry) {
+            throw aec;
         }
 
-        TxnRoll tr = new TxnRoll(getCluster(), txn);
-
-        if (commitTxn(tr) == TxnStatus.ROLL_FORWARD_ABANDONED) {
-            throw tr.getRollForwardException();
-        }
+        sleepBetweenRetries(sleepBetweenAttempts);
     }
 
     private TxnStatus commitTxn(TxnRoll tr) {
