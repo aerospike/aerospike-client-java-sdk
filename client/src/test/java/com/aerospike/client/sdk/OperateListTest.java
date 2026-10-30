@@ -524,6 +524,41 @@ public class OperateListTest extends ClusterTest {
     }
 
     @Test
+    public void operateListSortDesc() {
+        Key key = args.set.id("operateListSortDesc");
+
+        session.delete(key).execute();
+
+        List<Integer> itemList = new ArrayList<>();
+        itemList.add(1);
+        itemList.add(-11);
+        itemList.add(12);
+        itemList.add(11);
+
+        RecordStream rs = session.upsert(key)
+            .bin(binName).listAppendItems(itemList)
+            .bin(binName).listSort(ListSortFlags.DESCENDING)
+            .bin(binName).listGet(0)
+            .execute();
+
+        assertTrue(rs.hasNext());
+        Record rec = rs.next().recordOrThrow();
+        //System.out.println("REC=" + rec);
+
+        List<?> results = rec.getList(binName);
+        int i = 0;
+
+        long size = (Long)results.get(i++);
+        assertEquals(4L, size);
+
+        Object obj = results.get(i++);
+        assertNull(obj);
+
+        long val = (Long)results.get(i++);
+        assertEquals(12L, val);
+    }
+
+    @Test
     public void operateListRemove() {
         Key key = args.set.id("operateListRemove");
 
