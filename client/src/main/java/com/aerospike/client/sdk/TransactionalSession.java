@@ -397,6 +397,7 @@ public class TransactionalSession extends Session{
                 if (status == TxnStatus.ROLL_FORWARD_ABANDONED) {
                     throw tr.getRollForwardException();
                 }
+                return;
             }
             catch (AerospikeException.Commit aec) {
                 handleCommitError(attempt, maxAttempts, sleepBetweenAttempts, aec);
