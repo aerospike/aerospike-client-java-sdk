@@ -56,6 +56,15 @@ final class TcpGate implements Closeable {
     /** Data messages the client may still send before the gate trips. Negative disables it. */
     private final AtomicInteger allowance = new AtomicInteger(-1);
 
+    /**
+     * What happens when the allowance runs out: true drops only the message that tripped the gate
+     * and its connection, false refuses all connections.
+     */
+    private volatile boolean dropOnly;
+
+    /** Client messages swallowed by {@link #dropAfterClientMessages(int)}. */
+    private final AtomicInteger droppedMessages = new AtomicInteger();
+
     private final String upstreamHost;
     private final int upstreamPort;
     private final int port;
@@ -113,7 +122,27 @@ final class TcpGate implements Closeable {
      * allowance depend on tend timing.
      */
     void refuseAfterClientMessages(int count) {
+        dropOnly = false;
         allowance.set(count);
+    }
+
+    /**
+     * Forward {@code count} more data messages from the client, then swallow the one after that
+     * and close only the connection it arrived on. The gate disarms itself and keeps listening, so
+     * the client's next attempt goes through.
+     * <p>
+     * This exists to make one command fail in doubt and let a retry succeed. The message never
+     * reaches the server, but the client has already written it, so it cannot tell whether the
+     * command took effect. {@link #refuseAfterClientMessages(int)} would fail the retry too.
+     */
+    void dropAfterClientMessages(int count) {
+        dropOnly = true;
+        allowance.set(count);
+    }
+
+    /** Number of client messages swallowed by {@link #dropAfterClientMessages(int)}. */
+    int droppedMessageCount() {
+        return droppedMessages.get();
     }
 
     /** Rebind the same port and resume forwarding. */
@@ -187,6 +216,12 @@ final class TcpGate implements Closeable {
 
                     if (forward < count) {
                         // The withheld bytes begin a message the allowance does not cover.
+                        if (dropOnly) {
+                            // Disarm, then let the finally block drop just this connection.
+                            allowance.set(-1);
+                            droppedMessages.incrementAndGet();
+                            return;
+                        }
                         refuseConnections();
                         return;
                     }
