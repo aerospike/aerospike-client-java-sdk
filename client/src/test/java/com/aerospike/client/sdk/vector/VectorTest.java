@@ -129,6 +129,133 @@ public class VectorTest {
     }
 
     //-------------------------------------------------------
+    // float16 from/to 32 bit floats
+    //-------------------------------------------------------
+
+    @Test
+    void constructFloat16FromFloat() {
+        final Vector v = Vector.ofFloat16(new float[] {1.0f, -1.0f, 2.0f, 0.0f});
+
+        assertSame(ElementType.FLOAT16, v.elementType);
+        assertEquals(4, v.dimensions);
+        assertArrayEquals(new short[] {0x3c00, (short)0xbc00, 0x4000, 0x0000}, v.getFloat16Data());
+        assertArrayEquals(new float[] {1.0f, -1.0f, 2.0f, 0.0f}, v.getFloat16DataAsFloat(), 0.0f);
+    }
+
+    @Test
+    void float16FromFloatMatchesBitPatternVector() {
+        // Both factories must produce the same vector, so the float[] form interchanges with
+        // clients that send bit patterns.
+        final float[] data = new float[] {0.1f, -3.75f, 1000.5f, 65504.0f};
+        final short[] bits = new short[data.length];
+
+        for (int i = 0; i < data.length; i++) {
+            bits[i] = Float.floatToFloat16(data[i]);
+        }
+
+        final Vector fromFloat = Vector.ofFloat16(data);
+        final Vector fromBits = Vector.ofFloat16(bits);
+
+        assertEquals(fromBits, fromFloat);
+        assertArrayEquals(fromBits.getWireBytes(), fromFloat.getWireBytes());
+    }
+
+    @Test
+    void float16FromFloatRoundsTiesToEven() {
+        // float16 has 10 fraction bits, so near 1.0 its spacing is 2^-10. Each input below
+        // lies exactly halfway between two float16 values.
+        final float tieDown = 1.0f + 0x1p-11f;      // between 1.0 (even) and 1 + 2^-10 (odd)
+        final float tieUp = 1.0f + 3 * 0x1p-11f;    // between 1 + 2^-10 (odd) and 1 + 2^-9 (even)
+
+        final Vector v = Vector.ofFloat16(new float[] {tieDown, tieUp});
+
+        assertArrayEquals(new short[] {0x3c00, 0x3c02}, v.getFloat16Data());
+        assertArrayEquals(new float[] {1.0f, 1.0f + 0x1p-9f}, v.getFloat16DataAsFloat(), 0.0f);
+    }
+
+    @Test
+    void float16FromFloatRoundsToNearest() {
+        // 0.1 is not representable. The nearest float16 is 0x2e66 (0.0999755859375).
+        final Vector v = Vector.ofFloat16(new float[] {0.1f});
+
+        assertArrayEquals(new short[] {0x2e66}, v.getFloat16Data());
+        assertEquals(0.0999755859375f, v.getFloat16DataAsFloat()[0], 0.0f);
+    }
+
+    @Test
+    void float16FromFloatAcceptsLimits() {
+        // 65504 is the largest float16. Anything below 65520 still rounds to it.
+        final float belowOverflow = Math.nextDown(65520.0f);
+        final float minSubnormal = 0x1p-24f;
+
+        final Vector v = Vector.ofFloat16(
+            new float[] {65504.0f, -65504.0f, belowOverflow, -belowOverflow, minSubnormal, -0.0f});
+
+        assertArrayEquals(
+            new short[] {0x7bff, (short)0xfbff, 0x7bff, (short)0xfbff, 0x0001, (short)0x8000},
+            v.getFloat16Data());
+    }
+
+    @Test
+    void float16FromFloatRejectsNonFinite() {
+        final float[] invalid = new float[] {
+            Float.NaN,
+            Float.POSITIVE_INFINITY,
+            Float.NEGATIVE_INFINITY,
+            65520.0f,               // rounds up to +infinity
+            -65520.0f,              // rounds down to -infinity
+            1.0e6f,
+            Float.MAX_VALUE
+        };
+
+        for (final float value : invalid) {
+            final IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> Vector.ofFloat16(new float[] {1.0f, value}), () -> "accepted " + value);
+
+            assertTrue(e.getMessage().contains("index 1"), e.getMessage());
+        }
+    }
+
+    @Test
+    void float16AsFloatConvertsStoredBitsExactly() {
+        // Bit patterns from another client, including non-finite ones the float[] factory would
+        // reject, all convert to their exact float values.
+        final Vector v = Vector.ofFloat16(
+            new short[] {0x3555, 0x0001, 0x7c00, (short)0xfc00, 0x7e00});
+
+        final float[] f = v.getFloat16DataAsFloat();
+
+        assertEquals(0.333251953125f, f[0], 0.0f);
+        assertEquals(0x1p-24f, f[1], 0.0f);
+        assertEquals(Float.POSITIVE_INFINITY, f[2], 0.0f);
+        assertEquals(Float.NEGATIVE_INFINITY, f[3], 0.0f);
+        assertTrue(Float.isNaN(f[4]));
+    }
+
+    @Test
+    void float16FromFloatCopiesInputAndGetterReturnsCopy() {
+        final float[] data = new float[] {1.0f, 2.0f};
+        final Vector v = Vector.ofFloat16(data);
+
+        data[0] = 99.0f;
+        assertEquals(1.0f, v.getFloat16DataAsFloat()[0], 0.0f);
+
+        v.getFloat16DataAsFloat()[1] = 99.0f;
+        assertEquals(2.0f, v.getFloat16DataAsFloat()[1], 0.0f);
+    }
+
+    @Test
+    void float16AsFloatWrongTypeThrows() {
+        final Vector v = Vector.ofFloat32(new float[] {1.0f});
+        assertThrows(IllegalStateException.class, v::getFloat16DataAsFloat);
+    }
+
+    @Test
+    void float16FromEmptyFloatArrayThrows() {
+        assertThrows(IllegalArgumentException.class, () -> Vector.ofFloat16(new float[0]));
+    }
+
+    //-------------------------------------------------------
     // Immutability (defensive copies)
     //-------------------------------------------------------
 

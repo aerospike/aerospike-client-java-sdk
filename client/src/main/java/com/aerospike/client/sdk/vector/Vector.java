@@ -51,6 +51,11 @@ public final class Vector {
     public static final int HEADER_SIZE = 6;
 
     /**
+     * Exponent bits of a float16. All ones means NaN or infinity.
+     */
+    private static final int FLOAT16_EXPONENT_MASK = 0x7c00;
+
+    /**
      * Vector element type. The wire code and per-element byte size are fixed by
      * the server's particle format.
      */
@@ -142,15 +147,50 @@ public final class Vector {
     /**
      * Create a vector of raw float16 (IEEE 754 half precision) elements. Since
      * Java has no native float16 type, each element is passed as its raw 16-bit
-     * bit pattern. Use {@link Float#floatToFloat16(float)} to convert from a 32 bit float to a
+     * bit pattern, which is stored unchanged.
+     * <p>
+     * Use {@link Float#floatToFloat16(float)} to convert from a 32 bit float to a
      * 16 bit short. Use {@link Float#float16ToFloat(short)} to convert a 16 bit short to a
      * 32 bit float.
+     * <p>
+     * To convert from 32 bit floats, use {@link #ofFloat16(float[])}.
      *
      * @throws IllegalArgumentException if {@code data} is empty; a vector must have at least 1 dimension
      */
     public static Vector ofFloat16(final short[] data) {
         requireDimensions(data.length);
         return new Vector(VERSION, ElementType.FLOAT16, data.length, data.clone());
+    }
+
+    /**
+     * Create a float16 (IEEE 754 half precision) vector from 32 bit floats. Each
+     * element is converted with {@link Float#floatToFloat16(float)}, which rounds to
+     * the nearest float16, ties to even.
+     * <p>
+     * A vector does not support non-finite elements, so an element whose
+     * conversion is NaN or infinite is rejected. This includes NaN and infinite
+     * inputs, and finite inputs with a magnitude of 65520 or more, which round to
+     * infinity. The largest float16 value is 65504.
+     *
+     * @throws IllegalArgumentException if {@code data} is empty, or if an element
+     *         converts to NaN or infinity
+     */
+    public static Vector ofFloat16(final float[] data) {
+        requireDimensions(data.length);
+
+        final short[] bits = new short[data.length];
+
+        for (int i = 0; i < data.length; i++) {
+            final short h = Float.floatToFloat16(data[i]);
+
+            if ((h & FLOAT16_EXPONENT_MASK) == FLOAT16_EXPONENT_MASK) {
+                // An all-ones exponent is NaN or infinity.
+                throw new IllegalArgumentException("Invalid float16 vector element at index " + i +
+                    ": " + data[i] + " is not representable as a finite float16");
+            }
+            bits[i] = h;
+        }
+        return new Vector(VERSION, ElementType.FLOAT16, bits.length, bits);
     }
 
     /**
@@ -359,6 +399,25 @@ public final class Vector {
     public short[] getFloat16Data() {
         validateType(ElementType.FLOAT16);
         return ((short[])data).clone();
+    }
+
+    /**
+     * Return float16 data converted to 32 bit floats with
+     * {@link Float#float16ToFloat(short)}. The conversion is exact: every float16
+     * value, including NaN and infinity, has a float equivalent. Throws
+     * {@link IllegalStateException} if this vector's element type is not
+     * {@link ElementType#FLOAT16}.
+     */
+    public float[] getFloat16DataAsFloat() {
+        validateType(ElementType.FLOAT16);
+
+        final short[] bits = (short[])data;
+        final float[] arr = new float[bits.length];
+
+        for (int i = 0; i < bits.length; i++) {
+            arr[i] = Float.float16ToFloat(bits[i]);
+        }
+        return arr;
     }
 
     /**
