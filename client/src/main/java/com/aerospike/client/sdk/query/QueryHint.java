@@ -90,7 +90,13 @@ public final class QueryHint {
      * State after {@code forIndex()} &ndash; strict hint and duration remain.
      */
     public interface AfterIndex extends AfterTarget {
-        /** Require the hinted index name on explain (no soft fallback). */
+        /**
+         * Require the hinted index name on explain (no soft fallback).
+         * <p>
+         * This is an internal method for backwards compatibility only.
+         * Do not use. Will be removed in the future.
+         */
+        @Deprecated
         Result hardHint();
         /** Allow primary index scans with where clause. Secondary index queries are not affected. */
         AfterIndex allowScansWithWhere();
@@ -166,6 +172,7 @@ public final class QueryHint {
          * This is an internal method for backwards compatibility only.
          * Do not use. Will be removed in the future.
          */
+        @Deprecated
         @Override
         public Result hardHint() {
             if (indexName == null || indexName.isBlank()) {
