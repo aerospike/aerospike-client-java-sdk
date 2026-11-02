@@ -20,7 +20,13 @@ import com.aerospike.client.sdk.exp.Exp;
 
 /**
  * Represents any AEL expression. This is the base interface for all expressions.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public interface AelExpression {
     String toAerospikeExpr();
     Exp toAerospikeExp();

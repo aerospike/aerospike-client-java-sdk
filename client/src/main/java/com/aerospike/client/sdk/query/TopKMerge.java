@@ -17,7 +17,6 @@
 package com.aerospike.client.sdk.query;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -122,6 +121,7 @@ final class TopKMerge {
         };
     }
 
+    /*
     private static Object extractStringKey(Object raw, OrderBySpec spec) {
         if (!(raw instanceof String s)) {
             return null;
@@ -137,6 +137,7 @@ final class TopKMerge {
         }
         return bytes;
     }
+    */
 
     private static Comparator<RecordResult> comparator(List<OrderBySpec> specs) {
         return (a, b) -> {

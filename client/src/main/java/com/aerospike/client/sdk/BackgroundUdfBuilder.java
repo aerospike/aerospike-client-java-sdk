@@ -168,8 +168,14 @@ public class BackgroundUdfBuilder extends AbstractSessionOperationBuilder<Backgr
      * {@inheritDoc}
      * <p>
      * The predicate is applied on the server so only matching records run the UDF.
+     *
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
     @Override
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public BackgroundUdfBuilder where(BooleanExpression ael) {
         setWhereClause(WhereClauseProcessor.from(ael));
         return this;

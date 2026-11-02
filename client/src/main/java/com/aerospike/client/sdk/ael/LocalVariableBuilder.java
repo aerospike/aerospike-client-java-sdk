@@ -22,7 +22,13 @@ import java.util.List;
 /**
  * Builder for creating expressions with local variable scope.
  * Provides an API for defining variables and their scope.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public class LocalVariableBuilder {
     private final List<VariableDefinition> variables = new ArrayList<>();
     private final String currentVariableName;

@@ -19,7 +19,13 @@ package com.aerospike.client.sdk.ael;
 /**
  * Represents a numeric expression that can be used in arithmetic operations.
  * This interface is implemented by both Long and Double expressions.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public interface NumericExpression extends AelExpression {
     NumericExpression add(NumericExpression other);
     NumericExpression sub(NumericExpression other);

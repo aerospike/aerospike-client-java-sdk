@@ -105,6 +105,11 @@ public abstract class WhereClauseProcessor {
         }
     }
 
+    /**
+     * @deprecated Supports the deprecated programmatic AEL builder. Will be removed with it.
+     */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     private static final class WhereBoolExprImpl extends WhereClauseProcessor {
         private final BooleanExpression ael;
 
@@ -159,6 +164,13 @@ public abstract class WhereClauseProcessor {
         return new WherePreparedImpl(ael, params);
     }
 
+    /**
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
+     */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public static WhereClauseProcessor from(BooleanExpression ael) {
         return new WhereBoolExprImpl(ael);
     }

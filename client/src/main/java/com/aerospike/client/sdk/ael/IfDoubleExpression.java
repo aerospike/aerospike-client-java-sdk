@@ -21,7 +21,13 @@ import com.aerospike.client.sdk.exp.Exp;
 /**
  * Wrapper class that allows IfExpression to be used in Double arithmetic operations.
  * This enables expressions like: $.bina + if(binb > 10.0, 20.0, 30.0)
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public class IfDoubleExpression implements DoubleExpression {
     private final IfExpression ifExpr;
 

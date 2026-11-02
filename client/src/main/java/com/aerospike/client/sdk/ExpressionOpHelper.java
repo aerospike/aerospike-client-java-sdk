@@ -82,7 +82,12 @@ public final class ExpressionOpHelper {
      * @param ael programmatic boolean expression
      * @param flags {@link com.aerospike.client.sdk.exp.ExpReadFlags} bitmask
      * @return Aerospike {@link Operation} for expression read
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public static Operation createReadOp(String binName, BooleanExpression ael, int flags) {
         return ExpOperation.read(binName, fromBooleanExpression(ael), flags);
     }
@@ -167,7 +172,12 @@ public final class ExpressionOpHelper {
      * @param ael programmatic boolean expression
      * @param flags {@link com.aerospike.client.sdk.exp.ExpWriteFlags} bitmask
      * @return Aerospike {@link Operation} for expression write
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public static Operation createWriteOp(String binName, BooleanExpression ael, int flags) {
         return ExpOperation.write(binName, fromBooleanExpression(ael), flags);
     }
@@ -240,6 +250,11 @@ public final class ExpressionOpHelper {
         return opBuilder.addOp(createWriteOp(binName, ael, flags, opBuilder.getSession().getCluster()));
     }
 
+    /**
+     * @deprecated Supports the deprecated programmatic AEL builder. Will be removed with it.
+     */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     private static Expression fromBooleanExpression(BooleanExpression ael) {
         return Exp.build(ael.toAerospikeExp());
     }

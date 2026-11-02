@@ -262,7 +262,12 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * }</pre>
      *
      * @param ael the boolean expression to evaluate
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public P selectFrom(BooleanExpression ael) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
         return wrapResult();
@@ -279,7 +284,12 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      *
      * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public P selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
@@ -295,7 +305,12 @@ public final class QueryBinBuilder<P> implements CdtOperationAcceptor<P> {
      * @param ael     the boolean expression to evaluate
      * @param options the read options to apply
      * @return the parent query builder for continued chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public P selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
         return wrapResult();

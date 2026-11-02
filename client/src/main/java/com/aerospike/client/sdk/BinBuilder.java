@@ -378,7 +378,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T selectFrom(BooleanExpression ael) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
     }
@@ -395,7 +400,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
@@ -410,7 +420,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael     the boolean expression to evaluate
      * @param options the read options to apply
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
         return opBuilder.addOp(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
     }
@@ -637,7 +652,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T insertFrom(BooleanExpression ael) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.CREATE_ONLY));
     }
@@ -654,7 +674,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T insertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.CREATE_ONLY);
         options.accept(opts);
@@ -672,7 +697,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael     the boolean expression to evaluate
      * @param options the write options to apply
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T insertFrom(BooleanExpression ael, ExpressionWriteOptions options) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
@@ -911,7 +941,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T updateFrom(BooleanExpression ael) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.UPDATE_ONLY));
     }
@@ -928,7 +963,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael the boolean expression to evaluate
      * @param options configure via {@code ignoreOpFailure()}, {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T updateFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.UPDATE_ONLY);
         options.accept(opts);
@@ -946,7 +986,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael     the boolean expression to evaluate
      * @param options the write options to apply
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T updateFrom(BooleanExpression ael, ExpressionWriteOptions options) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }
@@ -1184,7 +1229,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      *
      * @param ael the boolean expression to evaluate
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T upsertFrom(BooleanExpression ael) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, ExpWriteFlags.DEFAULT));
     }
@@ -1201,7 +1251,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael the boolean expression to evaluate
      * @param options configure via {@code deleteIfNull()}, {@code ignoreEvalFailure()}
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T upsertFrom(BooleanExpression ael, Consumer<ExpressionWriteOptions> options) {
         ExpressionWriteOptions opts = new ExpressionWriteOptions(ExpWriteFlags.DEFAULT);
         options.accept(opts);
@@ -1217,7 +1272,12 @@ public class BinBuilder<T extends AbstractOperationBuilder<T>> extends AbstractC
      * @param ael     the boolean expression to evaluate
      * @param options the write options to apply
      * @return the parent operation builder for chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public T upsertFrom(BooleanExpression ael, ExpressionWriteOptions options) {
         return opBuilder.addOp(ExpressionOpHelper.createWriteOp(binName, ael, options.getFlags()));
     }

@@ -849,7 +849,14 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
         return this;
     }
 
+    /**
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
+     */
     @Override
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public ChainableUdfBuilder where(BooleanExpression ael) {
         verifyState("setting where clause");
         WhereClauseProcessor processor = WhereClauseProcessor.from(ael);
@@ -909,7 +916,12 @@ public class ChainableUdfBuilder extends AbstractSessionOperationBuilder<Chainab
      *
      * @param ael the boolean expression filter
      * @return this builder for method chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public ChainableUdfBuilder defaultWhere(BooleanExpression ael) {
         String namespace = currentSpec != null ?
                 getNamespaceFromKeys(currentSpec.getKeys()) :

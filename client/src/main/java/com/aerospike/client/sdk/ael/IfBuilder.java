@@ -22,7 +22,13 @@ import java.util.List;
 /**
  * Builder for creating IF-THEN-ELSE IF-ELSE expressions.
  * Provides an API for constructing conditional expressions.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public class IfBuilder {
     private final List<BooleanExpression> conditions = new ArrayList<>();
     private final List<AelExpression> results = new ArrayList<>();

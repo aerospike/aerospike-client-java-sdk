@@ -193,13 +193,29 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
         return queryBuilder;
     }
 
-    /** Create a read expression from a BooleanExpression. */
+    /**
+     * Create a read expression from a BooleanExpression.
+     *
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
+     */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public QueryBuilder selectFrom(BooleanExpression ael) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, ExpReadFlags.DEFAULT));
         return queryBuilder;
     }
 
-    /** Create a read expression from a BooleanExpression with options. */
+    /**
+     * Create a read expression from a BooleanExpression with options.
+     *
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
+     */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public QueryBuilder selectFrom(BooleanExpression ael, Consumer<ExpressionReadOptions> options) {
         ExpressionReadOptions opts = new ExpressionReadOptions();
         options.accept(opts);
@@ -214,7 +230,12 @@ public class QueryBuilderBinBuilder implements CdtOperationAcceptor<QueryBuilder
      * @param ael     the boolean expression to evaluate
      * @param options the read options to apply
      * @return the parent query builder for continued chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public QueryBuilder selectFrom(BooleanExpression ael, ExpressionReadOptions options) {
         queryBuilder.addOperation(ExpressionOpHelper.createReadOp(binName, ael, options.getFlags()));
         return queryBuilder;

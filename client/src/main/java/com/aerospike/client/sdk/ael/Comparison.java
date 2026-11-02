@@ -20,7 +20,13 @@ import com.aerospike.client.sdk.exp.Exp;
 
 /**
  * Represents a comparison operation between two values or expressions.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public class Comparison<T> implements BooleanExpression {
     private final AelExpression left;
     private final ComparisonOp operator;

@@ -143,8 +143,14 @@ public class OperationObjectBuilder<T> extends AbstractFilterableBuilder impleme
 
     /**
      * {@inheritDoc}
+     *
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
     @Override
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public OperationObjectBuilder<T> where(BooleanExpression ael) {
         setWhereClause(WhereClauseProcessor.from(ael));
         return this;

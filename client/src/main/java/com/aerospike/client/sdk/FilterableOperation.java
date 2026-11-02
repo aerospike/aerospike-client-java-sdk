@@ -72,7 +72,12 @@ public interface FilterableOperation<T extends FilterableOperation<T>> {
      * @param ael the BooleanExpression filter
      * @return this builder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     T where(BooleanExpression ael);
 
     /**

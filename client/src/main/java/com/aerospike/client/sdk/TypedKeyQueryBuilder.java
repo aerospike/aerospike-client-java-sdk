@@ -115,7 +115,14 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return this;
     }
 
+    /**
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
+     */
     @Override
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public TypedKeyQueryBuilder<T> where(BooleanExpression ael) {
         inner.where(ael);
         return this;
@@ -156,6 +163,13 @@ public final class TypedKeyQueryBuilder<T> implements FilterableOperation<TypedK
         return this;
     }
 
+    /**
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
+     */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public TypedKeyQueryBuilder<T> defaultWhere(BooleanExpression ael) {
         inner.defaultWhere(ael);
         return this;

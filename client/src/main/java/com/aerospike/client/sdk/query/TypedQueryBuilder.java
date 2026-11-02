@@ -144,6 +144,13 @@ public final class TypedQueryBuilder<T> {
         return this;
     }
 
+    /**
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
+     */
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public TypedQueryBuilder<T> where(BooleanExpression ael) {
         delegate.where(ael);
         return this;

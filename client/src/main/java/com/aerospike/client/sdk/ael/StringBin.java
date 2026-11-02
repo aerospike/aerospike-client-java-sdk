@@ -20,7 +20,13 @@ import com.aerospike.client.sdk.exp.Exp;
 
 /**
  * Represents a String bin in an Aerospike record.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public class StringBin implements StringExpression {
     private final String name;
 

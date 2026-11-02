@@ -21,7 +21,13 @@ import com.aerospike.client.sdk.exp.Exp;
 /**
  * Wrapper class that allows IfExpression to be used in Long arithmetic operations.
  * This enables expressions like: $.bina + if(binb > 10, 20, 30)
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public class IfLongExpression implements LongExpression {
     private final IfExpression ifExpr;
 

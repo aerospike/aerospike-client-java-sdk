@@ -19,7 +19,13 @@ package com.aerospike.client.sdk.ael;
 /**
  * Represents a boolean expression that can be used in logical operations.
  * This is the base interface for all expressions that can be combined with AND, OR, NOT.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public interface BooleanExpression extends AelExpression {
     BooleanExpression and(BooleanExpression other);
     BooleanExpression or(BooleanExpression other);

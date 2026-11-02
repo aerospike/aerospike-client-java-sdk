@@ -21,7 +21,13 @@ import com.aerospike.client.sdk.exp.Exp;
 /**
  * Represents a reference to a local variable.
  * This is used within expressions that have local variable scope.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public class VariableExpression implements AelExpression {
     private final String variableName;
 

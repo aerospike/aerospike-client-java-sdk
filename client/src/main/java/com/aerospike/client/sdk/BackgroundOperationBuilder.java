@@ -159,8 +159,13 @@ public class BackgroundOperationBuilder extends AbstractOperationBuilder<Backgro
      *
      * @param ael The BooleanExpression filter
      * @return This builder for method chaining
+     * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+     *     removed in the next major release. Use the string AEL or {@code PreparedAel}
+     *     overload instead.
      */
     @Override
+    @Deprecated(forRemoval = true)
+    @SuppressWarnings("removal")
     public BackgroundOperationBuilder where(BooleanExpression ael) {
         setWhereClause(WhereClauseProcessor.from(ael));
         return this;

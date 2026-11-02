@@ -18,7 +18,13 @@ package com.aerospike.client.sdk.ael;
 
 /**
  * Represents a Long expression that can be used in arithmetic and comparison operations.
+ *
+ * @deprecated The programmatic AEL builder in {@code com.aerospike.client.sdk.ael} will be
+ *     removed in the next major release. Use a string AEL where clause, {@code PreparedAel},
+ *     or {@code Exp} instead.
  */
+@Deprecated(forRemoval = true)
+@SuppressWarnings("removal")
 public interface LongExpression extends NumericExpression, BooleanExpression {
     // Comparison operations
     BooleanExpression eq(Long value);

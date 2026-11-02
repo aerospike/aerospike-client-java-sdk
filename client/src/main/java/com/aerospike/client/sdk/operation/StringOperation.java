@@ -17,7 +17,6 @@
 package com.aerospike.client.sdk.operation;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -25,12 +24,9 @@ import com.aerospike.client.sdk.Operation;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.StringWriteOptions;
 import com.aerospike.client.sdk.Value;
-import com.aerospike.client.sdk.Value.BytesValue;
 import com.aerospike.client.sdk.cdt.CTX;
-import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.util.Pack;
-import com.aerospike.client.sdk.util.Packer;
 
 /**
  * String operations. Create operations to be passed to the client {@code operate}
