@@ -91,6 +91,33 @@ public class QueryStringTest extends ClusterTest {
     }
 
     @Test
+    public void queryStringPreparedAel() {
+        String filter = valuePrefix + 3;
+        PreparedAel ael = PreparedAel.prepare("$." + binName + " == ?0");
+
+        // Called directly on the builder returned by query(DataSet), through BaseQueryBuilder.
+        // The string parameter is bound client side, so it must come out quoted as an AEL literal.
+        RecordStream rs = session.query(args.set)
+            .where(ael, filter)
+            .execute();
+
+        try {
+            int count = 0;
+            while (rs.hasNext()) {
+                Record rec = rs.next().recordOrThrow();
+                String result = rec.getString(binName);
+                assertEquals(filter, result);
+                count++;
+            }
+
+            assertNotEquals(0, count);
+        }
+        finally {
+            rs.close();
+        }
+    }
+
+    @Test
     public void queryStringEmptyBinName() {
         String filter = valuePrefix + 3;
 

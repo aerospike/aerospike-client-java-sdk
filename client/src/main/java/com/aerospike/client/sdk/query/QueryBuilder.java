@@ -792,6 +792,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @return this QueryBuilder for method chaining
      * @throws IllegalArgumentException if multiple filter conditions are specified
      */
+    @Override
     public QueryBuilder where(PreparedAel ael, Object ... params) {
         setWhereClause(WhereClauseProcessor.from(ael, params));
         return this;

@@ -233,6 +233,35 @@ public interface BaseQueryBuilder<T extends BaseQueryBuilder<T>> {
     T where(Exp exp);
 
     /**
+     * Adds a filter condition using a prepared AEL expression.
+     *
+     * <p>This method allows you to specify a filter condition using a {@link PreparedAel}
+     * object, which is a pre-parsed AEL expression. This can improve performance when
+     * the same filter is used multiple times, as the parsing only needs to happen once.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * PreparedAel preparedFilter = PreparedAel.prepare("$.name == ?0 and $.age > ?1");
+     * RecordStream results = session.query(customerDataSet)
+     *     .where(preparedFilter, "Tim", 30)
+     *     .execute();
+     * }</pre>
+     *
+     * <p>Only one filter condition can be specified per query. Multiple calls
+     * to this method or other {@code where()} methods will throw an exception.</p>
+     *
+     * <p>When {@link #filter(Filter)} is also attached, this prepared AEL is sent as a residual
+     * filter expression and requires server-side AEL support ({@code 8.2+}); it is not used for
+     * automatic index selection.</p>
+     *
+     * @param ael the prepared AEL expression
+     * @param params the parameters to bind to the prepared expression
+     * @return this QueryBuilder for method chaining
+     * @throws IllegalArgumentException if multiple filter conditions are specified
+     */
+    T where(PreparedAel ael, Object ... params);
+
+    /**
      * Specifies that these operations are not to be included in any transaction, even if a
      * transaction exists on the underlying session.
      *
