@@ -133,6 +133,7 @@ public class IndexProbePlannerWhereFlagsTest {
     /** A hard hint still carries HARD_HINT, alongside the resolved scan policy. */
     @Test
     void hardHintSetsHardHintFlag() {
+        @SuppressWarnings("deprecation")
         QueryHint.Result hint = QueryHint.create().forIndex("age_idx").hardHint();
 
         // DEFAULT allows scans: HARD_HINT without REQUIRE_INDEX.

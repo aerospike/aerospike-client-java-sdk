@@ -228,6 +228,7 @@ public class ErrorHandlingSpecTest extends ClusterTest {
                 ServerFeatureSupport.assume(ServerFeature.QUERY_SELECTION);
             }
 
+            @SuppressWarnings("deprecation")
             private QueryBuilder failing() {
                 return session.query(ds)
                     .where("$." + AGE + " > 10")

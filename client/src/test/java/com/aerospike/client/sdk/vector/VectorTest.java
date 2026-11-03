@@ -41,7 +41,6 @@ import com.aerospike.client.sdk.cdt.MapOperation;
 import com.aerospike.client.sdk.cdt.MapPolicy;
 import com.aerospike.client.sdk.cdt.MapReturnType;
 import com.aerospike.client.sdk.command.Buffer;
-import com.aerospike.client.sdk.command.IndexProbeCommand;
 import com.aerospike.client.sdk.command.ParticleType;
 import com.aerospike.client.sdk.util.Packer;
 import com.aerospike.client.sdk.util.Unpacker;

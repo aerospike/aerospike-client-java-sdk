@@ -61,6 +61,7 @@ public class IndexProbePlannerRoutingTest {
         }
     }
 
+    @SuppressWarnings("removal")
     static Stream<Arguments> nonStringAelWhereClauses() {
         return Stream.of(
             Arguments.of(WhereClauseProcessor.from(Ael.longBin("age").gt(30)), false),

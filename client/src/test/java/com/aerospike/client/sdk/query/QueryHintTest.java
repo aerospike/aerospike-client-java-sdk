@@ -75,6 +75,7 @@ public class QueryHintTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void forIndexThenHardHint() {
         QueryHint.Result result = QueryHint.create().forIndex("my_idx").hardHint();
         assertEquals("my_idx", result.getIndexName());
@@ -83,6 +84,7 @@ public class QueryHintTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void disallowScansWithWhereForIndexHardHint() {
         QueryHint.Result result = QueryHint.create()
             .disallowScansWithWhere().forIndex("my_idx").hardHint();
@@ -92,6 +94,7 @@ public class QueryHintTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void hardHintWithoutForIndexThrows() {
         assertThrows(IllegalArgumentException.class, () ->
             QueryHint.create().queryDuration(QueryDuration.SHORT).forIndex("  ").hardHint());

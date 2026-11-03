@@ -135,6 +135,7 @@ public class QueryIndexFilterWireTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     static Stream<Arguments> indexSelectionHints() {
         return Stream.of(
             Arguments.of("forIndex-hardHint",

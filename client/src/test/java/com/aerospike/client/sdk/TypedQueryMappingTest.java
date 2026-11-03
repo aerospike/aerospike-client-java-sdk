@@ -403,6 +403,7 @@ public class TypedQueryMappingTest extends ClusterTest {
     }
 
     @Test
+    @SuppressWarnings("removal")
     public void typedDatasetQueryAlternateWhereClauses() {
         assumeSupportsAel();
         installCustomerMapper();

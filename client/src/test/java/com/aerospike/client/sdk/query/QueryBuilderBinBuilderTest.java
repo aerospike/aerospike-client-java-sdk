@@ -306,6 +306,7 @@ public class QueryBuilderBinBuilderTest extends ClusterTest {
     }
 
     @Nested
+    @SuppressWarnings("removal")
     class SelectFromOverloads {
 
         @Test
@@ -315,7 +316,7 @@ public class QueryBuilderBinBuilderTest extends ClusterTest {
             Expression exp = Exp.build(Exp.add(Exp.intBin(AGE), Exp.val(5)));
             BooleanExpression boolExpr = Ael.longBin(AGE).add(4L);
 
-            Record rec = executeOne(filteredQuery()
+             Record rec = executeOne(filteredQuery()
                 .bin("out_str").selectFrom("$." + AGE + ":INT + 1")
                 .bin("out_str_opt").selectFrom("$." + AGE + ":INT + 2", o -> o.ignoreEvalFailure())
                 .bin("out_str_direct").selectFrom("$." + AGE + ":INT + 3", new ExpressionReadOptions())
@@ -328,9 +329,9 @@ public class QueryBuilderBinBuilderTest extends ClusterTest {
                 .bin("out_exp").selectFrom(exp)
                 .bin("out_exp_opt").selectFrom(exp, o -> o.ignoreEvalFailure())
                 .bin("out_exp_direct").selectFrom(exp, new ExpressionReadOptions())
-                .bin("out_expr").selectFrom((Expression) exp)
-                .bin("out_expr_opt").selectFrom((Expression) exp, o -> o.ignoreEvalFailure())
-                .bin("out_expr_direct").selectFrom((Expression) exp, new ExpressionReadOptions()));
+                .bin("out_expr").selectFrom(exp)
+                .bin("out_expr_opt").selectFrom(exp, o -> o.ignoreEvalFailure())
+                .bin("out_expr_direct").selectFrom(exp, new ExpressionReadOptions()));
 
             assertEquals(26L, rec.getLong("out_str"));
             assertEquals(27L, rec.getLong("out_str_opt"));

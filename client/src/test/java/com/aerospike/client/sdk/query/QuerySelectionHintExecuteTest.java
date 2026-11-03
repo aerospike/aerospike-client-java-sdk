@@ -83,6 +83,7 @@ public class QuerySelectionHintExecuteTest extends ClusterTest {
      * bin) must fail rather than quietly falling back.
      */
     @Test
+    @SuppressWarnings("deprecation")
     void executeHardHintOnWrongIndexThrowsIndexNotFound() {
         AerospikeException e = assertThrows(AerospikeException.class, () ->
             ageRows(hint -> hint.forIndex(FIXTURE.scoreIndex).hardHint()));
@@ -92,6 +93,7 @@ public class QuerySelectionHintExecuteTest extends ClusterTest {
 
     /** Hard hint naming an index that does not exist must fail, not fall back to the planner. */
     @Test
+    @SuppressWarnings("deprecation")
     void executeHardHintOnNonExistentIndexThrowsIndexNotFound() {
         AerospikeException e = assertThrows(AerospikeException.class, () ->
             ageRows(hint -> hint.forIndex(bogusIndexName).hardHint()));

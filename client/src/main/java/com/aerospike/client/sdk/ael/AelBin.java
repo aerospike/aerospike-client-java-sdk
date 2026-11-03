@@ -22,7 +22,6 @@ package com.aerospike.client.sdk.ael;
  *     or {@code Exp} instead.
  */
 @Deprecated(forRemoval = true)
-@SuppressWarnings("removal")
 public interface AelBin<T> {
     Comparison<T> eq(T value);
     Comparison<T> ne(T value);

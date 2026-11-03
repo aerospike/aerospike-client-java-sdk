@@ -103,6 +103,7 @@ public class QueryIntegerTest extends ClusterTest {
     }
 
     @Test
+    @SuppressWarnings("removal")
     public void queryIntegerWithTypedAelWhere() {
         int begin = 14;
         int end = 18;

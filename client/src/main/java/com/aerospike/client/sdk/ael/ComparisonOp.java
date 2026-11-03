@@ -22,7 +22,6 @@ package com.aerospike.client.sdk.ael;
  *     or {@code Exp} instead.
  */
 @Deprecated(forRemoval = true)
-@SuppressWarnings("removal")
 public enum ComparisonOp {
     EQ("=="),    // Equal
     NE("!="),    // Not Equal
@@ -39,4 +38,4 @@ public enum ComparisonOp {
     public String getValue() {
         return value;
     }
-} 
+}

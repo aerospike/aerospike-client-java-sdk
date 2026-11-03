@@ -26,7 +26,6 @@ import com.aerospike.client.sdk.exp.Exp;
  *     or {@code Exp} instead.
  */
 @Deprecated(forRemoval = true)
-@SuppressWarnings("removal")
 public interface AelExpression {
     String toAerospikeExpr();
     Exp toAerospikeExp();

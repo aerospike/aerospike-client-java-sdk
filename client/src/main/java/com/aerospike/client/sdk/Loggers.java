@@ -21,47 +21,42 @@ package com.aerospike.client.sdk;
  */
 public final class Loggers {
     /**
-     * AEL language parser.
-     */
-    public static final String AEL = "ael";
-
-    /**
      * YAML / BehaviorRegistry and client option resolution.
      */
-    public static final String BEHAVIOR = "behavior";
+    public static final String BEHAVIOR = "com.aerospike.client.sdk.behavior";
 
     /**
      * Connections.
      */
-    public static final String CONNECTION = "connection";
+    public static final String CONNECTION = "com.aerospike.client.sdk.connection";
 
     /**
      * Commands.
      */
-    public static final String COMMAND = "command";
+    public static final String COMMAND = "com.aerospike.client.sdk.command";
 
     /**
      * Info Commands.
      */
-    public static final String INFO = "info";
+    public static final String INFO = "com.aerospike.client.sdk.info";
 
     /**
      * Metrics.
      */
-    public static final String METRICS = "metrics";
+    public static final String METRICS = "com.aerospike.client.sdk.metrics";
 
     /**
      * All high-volume encode/decode diagnostics.
      */
-    public static final String SERDE = "serde";
+    public static final String SERDE = "com.aerospike.client.sdk.serde";
 
     /**
      * Cluster tend.
      */
-    public static final String TEND = "tend";
+    public static final String TEND = "com.aerospike.client.sdk.tend";
 
     /**
      * Query planning and executions.
      */
-    public static final String QUERY = "query";
+    public static final String QUERY = "com.aerospike.client.sdk.query";
 }

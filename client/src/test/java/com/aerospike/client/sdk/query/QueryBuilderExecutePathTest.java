@@ -359,6 +359,7 @@ public class QueryBuilderExecutePathTest extends ClusterTest {
             .where(AGE_RANGE_WHERE);
     }
 
+    @SuppressWarnings("deprecation")
     private static QueryBuilder failingQuery() {
         return session.query(dataSet)
             .readingOnlyBins(AGE_BIN)

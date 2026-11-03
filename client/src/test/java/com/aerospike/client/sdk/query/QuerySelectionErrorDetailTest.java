@@ -168,6 +168,7 @@ public class QuerySelectionErrorDetailTest extends ClusterTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void explainHardHintWithWrongIndex() {
         Session verbose = sessionWithVerbosity(ErrorDetailVerbosity.MESSAGE);
 

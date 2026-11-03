@@ -117,6 +117,7 @@ public class QuerySelectionHintFlagsTest extends ClusterTest {
      * scans to pin the behavior-supplied {@code REQUIRE_INDEX} path.</p>
      */
     @Test
+    @SuppressWarnings("deprecation")
     void hardHintWithMatchingIndexSelectsHintedIndex() {
         QueryBuilder qb = session.query(dataSet)
             .where("$.age == 25")
@@ -148,6 +149,7 @@ public class QuerySelectionHintFlagsTest extends ClusterTest {
      * flag comes from the scan policy rather than from {@code hardHint}.
      */
     @Test
+    @SuppressWarnings("deprecation")
     void hardHintWithScansAllowedOmitsRequireIndex() {
         QueryBuilder qb = session.query(dataSet)
             .where("$.age == 25")
