@@ -412,12 +412,12 @@ public final class Packer {
         }
 
         if (obj instanceof Enum) {
-            packString(obj.toString());
+            packParticleString(obj.toString());
             return;
         }
 
         if (obj instanceof UUID) {
-            packString(obj.toString());
+            packParticleString(obj.toString());
             return;
         }
 

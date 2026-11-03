@@ -28,12 +28,56 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.cdt.MapOrder;
 
 public class ListMapTest extends ClusterTest {
+    private enum Status {
+        ACTIVE,
+        INACTIVE
+    }
+
+    @Test
+    public void listEnumAndUuid() {
+        // Enum and UUID elements are stored as strings. They used to be packed without the
+        // string particle type, so the first character was read back as the type.
+        Key key = args.set.id("listEnumAndUuid");
+        String binName = "list";
+        UUID uuid = UUID.randomUUID();
+
+        session.replace(key)
+            .bin(binName).setTo(List.of(Status.ACTIVE, uuid))
+            .execute();
+
+        Record rec = session.query(key).execute().getFirstRecord();
+        List<?> receivedList = rec.getList(binName);
+
+        assertEquals(2, receivedList.size());
+        assertEquals("ACTIVE", receivedList.get(0));
+        assertEquals(uuid.toString(), receivedList.get(1));
+    }
+
+    @Test
+    public void mapUuidKey() {
+        Key key = args.set.id("mapUuidKey");
+        String binName = "map";
+        UUID uuid = UUID.randomUUID();
+
+        session.replace(key)
+            .bin(binName).setTo(Map.of(uuid, 10, Status.INACTIVE, 20))
+            .execute();
+
+        Record rec = session.query(key).execute().getFirstRecord();
+        Map<?,?> receivedMap = rec.getMap(binName);
+
+        assertEquals(2, receivedMap.size());
+        assertEquals(10L, receivedMap.get(uuid.toString()));
+        assertEquals(20L, receivedMap.get("INACTIVE"));
+    }
+
     @Test
     public void aerospikeListBinsValues() {
         Key key = args.set.id("aerospikeListBinValue");
