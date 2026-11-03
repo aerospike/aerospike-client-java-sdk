@@ -335,94 +335,103 @@ public final class Packer {
             return;
         }
 
-        if (obj instanceof Value) {
-            Value value = (Value)obj;
+        if (obj instanceof Value value) {
             value.pack(this);
             return;
         }
 
-        if (obj instanceof SpecialValue) {
-            ((SpecialValue)obj).toAerospikeValue().pack(this);
+        if (obj instanceof SpecialValue value) {
+            value.toAerospikeValue().pack(this);
             return;
         }
 
-        if (obj instanceof byte[]) {
-            packParticleBytes((byte[])obj);
+        if (obj instanceof String value) {
+            packParticleString(value);
             return;
         }
 
-        if (obj instanceof String) {
-            packParticleString((String)obj);
+        if (obj instanceof Integer value) {
+            packInt(value);
             return;
         }
 
-        if (obj instanceof Integer) {
-            packInt((Integer)obj);
+        if (obj instanceof Long value) {
+            packLong(value);
             return;
         }
 
-        if (obj instanceof Long) {
-            packLong((Long)obj);
+        if (obj instanceof byte[] bytes) {
+            packParticleBytes(bytes);
             return;
         }
 
-        if (obj instanceof List<?>) {
-            packList((List<?>)obj);
+        if (obj instanceof AerospikeList<?> list) {
+            packList(list);
             return;
         }
 
-        if (obj instanceof Map<?,?>) {
-            packMap((Map<?,?>)obj);
+        if (obj instanceof AerospikeMap<?,?> map) {
+            packMap(map);
             return;
         }
 
-        if (obj instanceof Vector) {
-            packVector((Vector)obj);
+        if (obj instanceof List<?> list) {
+            packList(list);
             return;
         }
 
-        if (obj instanceof Double) {
-            packDouble((Double)obj);
+        if (obj instanceof Map<?,?> map) {
+            packMap(map);
             return;
         }
 
-        if (obj instanceof Float) {
-            packFloat((Float)obj);
+        if (obj instanceof Vector vector) {
+            packVector(vector);
             return;
         }
 
-        if (obj instanceof Short) {
-            packInt((Short)obj);
+        if (obj instanceof Double value) {
+            packDouble(value);
             return;
         }
 
-        if (obj instanceof Boolean) {
-            packBoolean((Boolean)obj);
+        if (obj instanceof Float value) {
+            packFloat(value);
             return;
         }
 
-        if (obj instanceof Byte) {
-            packInt(((Byte)obj) & 0xff);
+        if (obj instanceof Short value) {
+            packInt(value);
             return;
         }
 
-        if (obj instanceof Character) {
-            packInt(((Character)obj).charValue());
+        if (obj instanceof Boolean value) {
+            packBoolean(value);
             return;
         }
 
-        if (obj instanceof Enum) {
-            packParticleString(obj.toString());
+        if (obj instanceof Byte value) {
+            packInt(value & 0xff);
             return;
         }
 
-        if (obj instanceof UUID) {
-            packParticleString(obj.toString());
+        if (obj instanceof Character value) {
+            packInt(value.charValue());
             return;
         }
 
-        if (obj instanceof ByteBuffer) {
-            packByteBuffer((ByteBuffer) obj);
+        if (obj instanceof Enum value) {
+            packParticleString(value.toString());
+            return;
+        }
+
+        if (obj instanceof UUID value) {
+            packParticleString(value.toString());
+            return;
+        }
+
+        if (obj instanceof ByteBuffer value) {
+            packByteBuffer(value);
             return;
         }
 

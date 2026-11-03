@@ -50,7 +50,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T setTo(byte[] value);
     public T setTo(boolean value);
     public T setTo(double value);
+    public T setTo(AerospikeList<?> value);
     public T setTo(List<?> value);
+    public T setTo(AerospikeMap<?,?> value);
     public T setTo(Map<?,?> value);
     public <U> T setTo(U value, RecordMapper<U> mapper);
 
@@ -59,7 +61,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T insert(byte[] value);
     public T insert(boolean value);
     public T insert(double value);
+    public T insert(AerospikeList<?> value);
     public T insert(List<?> value);
+    public T insert(AerospikeMap<?,?> value);
     public T insert(Map<?,?> value);
     public <U> T insert(U value, RecordMapper<U> mapper);
 
@@ -68,7 +72,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T insert(byte[] value, Consumer<MapEntryWriteOptions> options);
     public T insert(boolean value, Consumer<MapEntryWriteOptions> options);
     public T insert(double value, Consumer<MapEntryWriteOptions> options);
+    public T insert(AerospikeList<?> value, Consumer<MapEntryWriteOptions> options);
     public T insert(List<?> value, Consumer<MapEntryWriteOptions> options);
+    public T insert(AerospikeMap<?,?> value, Consumer<MapEntryWriteOptions> options);
     public T insert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
     public <U> T insert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
@@ -77,7 +83,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T insert(byte[] value, MapEntryWriteOptions options);
     public T insert(boolean value, MapEntryWriteOptions options);
     public T insert(double value, MapEntryWriteOptions options);
+    public T insert(AerospikeList<?> value, MapEntryWriteOptions options);
     public T insert(List<?> value, MapEntryWriteOptions options);
+    public T insert(AerospikeMap<?,?> value, MapEntryWriteOptions options);
     public T insert(Map<?,?> value, MapEntryWriteOptions options);
     public <U> T insert(U value, RecordMapper<U> mapper, MapEntryWriteOptions options);
 
@@ -86,7 +94,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T update(byte[] value);
     public T update(boolean value);
     public T update(double value);
+    public T update(AerospikeList<?> value);
     public T update(List<?> value);
+    public T update(AerospikeMap<?,?> value);
     public T update(Map<?,?> value);
     public <U> T update(U value, RecordMapper<U> mapper);
 
@@ -95,7 +105,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T update(byte[] value, Consumer<MapEntryWriteOptions> options);
     public T update(boolean value, Consumer<MapEntryWriteOptions> options);
     public T update(double value, Consumer<MapEntryWriteOptions> options);
+    public T update(AerospikeList<?> value, Consumer<MapEntryWriteOptions> options);
     public T update(List<?> value, Consumer<MapEntryWriteOptions> options);
+    public T update(AerospikeMap<?,?> value, Consumer<MapEntryWriteOptions> options);
     public T update(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
     public <U> T update(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
@@ -104,7 +116,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T update(byte[] value, MapEntryWriteOptions options);
     public T update(boolean value, MapEntryWriteOptions options);
     public T update(double value, MapEntryWriteOptions options);
+    public T update(AerospikeList<?> value, MapEntryWriteOptions options);
     public T update(List<?> value, MapEntryWriteOptions options);
+    public T update(AerospikeMap<?,?> value, MapEntryWriteOptions options);
     public T update(Map<?,?> value, MapEntryWriteOptions options);
     public <U> T update(U value, RecordMapper<U> mapper, MapEntryWriteOptions options);
 
@@ -113,7 +127,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T upsert(byte[] value);
     public T upsert(boolean value);
     public T upsert(double value);
+    public T upsert(AerospikeList<?> value);
     public T upsert(List<?> value);
+    public T upsert(AerospikeMap<?,?> value);
     public T upsert(Map<?,?> value);
     public <U> T upsert(U value, RecordMapper<U> mapper);
 
@@ -122,7 +138,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T upsert(byte[] value, Consumer<MapEntryWriteOptions> options);
     public T upsert(boolean value, Consumer<MapEntryWriteOptions> options);
     public T upsert(double value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(AerospikeList<?> value, Consumer<MapEntryWriteOptions> options);
     public T upsert(List<?> value, Consumer<MapEntryWriteOptions> options);
+    public T upsert(AerospikeMap<?,?> value, Consumer<MapEntryWriteOptions> options);
     public T upsert(Map<?,?> value, Consumer<MapEntryWriteOptions> options);
     public <U> T upsert(U value, RecordMapper<U> mapper, Consumer<MapEntryWriteOptions> options);
 
@@ -131,7 +149,9 @@ public interface CdtSetterInvertableBuilder<T extends AbstractOperationBuilder<T
     public T upsert(byte[] value, MapEntryWriteOptions options);
     public T upsert(boolean value, MapEntryWriteOptions options);
     public T upsert(double value, MapEntryWriteOptions options);
+    public T upsert(AerospikeList<?> value, MapEntryWriteOptions options);
     public T upsert(List<?> value, MapEntryWriteOptions options);
+    public T upsert(AerospikeMap<?,?> value, MapEntryWriteOptions options);
     public T upsert(Map<?,?> value, MapEntryWriteOptions options);
     public <U> T upsert(U value, RecordMapper<U> mapper, MapEntryWriteOptions options);
 

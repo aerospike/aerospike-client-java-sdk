@@ -2761,7 +2761,37 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T setTo(AerospikeList<?> value) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
+    }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T setTo(List<?> value) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        else {
+            return this.opBuilder.addOp(MapOperation.put(resolveMapPolicy(MapWriteFlags.DEFAULT, null), binName, params.getVal1(), Value.get(value), params.context()));
+        }
+    }
+    /**
+     * Set the list element at the selected index, or put a map entry at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T setTo(AerospikeMap<?,?> value) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.set(binName, params.getInt1(), Value.get(value), params.context()));
         }
@@ -2930,7 +2960,27 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T insert(AerospikeList<?> value) {
+        return insert(value, (MapEntryWriteOptions)null);
+    }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(List<?> value) {
+        return insert(value, (MapEntryWriteOptions)null);
+    }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T insert(AerospikeMap<?,?> value) {
         return insert(value, (MapEntryWriteOptions)null);
     }
     /**
@@ -3019,7 +3069,29 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T insert(AerospikeList<?> value, Consumer<MapEntryWriteOptions> options) {
+        return insert(value, applyOptions(options));
+    }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(List<?> value, Consumer<MapEntryWriteOptions> options) {
+        return insert(value, applyOptions(options));
+    }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T insert(AerospikeMap<?,?> value, Consumer<MapEntryWriteOptions> options) {
         return insert(value, applyOptions(options));
     }
     /**
@@ -3130,7 +3202,37 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T insert(AerospikeList<?> value, MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T insert(List<?> value, MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
+        }
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.CREATE_ONLY, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /**
+     * Insert at the selected list index, or map {@code put} with CREATE_ONLY at the selected key.
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T insert(AerospikeMap<?,?> value, MapEntryWriteOptions options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             return this.opBuilder.addOp(ListOperation.insert(binName, params.getInt1(), Value.get(value), params.context()));
         }
@@ -3231,7 +3333,27 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T update(AerospikeList<?> value) {
+        return update(value, (MapEntryWriteOptions)null);
+    }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(List<?> value) {
+        return update(value, (MapEntryWriteOptions)null);
+    }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T update(AerospikeMap<?,?> value) {
         return update(value, (MapEntryWriteOptions)null);
     }
     /**
@@ -3320,7 +3442,29 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T update(AerospikeList<?> value, Consumer<MapEntryWriteOptions> options) {
+        return update(value, applyOptions(options));
+    }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(List<?> value, Consumer<MapEntryWriteOptions> options) {
+        return update(value, applyOptions(options));
+    }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T update(AerospikeMap<?,?> value, Consumer<MapEntryWriteOptions> options) {
         return update(value, applyOptions(options));
     }
     /**
@@ -3431,7 +3575,37 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T update(AerospikeList<?> value, MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            throw new IllegalArgumentException("upsert/update is not applicable for list operations");
+        }
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T update(List<?> value, MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            throw new IllegalArgumentException("upsert/update is not applicable for list operations");
+        }
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.UPDATE_ONLY, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /**
+     * Map {@code put} with UPDATE_ONLY at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T update(AerospikeMap<?,?> value, MapEntryWriteOptions options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
@@ -3614,7 +3788,27 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T upsert(AerospikeList<?> value) {
+        return upsert(value, (MapEntryWriteOptions)null);
+    }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(List<?> value) {
+        return upsert(value, (MapEntryWriteOptions)null);
+    }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T upsert(AerospikeMap<?,?> value) {
         return upsert(value, (MapEntryWriteOptions)null);
     }
     /**
@@ -3703,7 +3897,29 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T upsert(AerospikeList<?> value, Consumer<MapEntryWriteOptions> options) {
+        return upsert(value, applyOptions(options));
+    }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(List<?> value, Consumer<MapEntryWriteOptions> options) {
+        return upsert(value, applyOptions(options));
+    }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T upsert(AerospikeMap<?,?> value, Consumer<MapEntryWriteOptions> options) {
         return upsert(value, applyOptions(options));
     }
     /**
@@ -3814,7 +4030,37 @@ public class CdtGetOrRemoveBuilder<T extends AbstractOperationBuilder<T>> extend
      *
      * @return the parent operation builder for chaining
      */
+    public T upsert(AerospikeList<?> value, MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            throw new IllegalArgumentException("upsert/update is not applicable for list operations");
+        }
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
     public T upsert(List<?> value, MapEntryWriteOptions options) {
+        if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
+            throw new IllegalArgumentException("upsert/update is not applicable for list operations");
+        }
+        MapPolicy mp = resolveMapPolicy(MapWriteFlags.DEFAULT, options);
+        return this.opBuilder.addOp(MapOperation.put(mp, binName, params.getVal1(), Value.get(value), params.context()));
+    }
+    /**
+     * Map {@code put} with default semantics at the selected key (not applicable to list-by-index).
+     *
+     * @param value value to write
+     * @param options value to write
+     *
+     * @return the parent operation builder for chaining
+     */
+    public T upsert(AerospikeMap<?,?> value, MapEntryWriteOptions options) {
         if (params.getOperation() == CdtOperation.LIST_BY_INDEX) {
             throw new IllegalArgumentException("upsert/update is not applicable for list operations");
         }
