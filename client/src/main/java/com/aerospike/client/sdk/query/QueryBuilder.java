@@ -280,37 +280,37 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * @return this QueryBuilder for method chaining
      * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} if the arguments are invalid
      */
-    public QueryBuilder orderBy(String binName, OrderByType type, Order direction) {
+    public QueryBuilder orderBy(String binName, BinDataType type, Order direction) {
         return orderBy(binName, type, direction, OrderByFlags.NONE);
     }
 
     /**
-     * Sets the Top-K order-by clause with flags. See {@link #orderBy(String, OrderByType, Order)}.
+     * Sets the Top-K order-by clause with flags. See {@link #orderBy(String, BinDataType, Order)}.
      *
      * @param binName   the order-key bin name, as it appears in the returned record
      * @param type      the declared scalar type of the order-key bin
      * @param direction {@link Order#ASC} or {@link Order#DESC}
-     * @param flags     bitmask of {@link OrderByFlags}; only valid with {@link OrderByType#STRING}
+     * @param flags     bitmask of {@link OrderByFlags}; only valid with {@link BinDataType#STRING}
      * @return this QueryBuilder for method chaining
      * @throws AerospikeException with {@link ResultCode#PARAMETER_ERROR} if the arguments are invalid
      */
-    public QueryBuilder orderBy(String binName, OrderByType type, Order direction, int flags) {
+    public QueryBuilder orderBy(String binName, BinDataType type, Order direction, int flags) {
         this.orderBySpecs = List.of(newOrderBySpec(binName, type, direction, flags));
         return this;
     }
 
     /**
      * Add the second, lexicographic Top-K key. The first key must be configured
-     * with {@link #orderBy(String, OrderByType, Order)} first.
+     * with {@link #orderBy(String, BinDataType, Order)} first.
      */
-    public QueryBuilder thenOrderBy(String binName, OrderByType type, Order direction) {
+    public QueryBuilder thenOrderBy(String binName, BinDataType type, Order direction) {
         return thenOrderBy(binName, type, direction, OrderByFlags.NONE);
     }
 
     /**
      * Add the second, lexicographic Top-K key with comparison flags.
      */
-    public QueryBuilder thenOrderBy(String binName, OrderByType type, Order direction, int flags) {
+    public QueryBuilder thenOrderBy(String binName, BinDataType type, Order direction, int flags) {
         if (orderBySpecs.isEmpty()) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "thenOrderBy(...) requires a preceding orderBy(...)");
@@ -328,7 +328,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
         return this;
     }
 
-    private static OrderBySpec newOrderBySpec(String binName, OrderByType type, Order direction, int flags) {
+    private static OrderBySpec newOrderBySpec(String binName, BinDataType type, Order direction, int flags) {
         if (binName == null || binName.isEmpty()) {
             throw AerospikeException.toException(ResultCode.PARAMETER_ERROR,
                 "orderBy requires a non-empty bin name");
@@ -368,7 +368,7 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     }
 
     /**
-     * Sets the Top-K limit, pairing with {@link #orderBy(String, OrderByType, Order)}.
+     * Sets the Top-K limit, pairing with {@link #orderBy(String, BinDataType, Order)}.
      *
      * @param k the maximum number of records to return, inclusive range {@code [1, 1000]}
      * @return this QueryBuilder for method chaining

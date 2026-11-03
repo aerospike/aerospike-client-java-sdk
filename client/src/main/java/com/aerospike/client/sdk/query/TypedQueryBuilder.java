@@ -109,22 +109,22 @@ public final class TypedQueryBuilder<T> {
         return this;
     }
 
-    public TypedQueryBuilder<T> orderBy(String binName, OrderByType type, Order direction) {
+    public TypedQueryBuilder<T> orderBy(String binName, BinDataType type, Order direction) {
         delegate.orderBy(binName, type, direction);
         return this;
     }
 
-    public TypedQueryBuilder<T> orderBy(String binName, OrderByType type, Order direction, int flags) {
+    public TypedQueryBuilder<T> orderBy(String binName, BinDataType type, Order direction, int flags) {
         delegate.orderBy(binName, type, direction, flags);
         return this;
     }
 
-    public TypedQueryBuilder<T> thenOrderBy(String binName, OrderByType type, Order direction) {
+    public TypedQueryBuilder<T> thenOrderBy(String binName, BinDataType type, Order direction) {
         delegate.thenOrderBy(binName, type, direction);
         return this;
     }
 
-    public TypedQueryBuilder<T> thenOrderBy(String binName, OrderByType type, Order direction, int flags) {
+    public TypedQueryBuilder<T> thenOrderBy(String binName, BinDataType type, Order direction, int flags) {
         delegate.thenOrderBy(binName, type, direction, flags);
         return this;
     }

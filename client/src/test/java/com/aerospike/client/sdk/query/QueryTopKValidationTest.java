@@ -51,21 +51,21 @@ public class QueryTopKValidationTest extends ClusterTest {
     void orderByRejectsNullBinName() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         AerospikeException ae = assertThrows(AerospikeException.class,
-            () -> qb.orderBy(null, OrderByType.INTEGER, Order.ASC));
+            () -> qb.orderBy(null, BinDataType.INTEGER, Order.ASC));
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
     }
 
     @Test
     void orderByRejectsEmptyBinName() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        assertThrows(AerospikeException.class, () -> qb.orderBy("", OrderByType.INTEGER, Order.ASC));
+        assertThrows(AerospikeException.class, () -> qb.orderBy("", BinDataType.INTEGER, Order.ASC));
     }
 
     @Test
     void orderByRejectsBinNameOverLengthLimit() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         String tooLong = "a".repeat(Bin.MAX_BIN_NAME_LENGTH + 1);
-        assertThrows(AerospikeException.class, () -> qb.orderBy(tooLong, OrderByType.INTEGER, Order.ASC));
+        assertThrows(AerospikeException.class, () -> qb.orderBy(tooLong, BinDataType.INTEGER, Order.ASC));
     }
 
     @Test
@@ -77,14 +77,14 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void orderByRejectsNullDirection() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        assertThrows(AerospikeException.class, () -> qb.orderBy("n", OrderByType.INTEGER, null));
+        assertThrows(AerospikeException.class, () -> qb.orderBy("n", BinDataType.INTEGER, null));
     }
 
     @Test
     void orderByRejectsCaseInsensitiveFlagOnNonStringType() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         assertThrows(AerospikeException.class,
-            () -> qb.orderBy("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.CASE_INSENSITIVE));
+            () -> qb.orderBy("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.CASE_INSENSITIVE));
     }
 
     /* TODO Implement when server supports string order.
@@ -119,15 +119,15 @@ public class QueryTopKValidationTest extends ClusterTest {
     void thenOrderByRejectsMissingFirstKeyDuplicateAndThirdKey() {
         QueryBuilder empty = new QueryBuilder(session, dataSet());
         assertThrows(AerospikeException.class,
-            () -> empty.thenOrderBy("second", OrderByType.INTEGER, Order.ASC));
+            () -> empty.thenOrderBy("second", BinDataType.INTEGER, Order.ASC));
 
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("first", OrderByType.INTEGER, Order.ASC);
+        qb.orderBy("first", BinDataType.INTEGER, Order.ASC);
         assertThrows(AerospikeException.class,
-            () -> qb.thenOrderBy("first", OrderByType.INTEGER, Order.DESC));
-        qb.thenOrderBy("second", OrderByType.INTEGER, Order.DESC);
+            () -> qb.thenOrderBy("first", BinDataType.INTEGER, Order.DESC));
+        qb.thenOrderBy("second", BinDataType.INTEGER, Order.DESC);
         assertThrows(AerospikeException.class,
-            () -> qb.thenOrderBy("third", OrderByType.INTEGER, Order.ASC));
+            () -> qb.thenOrderBy("third", BinDataType.INTEGER, Order.ASC));
     }
 
     // -- topK(...) per-call argument validation --------------------------------
@@ -177,7 +177,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void orderByWithoutTopKFailsPairingCheck() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC);
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC);
 
         AerospikeException ae = assertThrows(AerospikeException.class, qb::validateTopKQueryState);
         assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
@@ -194,7 +194,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void orderByAndTopKTogetherPassesPairingCheck() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5);
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5);
 
         qb.validateTopKQueryState();
     }
@@ -203,7 +203,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     void pairingCheckIsOrderIndependent() {
         // Configure topK before orderBy.
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.topK(5).orderBy("n", OrderByType.INTEGER, Order.ASC);
+        qb.topK(5).orderBy("n", BinDataType.INTEGER, Order.ASC);
 
         qb.validateTopKQueryState();
     }
@@ -213,7 +213,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void topKIsIncompatibleWithLimit() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5).limit(10);
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).limit(10);
 
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
@@ -221,7 +221,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void topKIsIncompatibleWithChunkSize() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5).chunkSize(100);
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).chunkSize(100);
 
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
@@ -229,7 +229,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void topKIsIncompatibleWithWithNoBins() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5).withNoBins();
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).withNoBins();
 
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
@@ -239,7 +239,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void orderByBinMustBeInProjectionWhenBinListProjectionIsSet() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5).readingOnlyBins("other");
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).readingOnlyBins("other");
 
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
@@ -247,7 +247,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void orderByBinInProjectionPassesWhenBinListProjectionIsSet() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5).readingOnlyBins("n", "other");
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).readingOnlyBins("n", "other");
 
         qb.validateTopKQueryState();
     }
@@ -255,7 +255,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void orderByBinNotRequiredToBeInProjectionWhenNoProjectionIsSet() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(5);
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5);
 
         qb.validateTopKQueryState();
     }
@@ -264,7 +264,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     void orderByBinInProjectionPassesWhenSatisfiedOnlyBySelectFromOperation() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.bin("similarity").selectFrom(Exp.intBin("n"));
-        qb.orderBy("similarity", OrderByType.DOUBLE, Order.DESC).topK(5);
+        qb.orderBy("similarity", BinDataType.DOUBLE, Order.DESC).topK(5);
 
         qb.validateTopKQueryState();
     }
@@ -274,7 +274,7 @@ public class QueryTopKValidationTest extends ClusterTest {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.bin("n").get();
         qb.bin("n").get();
-        qb.orderBy("n", OrderByType.INTEGER, Order.ASC).topK(1);
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(1);
 
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
@@ -283,7 +283,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     void orderByBinInProjectionFailsWhenNotProducedByEitherProjectionMechanism() {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         qb.bin("d").selectFrom(Exp.intBin("n"));
-        qb.orderBy("similarity", OrderByType.DOUBLE, Order.DESC).topK(5).readingOnlyBins("stock");
+        qb.orderBy("similarity", BinDataType.DOUBLE, Order.DESC).topK(5).readingOnlyBins("stock");
 
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
@@ -293,7 +293,7 @@ public class QueryTopKValidationTest extends ClusterTest {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         // Operation projections replace bin-list projections, so they must produce the order key.
         qb.bin("similarity").selectFrom(Exp.intBin("n"));
-        qb.orderBy("stock", OrderByType.INTEGER, Order.ASC).topK(5).readingOnlyBins("stock");
+        qb.orderBy("stock", BinDataType.INTEGER, Order.ASC).topK(5).readingOnlyBins("stock");
 
         assertThrows(AerospikeException.class, qb::validateTopKQueryState);
     }
@@ -321,7 +321,7 @@ public class QueryTopKValidationTest extends ClusterTest {
         qb.bin("similarity").selectFrom(
             VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, queryVector, Exp.vectorBin("embedding")));
         qb.readingOnlyBins("name", "stock", "similarity")
-            .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
+            .orderBy("similarity", BinDataType.DOUBLE, Order.DESC)
             .topK(10);
 
         qb.validateTopKQueryState();
@@ -338,7 +338,7 @@ public class QueryTopKValidationTest extends ClusterTest {
         qb.bin("similarity").selectFrom(
             VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, queryVector, Exp.vectorBin("embedding")));
         qb.readingOnlyBins("name", "stock", "similarity")
-            .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)
+            .orderBy("similarity", BinDataType.DOUBLE, Order.DESC)
             .topK(10);
 
         try (var results = qb.execute()) {
@@ -356,7 +356,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void executingATopKQueryAgainstThisClusterIsAccepted() {
         QueryBuilder qb = new QueryBuilder(session, dataSet())
-            .orderBy("n", OrderByType.INTEGER, Order.ASC)
+            .orderBy("n", BinDataType.INTEGER, Order.ASC)
             .topK(5);
 
         try (var results = qb.execute()) {
@@ -369,7 +369,7 @@ public class QueryTopKValidationTest extends ClusterTest {
     @Test
     void asyncTopKIsRejectedBeforeQueryExecution() {
         QueryBuilder qb = new QueryBuilder(session, dataSet())
-            .orderBy("n", OrderByType.INTEGER, Order.ASC)
+            .orderBy("n", BinDataType.INTEGER, Order.ASC)
             .topK(5);
 
         AerospikeException ae = assertThrows(AerospikeException.class,

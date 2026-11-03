@@ -33,7 +33,7 @@ import com.aerospike.client.sdk.command.QueryCommand;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.ResolvedSettings;
 import com.aerospike.client.sdk.query.Order;
-import com.aerospike.client.sdk.query.OrderByType;
+import com.aerospike.client.sdk.query.BinDataType;
 import com.aerospike.client.sdk.query.QueryBuilder;
 
 class QueryTopKWireTest {
@@ -56,7 +56,7 @@ class QueryTopKWireTest {
         Session session = new Session(null, Behavior.DEFAULT);
         DataSet dataSet = DataSet.of("test", "topk_wire");
         QueryBuilder builder = new QueryBuilder(session, dataSet)
-            .orderBy("rank", OrderByType.INTEGER, Order.ASC)
+            .orderBy("rank", BinDataType.INTEGER, Order.ASC)
             .topK(3);
         ResolvedSettings settings = Behavior.DEFAULT.getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);

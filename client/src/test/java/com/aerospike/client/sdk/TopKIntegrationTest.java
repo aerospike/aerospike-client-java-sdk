@@ -26,7 +26,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Assumptions;
 
 import com.aerospike.client.sdk.query.Order;
-import com.aerospike.client.sdk.query.OrderByType;
+import com.aerospike.client.sdk.query.BinDataType;
 import com.aerospike.client.sdk.util.Version;
 
 class TopKIntegrationTest extends ClusterTest {
@@ -52,8 +52,8 @@ class TopKIntegrationTest extends ClusterTest {
             .bin("id").get()
             .bin("first").get()
             .bin("second").get()
-            .orderBy("first", OrderByType.INTEGER, Order.ASC)
-            .thenOrderBy("second", OrderByType.INTEGER, Order.DESC)
+            .orderBy("first", BinDataType.INTEGER, Order.ASC)
+            .thenOrderBy("second", BinDataType.INTEGER, Order.DESC)
             .topK(4)
             .execute()) {
             while (stream.hasNext()) {

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Assumptions;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.VectorExp;
 import com.aerospike.client.sdk.query.Order;
-import com.aerospike.client.sdk.query.OrderByType;
+import com.aerospike.client.sdk.query.BinDataType;
 import com.aerospike.client.sdk.util.Version;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
@@ -209,7 +209,7 @@ public class VectorExpIntegrationTest extends ClusterTest {
                 VectorDistanceMetric.EUCLIDEAN_SQUARED,
                 Vector.ofFloat32(new float[] {0.0f, 0.0f}),
                 Exp.vectorBin(vecBin)))
-            .orderBy(distBin, OrderByType.DOUBLE, Order.ASC)
+            .orderBy(distBin, BinDataType.DOUBLE, Order.ASC)
             .topK(3)
             .execute()) {
             while (rs.hasNext()) {

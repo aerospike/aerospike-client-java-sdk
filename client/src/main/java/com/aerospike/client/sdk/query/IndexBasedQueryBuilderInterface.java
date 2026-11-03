@@ -98,32 +98,32 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
      *
      * @return this QueryBuilder for method chaining
      */
-    T orderBy(String binName, OrderByType type, Order direction);
+    T orderBy(String binName, BinDataType type, Order direction);
 
     /**
-     * Sets the Top-K order-by clause with flags. See {@link #orderBy(String, OrderByType, Order)}.
+     * Sets the Top-K order-by clause with flags. See {@link #orderBy(String, BinDataType, Order)}.
      *
      * @return this QueryBuilder for method chaining
      */
-    T orderBy(String binName, OrderByType type, Order direction, int flags);
+    T orderBy(String binName, BinDataType type, Order direction, int flags);
 
     /**
      * Adds a second order-by key for lexicographic tie-breaking. Requires a preceding
-     * {@link #orderBy(String, OrderByType, Order)}.
+     * {@link #orderBy(String, BinDataType, Order)}.
      *
      * @return this QueryBuilder for method chaining
      */
-    T thenOrderBy(String binName, OrderByType type, Order direction);
+    T thenOrderBy(String binName, BinDataType type, Order direction);
 
     /**
-     * Adds a second order-by key with flags. See {@link #thenOrderBy(String, OrderByType, Order)}.
+     * Adds a second order-by key with flags. See {@link #thenOrderBy(String, BinDataType, Order)}.
      *
      * @return this QueryBuilder for method chaining
      */
-    T thenOrderBy(String binName, OrderByType type, Order direction, int flags);
+    T thenOrderBy(String binName, BinDataType type, Order direction, int flags);
 
     /**
-     * Sets the Top-K limit, pairing with {@link #orderBy(String, OrderByType, Order)}.
+     * Sets the Top-K limit, pairing with {@link #orderBy(String, BinDataType, Order)}.
      *
      * @return this QueryBuilder for method chaining
      */

@@ -166,8 +166,8 @@ final class TopKMerge {
     }
 
     @SuppressWarnings("unchecked")
-    private static int compareNonNilKeys(Object keyA, Object keyB, OrderByType type) {
-        if (type == OrderByType.DOUBLE) {
+    private static int compareNonNilKeys(Object keyA, Object keyB, BinDataType type) {
+        if (type == BinDataType.DOUBLE) {
             double a = (Double)keyA;
             double b = (Double)keyB;
             if (Double.isNaN(a) || Double.isNaN(b)) {
@@ -176,7 +176,7 @@ final class TopKMerge {
             return Double.compare(a, b);
         }
 
-        if (type == OrderByType.BYTES) {
+        if (type == BinDataType.BYTES) {
             return compareBytes((byte[])keyA, (byte[])keyB);
         }
         /* TODO Implement when server supports string order.

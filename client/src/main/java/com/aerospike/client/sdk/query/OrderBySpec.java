@@ -20,18 +20,18 @@ import java.util.Objects;
 
 /**
  * Immutable value object describing a {@code ORDER BY <bin> <ASC|DESC> LIMIT k} clause,
- * as set via {@link QueryBuilder#orderBy(String, OrderByType, Order)} and
+ * as set via {@link QueryBuilder#orderBy(String, BinDataType, Order)} and
  * {@link QueryBuilder#topK(int)}.
  *
  * @see QueryBuilder#getOrderBySpec()
  */
 public final class OrderBySpec {
     private final String binName;
-    private final OrderByType type;
+    private final BinDataType type;
     private final Order direction;
     private final int flags;
 
-    public OrderBySpec(String binName, OrderByType type, Order direction, int flags) {
+    public OrderBySpec(String binName, BinDataType type, Order direction, int flags) {
         this.binName = binName;
         this.type = type;
         this.direction = direction;
@@ -48,7 +48,7 @@ public final class OrderBySpec {
     /**
      * The declared scalar type of the order-key bin.
      */
-    public OrderByType getType() {
+    public BinDataType getType() {
         return type;
     }
 

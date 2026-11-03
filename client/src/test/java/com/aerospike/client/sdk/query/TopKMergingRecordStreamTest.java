@@ -46,7 +46,7 @@ public class TopKMergingRecordStreamTest {
         }
         source.complete();
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
         RecordStream merged = TopKMergingRecordStream.merge(source, List.of(spec), 3);
 
         List<Long> got = new ArrayList<>();

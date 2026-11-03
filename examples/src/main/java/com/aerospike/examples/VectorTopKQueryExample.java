@@ -26,7 +26,7 @@ import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.VectorExp;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.query.Order;
-import com.aerospike.client.sdk.query.OrderByType;
+import com.aerospike.client.sdk.query.BinDataType;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
@@ -82,7 +82,7 @@ public class VectorTopKQueryExample extends Example {
             .bin("stock").get()
             .bin("similarity").selectFrom(
                 VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, queryVector, Exp.vectorBin("embedding")))
-            .orderBy("similarity", OrderByType.DOUBLE, Order.DESC)   // COSINE: higher = closer
+            .orderBy("similarity", BinDataType.DOUBLE, Order.DESC)   // COSINE: higher = closer
             .topK(10)
             .execute();
 

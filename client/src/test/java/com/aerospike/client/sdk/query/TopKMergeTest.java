@@ -58,7 +58,7 @@ public class TopKMergeTest {
             okRecord("b", "n", 10L),
             okRecord("c", "n", 20L)));
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 2);
 
         assertEquals(2, result.size());
@@ -73,7 +73,7 @@ public class TopKMergeTest {
             okRecord("b", "n", 10L),
             okRecord("c", "n", 20L)));
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.DESC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.DESC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 2);
 
         assertEquals(2, result.size());
@@ -88,11 +88,11 @@ public class TopKMergeTest {
             okRecord("b", "d", 5.0),
             okRecord("c", "d", 100.0)));
 
-        OrderBySpec ascSpec = new OrderBySpec("d", OrderByType.DOUBLE, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec ascSpec = new OrderBySpec("d", BinDataType.DOUBLE, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> ascResult = TopKMerge.mergeSortDedupeTruncate(candidates, ascSpec, 1);
         assertEquals("b", ascResult.get(0).getKey().userKey.toString());
 
-        OrderBySpec descSpec = new OrderBySpec("d", OrderByType.DOUBLE, Order.DESC, OrderByFlags.NONE);
+        OrderBySpec descSpec = new OrderBySpec("d", BinDataType.DOUBLE, Order.DESC, OrderByFlags.NONE);
         List<RecordResult> descResult = TopKMerge.mergeSortDedupeTruncate(candidates, descSpec, 1);
         assertEquals("a", descResult.get(0).getKey().userKey.toString());
     }
@@ -137,7 +137,7 @@ public class TopKMergeTest {
             okRecord("b", "b", new byte[] {1, 2}),
             okRecord("c", "b", new byte[] {1, 3})));
 
-        OrderBySpec spec = new OrderBySpec("b", OrderByType.BYTES, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("b", BinDataType.BYTES, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
 
         assertEquals("b", result.get(0).getKey().userKey.toString());
@@ -153,7 +153,7 @@ public class TopKMergeTest {
             okRecord("wrongType", "n", "not-an-integer")
         ));
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
 
         assertEquals("a", result.get(0).getKey().userKey.toString());
@@ -166,7 +166,7 @@ public class TopKMergeTest {
             okRecord("a", "n", 10L),
             okRecord("missingBin", "other", 5L)));
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.DESC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.DESC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 2);
 
         assertEquals("a", result.get(0).getKey().userKey.toString());
@@ -186,8 +186,8 @@ public class TopKMergeTest {
         candidates.get(2).getRecord().bins.put("second", 0L);
 
         List<OrderBySpec> specs = List.of(
-            new OrderBySpec("first", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE),
-            new OrderBySpec("second", OrderByType.INTEGER, Order.DESC, OrderByFlags.NONE));
+            new OrderBySpec("first", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE),
+            new OrderBySpec("second", BinDataType.INTEGER, Order.DESC, OrderByFlags.NONE));
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, specs, 4);
 
         assertEquals("b", result.get(0).getKey().userKey.toString());
@@ -208,7 +208,7 @@ public class TopKMergeTest {
             new RecordResult(sharedKey, rec, 0),
             okRecord("other", "n", 20L)));
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 10);
 
         assertEquals(2, result.size());
@@ -221,7 +221,7 @@ public class TopKMergeTest {
             candidates.add(okRecord("k" + i, "n", (long)i));
         }
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
 
         assertEquals(3, result.size());
@@ -237,7 +237,7 @@ public class TopKMergeTest {
             okRecord("b", "n", 2L),
             errorRecord("errored")));
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
         assertThrows(AerospikeException.class,
             () -> TopKMerge.mergeSortDedupeTruncate(candidates, spec, 1));
     }
@@ -253,7 +253,7 @@ public class TopKMergeTest {
         highBins.put("n", 99L);
         RecordResult high = new RecordResult(key, new Record(highBins, new OperationResult[0], 5, 0), 0);
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
 
         List<RecordResult> lowFirst = TopKMerge.mergeSortDedupeTruncate(
             new ArrayList<>(List.of(low, high)), spec, 10);
@@ -268,7 +268,7 @@ public class TopKMergeTest {
 
     @Test
     void heapEvictionBoundaryKeepsExactlyKBest() {
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
 
         for (int candidateCount : new int[] {2, 3, 4}) {
             List<RecordResult> candidates = new ArrayList<>();
@@ -292,7 +292,7 @@ public class TopKMergeTest {
             okRecord("list", "n", List.of(1L, 2L)),
             okRecord("map", "n", Map.of("k", 1L))));
 
-        OrderBySpec spec = new OrderBySpec("n", OrderByType.INTEGER, Order.ASC, OrderByFlags.NONE);
+        OrderBySpec spec = new OrderBySpec("n", BinDataType.INTEGER, Order.ASC, OrderByFlags.NONE);
         List<RecordResult> result = TopKMerge.mergeSortDedupeTruncate(candidates, spec, 3);
 
         assertEquals(3, result.size());

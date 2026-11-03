@@ -17,9 +17,9 @@
 package com.aerospike.client.sdk.query;
 
 /**
- * Sort direction for {@link QueryBuilder#orderBy(String, OrderByType, Order)}.
+ * Sort direction for {@link QueryBuilder#orderBy(String, BinDataType, Order)}.
  *
- * <p>A record whose order-key bin is missing or type-mismatched (see {@link OrderByType})
+ * <p>A record whose order-key bin is missing or type-mismatched (see {@link BinDataType})
  * ranks last regardless of direction: largest in {@link #ASC}, smallest in {@link #DESC}.</p>
  */
 public enum Order {

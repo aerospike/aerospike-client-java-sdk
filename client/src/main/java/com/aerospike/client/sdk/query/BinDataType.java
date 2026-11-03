@@ -17,12 +17,12 @@
 package com.aerospike.client.sdk.query;
 
 /**
- * Declared scalar type of a {@link QueryBuilder#orderBy(String, OrderByType, Order)} bin.
+ * Declared scalar type of a {@link QueryBuilder#orderBy(String, BinDataType, Order)} bin.
  *
  * <p>Aerospike bins have no schema, so the server needs this declared type to pick a
  * comparator. A record whose bin is absent or holds a different type ranks last.</p>
  */
-public enum OrderByType {
+public enum BinDataType {
     INTEGER(1),
     DOUBLE(2),
     //STRING(3), TODO Implement when server supports string order.
@@ -30,7 +30,7 @@ public enum OrderByType {
 
     private final int wireCode;
 
-    OrderByType(int wireCode) {
+    BinDataType(int wireCode) {
         this.wireCode = wireCode;
     }
 

@@ -17,7 +17,7 @@
 package com.aerospike.client.sdk.query;
 
 /**
- * Bitmask flags for {@link QueryBuilder#orderBy(String, OrderByType, Order, int)}.
+ * Bitmask flags for {@link QueryBuilder#orderBy(String, BinDataType, Order, int)}.
  *
  * <p>Room for future per-type modifiers, same shape as {@code ExpReadFlags}/{@code ExpWriteFlags}.</p>
  */
@@ -27,7 +27,7 @@ public final class OrderByFlags {
 
     /**
      * Fold ASCII case before comparing. Valid only when the order-by bin's declared
-     * {@link OrderByType} is {@link OrderByType#STRING}.
+     * {@link BinDataType} is {@link BinDataType#STRING}.
      */
     public static final int CASE_INSENSITIVE = 1;
 
