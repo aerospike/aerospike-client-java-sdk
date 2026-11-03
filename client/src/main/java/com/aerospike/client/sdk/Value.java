@@ -99,10 +99,12 @@ public abstract class Value {
     }
 
     /**
-     * Get byte segment or null value instance.
+     * Get byte array value or null value instance. The value holds a copy of the buffer's
+     * remaining bytes, from its position to its limit. The buffer's position is not changed.
+     * Heap, direct and read-only buffers are supported.
      */
     public static Value get(ByteBuffer bb) {
-        return (bb == null)? NullValue.INSTANCE : new BytesValue(bb.array());
+        return (bb == null)? NullValue.INSTANCE : new BytesValue(Buffer.byteBufferToBytes(bb));
     }
 
     /**
@@ -350,7 +352,7 @@ public abstract class Value {
         }
 
         if (value instanceof ByteBuffer val) {
-            return new BytesValue(val.array());
+            return new BytesValue(Buffer.byteBufferToBytes(val));
         }
 
         throw new AerospikeException("Unsupported type: " + value.getClass().getName());

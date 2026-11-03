@@ -28,11 +28,14 @@ import com.aerospike.client.sdk.policy.BehaviorYamlTest;
 import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
 import com.aerospike.client.sdk.policy.SystemBehaviorTest;
 import com.aerospike.client.sdk.exp.ExpressionToStringTest;
+import com.aerospike.client.sdk.exp.ServerCompiledFilterWireTest;
 import com.aerospike.client.sdk.exp.VectorExpTest;
+import com.aerospike.client.sdk.metrics.HistogramTest;
 import com.aerospike.client.sdk.query.AelPlaceholderBinderTest;
 import com.aerospike.client.sdk.query.FilterOverrideTest;
 import com.aerospike.client.sdk.query.FilterWireRangeTest;
 import com.aerospike.client.sdk.query.IndexProbePlannerRoutingTest;
+import com.aerospike.client.sdk.query.IndexProbePlannerWhereFlagsTest;
 import com.aerospike.client.sdk.query.QueryIndexFilterWireTest;
 import com.aerospike.client.sdk.query.QueryHintTest;
 import com.aerospike.client.sdk.query.QueryTopKValidationTest;
@@ -43,6 +46,7 @@ import com.aerospike.client.sdk.vector.VectorTest;
 import com.aerospike.client.sdk.query.plan.IndexRangeWireTest;
 import com.aerospike.client.sdk.query.plan.QueryPlanTest;
 import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
+import com.aerospike.client.sdk.util.PackerTest;
 
 @Suite
 @SelectClasses({
@@ -55,6 +59,7 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     BinBuilderValueTest.class,
     BackgroundIndexFilterWireTest.class,
     BackgroundOperationBuilderValidationTest.class,
+    ByteBufferValueTest.class,
     CdtGetOrRemoveBuilderDispatchTest.class,
     CdtGetOrRemoveBuilderPathTest.class,
     CdtGetOrRemoveBuilderWriteTest.class,
@@ -71,9 +76,12 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     ExpressionToStringTest.class,
     FilterOverrideTest.class,
     FilterWireRangeTest.class,
+    HistogramTest.class,
     IndexProbeCommandTest.class,
     IndexProbePlannerRoutingTest.class,
+    IndexProbePlannerWhereFlagsTest.class,
     IndexRangeWireTest.class,
+    PackerTest.class,
     QueryIndexFilterWireTest.class,
     QueryHintTest.class,
     QueryPlanExecuteWireTest.class,
@@ -82,6 +90,7 @@ import com.aerospike.client.sdk.query.plan.QueryWhereWireTest;
     QueryTopKValidationTest.class,
     QueryTopKWireTest.class,
     QueryWhereWireTest.class,
+    ServerCompiledFilterWireTest.class,
     SortPropertiesValidationTest.class,
     StringApiPackagingTest.class,
     SystemBehaviorTest.class,

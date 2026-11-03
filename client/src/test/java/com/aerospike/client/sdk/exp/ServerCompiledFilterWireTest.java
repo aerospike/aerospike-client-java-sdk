@@ -29,7 +29,7 @@ import com.aerospike.client.sdk.AerospikeException;
 /**
  * Validates MessagePack layout for server-side AEL compile wrapper
  */
-class ServerCompiledFilterWireTest {
+public class ServerCompiledFilterWireTest {
 
     @Test
     void fromServerCompiledFilter_encodes_two_element_root_array_with_opcode_128_then_utf8() {

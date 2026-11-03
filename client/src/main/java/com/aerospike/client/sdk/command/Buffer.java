@@ -17,6 +17,7 @@
 package com.aerospike.client.sdk.command;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -165,6 +166,19 @@ public final class Buffer {
             return 0;
         }
         return s.length() * 3;
+    }
+
+    /**
+     * Copy the remaining bytes of a {@link ByteBuffer}, from its position to its limit. Works for
+     * heap, direct and read-only buffers, and does not change the buffer's position.
+     * <p>
+     * Do not use {@link ByteBuffer#array()} for this. It returns the whole backing array, ignoring
+     * position, limit and array offset, and throws for direct and read-only buffers.
+     */
+    public static byte[] byteBufferToBytes(ByteBuffer bb) {
+        byte[] bytes = new byte[bb.remaining()];
+        bb.get(bb.position(), bytes);
+        return bytes;
     }
 
     public static byte[] stringToUtf8(String s) {

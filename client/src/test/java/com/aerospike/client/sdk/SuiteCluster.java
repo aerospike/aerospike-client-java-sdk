@@ -63,6 +63,7 @@ import com.aerospike.client.sdk.query.QuerySelectionIntegrationTest;
 import com.aerospike.client.sdk.query.QuerySelectionLifecycleTest;
 import com.aerospike.client.sdk.query.QuerySelectionOperationalIntegrationTest;
 import com.aerospike.client.sdk.query.QueryStringTest;
+import com.aerospike.client.sdk.query.QueryTopKValidationTest;
 import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
 
 @Suite
@@ -95,6 +96,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     AelPathWriteTest.class,
     AelStringTest.class,
     AelWildcardTest.class,
+    ErrorHandlingSpecTest.class,
     ExpireTest.class,
     ExpOperationTest.class,
     FilterExpTest.class,
@@ -120,6 +122,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     SessionExtensionTest.class,
     TouchTest.class,
     TypedQueryMappingTest.class,
+    TxnCommitStatusTest.class,
     TxnTest.class,
     UdfTest.class,
     VectorIntegrationTest.class,
@@ -156,6 +159,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     QuerySelectionLifecycleTest.class,
     QuerySelectionOperationalIntegrationTest.class,
     QueryStringTest.class,
+    QueryTopKValidationTest.class,
     QueryUpsertFromChainedTest.class,
     QueryWithPartitionPaginationTest.class
 })

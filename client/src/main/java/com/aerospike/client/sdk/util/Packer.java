@@ -438,9 +438,19 @@ public final class Packer {
         throw new AerospikeException("Unsupported type: " + obj.getClass().getName());
     }
 
+    /**
+     * Pack the remaining bytes of {@code bb}, from its position to its limit. The buffer's
+     * position is not changed.
+     */
     public void packByteBuffer(ByteBuffer bb) {
-        byte[] b = bb.array();
-        packParticleBytes(b);
+        if (bb.hasArray()) {
+            // Heap buffer: pack straight from the backing array, without a copy.
+            packParticleBytes(bb.array(), bb.arrayOffset() + bb.position(), bb.remaining());
+        }
+        else {
+            // Direct or read-only buffer: there is no accessible backing array.
+            packParticleBytes(Buffer.byteBufferToBytes(bb));
+        }
     }
 
     public void packLong(long val) {
