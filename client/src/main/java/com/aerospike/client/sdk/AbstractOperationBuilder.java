@@ -19,6 +19,8 @@ package com.aerospike.client.sdk;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.aerospike.client.sdk.policy.Behavior.OpKind;
+
 /**
  * Abstract base class for operation builders that support bin-level operations.
  *
@@ -85,6 +87,41 @@ public abstract class AbstractOperationBuilder<T extends AbstractOperationBuilde
     // ========================================
     // Operation Retryability
     // ========================================
+
+    /**
+     * Resolve whether a write is {@link OpKind#WRITE_RETRYABLE} or {@link OpKind#WRITE_NON_RETRYABLE},
+     * which selects the behavior settings it runs with ({@code writes().retryable()} or
+     * {@code writes().nonRetryable()}).
+     * <p>
+     * A write is retryable when repeating it after an attempt that succeeded on the server, but
+     * whose response was lost, leaves the same outcome:
+     * <ul>
+     *   <li>Upsert, update, replace: retryable when every operation is; see
+     *       {@link #areOperationsRetryable(List)}. An ADD, APPEND, PREPEND or modify operation would
+     *       be applied twice.</li>
+     *   <li>Delete, touch: retryable.</li>
+     *   <li>Insert: not retryable. The retry fails with {@code KEY_EXISTS_ERROR} although the record
+     *       was written.</li>
+     *   <li>Any write with a generation check: not retryable. The retry fails with
+     *       {@code GENERATION_ERROR}.</li>
+     *   <li>UDF: not retryable, since what the function does is unknown.</li>
+     * </ul>
+     *
+     * @param opType     the write type
+     * @param generation expected generation, or 0 for no generation check
+     * @param ops        the write's operations, or null if it has none
+     * @return the write's kind
+     */
+    public static OpKind writeKind(OpType opType, int generation, List<Operation> ops) {
+        if (opType == OpType.INSERT || opType == OpType.UDF || generation != 0) {
+            return OpKind.WRITE_NON_RETRYABLE;
+        }
+
+        if (ops != null && !areOperationsRetryable(ops)) {
+            return OpKind.WRITE_NON_RETRYABLE;
+        }
+        return OpKind.WRITE_RETRYABLE;
+    }
 
     /**
      * Determines if a list of operations are safe to retry.

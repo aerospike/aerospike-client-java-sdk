@@ -217,7 +217,8 @@ public final class Behavior {
             .on(Selectors.writes().cp(), ops -> ops
                     .useDurableDelete(true)
             )
-            // Non-retryable write defaults (batch writes, operate, touch, UDF).
+            // Non-retryable write defaults (inserts, generation checks, add/append/prepend/modify
+            // operations, UDFs; see AbstractOperationBuilder.writeKind).
             // useDurableDelete is left to all() and writes().cp().
             .on(Selectors.writes().nonRetryable(), ops -> ops
                     .maximumNumberOfCallAttempts(1)
@@ -821,7 +822,17 @@ public final class Behavior {
     // -----------------------------------------------------------------------------------
     public enum OpKind {
         READ(false),
+        /**
+         * A write that is safe to repeat after an attempt whose outcome is unknown: an upsert,
+         * update or replace whose operations are all retryable, a delete, or a touch.
+         * See {@code AbstractOperationBuilder.writeKind}.
+         */
         WRITE_RETRYABLE(false),
+        /**
+         * A write that is not safe to repeat: an insert, any write with a generation check, a write
+         * with an ADD, APPEND, PREPEND or modify operation, or a UDF.
+         * See {@code AbstractOperationBuilder.writeKind}.
+         */
         WRITE_NON_RETRYABLE(false),
         SYSTEM_TXN_VERIFY(true),
         SYSTEM_TXN_ROLL(true);
@@ -1805,8 +1816,8 @@ public final class Behavior {
      * Selectors.writes().batch()  // All multi-record writes
      *
      * // By retryability:
-     * Selectors.writes().retryable()     // Retryable writes (puts, updates)
-     * Selectors.writes().nonRetryable()  // Non-retryable writes (deletes, operations)
+     * Selectors.writes().retryable()     // Upserts, updates, replaces, deletes, touches
+     * Selectors.writes().nonRetryable()  // Inserts, generation checks, add/append/prepend/modify, UDFs
      *
      * // Combined - shape then mode (recommended for retryability-agnostic):
      * Selectors.writes().point().ap()    // All point writes in AP mode (exposes commitLevel)

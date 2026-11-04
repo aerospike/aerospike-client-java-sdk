@@ -166,6 +166,9 @@ class OperationSpecExecutor {
         Mode mode = Mode.AP;
         boolean linearize = false;
         boolean hasWrite = false;
+        // A batch retry resends every record on the node, so the batch is retryable only if all of
+        // its writes are.
+        boolean writesRetryable = true;
 
         for (OperationSpec spec : specs) {
             // Set isIncludeMissingKeys if any spec has isIncludeMissingKeys.
@@ -266,8 +269,14 @@ class OperationSpecExecutor {
                     rec = new BatchRead(key, spec.getWhereClause(), attr, ttl, false);
                 }
                 else {
-                    ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.BATCH, scMode);
+                    OpKind writeKind = AbstractOperationBuilder.writeKind(
+                        spec.getOpType(), spec.getGeneration(), spec.getOperations());
+                    ResolvedSettings settings = behavior.getSettings(writeKind, OpShape.BATCH, scMode);
                     hasWrite = true;
+
+                    if (writeKind == OpKind.WRITE_NON_RETRYABLE) {
+                        writesRetryable = false;
+                    }
 
                     switch (spec.getOpType()) {
                     case UPSERT:
@@ -323,7 +332,8 @@ class OperationSpecExecutor {
             }
         }
 
-        OpKind kind = hasWrite? OpKind.WRITE_NON_RETRYABLE : OpKind.READ;
+        OpKind kind = !hasWrite ? OpKind.READ :
+            writesRetryable ? OpKind.WRITE_RETRYABLE : OpKind.WRITE_NON_RETRYABLE;
         ResolvedSettings settings = behavior.getSettings(kind, OpShape.BATCH, mode);
 
         // Note: latency namespace will be null when at least one key has a different namespace.
@@ -650,10 +660,11 @@ class OperationSpecExecutor {
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
         Boolean durableDeleteDefault, ErrorDisposition disposition, boolean latencyEnabled
     ) {
-        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
         List<Operation> ops = spec.getOperations();
         OpType opType = spec.getOpType();
+        ResolvedSettings settings = behavior.getSettings(
+            AbstractOperationBuilder.writeKind(opType, gen, ops), OpShape.POINT, scMode);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
@@ -714,8 +725,9 @@ class OperationSpecExecutor {
         OperationSpec spec, Key key, Expression filterExp, long ttl, Txn txn,
         boolean scMode, boolean failOnFilteredOut, boolean latenycEnabled
     ) {
-        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
+        ResolvedSettings settings = behavior.getSettings(
+            AbstractOperationBuilder.writeKind(OpType.TOUCH, gen, null), OpShape.POINT, scMode);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
@@ -738,9 +750,10 @@ class OperationSpecExecutor {
         boolean scMode, boolean failOnFilteredOut, Boolean durableDeleteDefault,
         boolean latenycEnabled
     ) {
-        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, scMode);
         int gen = spec.getGeneration();
         int ttl = (int) spec.getExpirationInSeconds();
+        ResolvedSettings settings = behavior.getSettings(
+            AbstractOperationBuilder.writeKind(OpType.DELETE, gen, null), OpShape.POINT, scMode);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);
@@ -765,7 +778,8 @@ class OperationSpecExecutor {
         boolean scMode, boolean includeMissingKeys, boolean failOnFilteredOut,
         Boolean durableDeleteDefault, ErrorDisposition disposition, boolean latenycEnabled
     ) {
-        ResolvedSettings settings = behavior.getSettings(OpKind.WRITE_NON_RETRYABLE, OpShape.POINT, scMode);
+        ResolvedSettings settings = behavior.getSettings(
+            AbstractOperationBuilder.writeKind(OpType.UDF, 0, null), OpShape.POINT, scMode);
 
         if (txn != null) {
             TxnMonitor.addKey(txn, session, key);

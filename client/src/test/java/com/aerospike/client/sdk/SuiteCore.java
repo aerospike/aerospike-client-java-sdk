@@ -96,6 +96,7 @@ import com.aerospike.client.sdk.util.PackerTest;
     SystemBehaviorTest.class,
     TopKMergeTest.class,
     TopKMergingRecordStreamTest.class,
+    WriteKindTest.class,
     VectorExpTest.class,
     VectorTest.class,
     VectorWriteGuardWireTest.class,

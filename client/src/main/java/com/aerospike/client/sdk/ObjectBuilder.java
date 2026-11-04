@@ -1020,6 +1020,14 @@ public class ObjectBuilder<T> {
         return new RecordStream(stream);
     }
 
+    /**
+     * Object writes are puts of whole bins, so their kind depends only on the write type and the
+     * generation check. See {@link AbstractOperationBuilder#writeKind}.
+     */
+    private OpKind writeKind() {
+        return AbstractOperationBuilder.writeKind(opBuilder.getOpType(), generation, null);
+    }
+
     private BatchCommand prepareBatch(boolean latencyEnabled) {
         Session session = opBuilder.getSession();
         Cluster cluster = session.getCluster();
@@ -1029,7 +1037,7 @@ public class ObjectBuilder<T> {
         Partitions partitions = getPartitions(cluster, namespace);
 
         settings = session.getBehavior()
-            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.BATCH, partitions.scMode);
+            .getSettings(writeKind(), OpShape.BATCH, partitions.scMode);
 
         long effectiveExpiration = resolveTtl(expirationInSeconds, defaultExpirationInSeconds);
         int ttl = getExpirationAsInt(effectiveExpiration);
@@ -1104,9 +1112,8 @@ public class ObjectBuilder<T> {
         Key firstKey = keys.get(0);
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
-        // Assume all operations are puts (WRITE_RETRYABLE).
         ResolvedSettings settings = session.getBehavior()
-            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(writeKind(), OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(cluster, firstKey.namespace);
@@ -1189,9 +1196,8 @@ public class ObjectBuilder<T> {
         Key firstKey = keys.get(0);
         Partitions partitions = getPartitions(cluster, firstKey.namespace);
 
-        // Assume all operations are puts (WRITE_RETRYABLE).
         ResolvedSettings settings = session.getBehavior()
-            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(writeKind(), OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(cluster, firstKey.namespace);
@@ -1230,9 +1236,8 @@ public class ObjectBuilder<T> {
 
         Partitions partitions = getPartitions(cluster, key.namespace);
 
-        // Assume all operations are puts (WRITE_RETRYABLE).
         ResolvedSettings settings = session.getBehavior()
-            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(writeKind(), OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(cluster, key.namespace);
@@ -1287,9 +1292,8 @@ public class ObjectBuilder<T> {
 
         Partitions partitions = getPartitions(cluster, key.namespace);
 
-        // Assume all operations are puts (WRITE_RETRYABLE).
         ResolvedSettings settings = session.getBehavior()
-            .getSettings(OpKind.WRITE_RETRYABLE, OpShape.POINT, partitions.scMode);
+            .getSettings(writeKind(), OpShape.POINT, partitions.scMode);
 
         // Apply where clause if present
         final Expression filterExp = getFilterExp(cluster, key.namespace);
