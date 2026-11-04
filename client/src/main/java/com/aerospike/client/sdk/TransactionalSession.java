@@ -45,18 +45,17 @@ import com.aerospike.client.sdk.policy.ResolvedSettings;
  *
  * <p>Example usage:</p>
  * <pre>{@code
- * TransactionalSession session = new TransactionalSession(cluster, behavior);
+ * Session session = cluster.createSession(behavior);
  *
- * // Void transaction
- * session.doInTransaction(txSession -> {
- *     // Perform operations within transaction
- *     txSession.put(key, bin);
+ * // Void transaction: the block receives a TransactionalSession
+ * TxnStatus status = session.doInTransaction(txSession -> {
+ *    txSession.upsert(key).bin("value").setTo("committed").execute();
  * });
  *
  * // Value-returning transaction
- * String result = session.doInTransaction(txSession -> {
- *     Record record = txSession.get(key);
- *     return record.getString("value");
+ * String result = session.doInTransactionReturning(txSession -> {
+ *    Record record = txSession.query(key).execute().getFirst().get().recordOrThrow();
+ *    return record.getString("value");
  * });
  * }</pre>
  *
