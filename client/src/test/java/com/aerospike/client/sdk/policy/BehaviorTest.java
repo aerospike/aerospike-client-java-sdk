@@ -128,6 +128,21 @@ public class BehaviorTest {
         }
 
         @Test
+        @DisplayName("DEFAULT durable delete is on for every SC write and off for every AP write")
+        void testDefaultDurableDeleteByMode() {
+            // A rule declared after writes().cp() used to switch durable delete back off for
+            // non-retryable SC writes, so SC batch deletes failed with FAIL_FORBIDDEN.
+            for (OpKind kind : new OpKind[] {OpKind.WRITE_RETRYABLE, OpKind.WRITE_NON_RETRYABLE}) {
+                for (OpShape shape : new OpShape[] {OpShape.POINT, OpShape.BATCH, OpShape.QUERY}) {
+                    assertTrue(Behavior.DEFAULT.getSettings(kind, shape, Mode.CP).getUseDurableDelete(),
+                        kind + " " + shape + " CP");
+                    assertFalse(Behavior.DEFAULT.getSettings(kind, shape, Mode.AP).getUseDurableDelete(),
+                        kind + " " + shape + " AP");
+                }
+            }
+        }
+
+        @Test
         @DisplayName("DEFAULT should have all NON-RETRYABLE WRITE settings configured")
         void testDefaultNonRetryableWriteSettings() {
             ResolvedSettings writeNonRetryablePointAp =

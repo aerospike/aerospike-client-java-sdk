@@ -206,19 +206,21 @@ public final class Behavior {
                     .allowScansWithWhere(true)
                     .maximumNumberOfCallAttempts(6)
             )
-            // Retryable write defaults
+            // Retryable write defaults. useDurableDelete is left to all() and writes().cp().
             .on(Selectors.writes().retryable(), ops -> ops
-                    .useDurableDelete(false)
                     .maximumNumberOfCallAttempts(3)
                     .simulateXdrWrite(false)
             )
+            // SC writes are durable: without it, an SC namespace that disallows expunge rejects
+            // deletes with FAIL_FORBIDDEN. Later rules win, so no write rule declared after this
+            // one may set useDurableDelete, or SC deletes of that kind silently lose durability.
             .on(Selectors.writes().cp(), ops -> ops
                     .useDurableDelete(true)
             )
-            // Non-retryable write defaults
+            // Non-retryable write defaults (batch writes, operate, touch, UDF).
+            // useDurableDelete is left to all() and writes().cp().
             .on(Selectors.writes().nonRetryable(), ops -> ops
                     .maximumNumberOfCallAttempts(1)
-                    .useDurableDelete(false)
                     .simulateXdrWrite(false)
             )
             // Batch write defaults (both retryable and non-retryable)

@@ -390,6 +390,60 @@ public class DurableDeleteTests extends ClusterTest {
     }
 
     /**
+     * Batch deletes resolve as non-retryable writes. A rule in {@link Behavior#DEFAULT} declared after
+     * {@code writes().cp()} used to switch durable delete off for them, so on SC every key failed with
+     * {@link ResultCode#FAIL_FORBIDDEN} (reported per key, without an exception).
+     */
+    @Test
+    public void defaultSessionBatchDeleteOnStrongConsistencyWithoutExplicitDurableOptIn() {
+        Assumptions.assumeTrue(args.scMode,
+            "Strong-consistency namespace only.");
+        Assumptions.assumeTrue(args.enterprise,
+            "Durable delete is an Enterprise server feature.");
+
+        List<Key> keys = args.set.ids(10712, 10713, 10714);
+        String binName = "ddbDefScB";
+        session.upsert(keys).bin(binName).setTo(1).execute();
+
+        RecordStream del = session.delete(keys).execute();
+        assertBatchWriteOperateDeleteStreamAllOk(del, keys.size());
+
+        RecordStream ex = session.exists(keys).includeMissingKeys().execute();
+        for (int i = 0; i < keys.size(); i++) {
+            assertTrue(ex.hasNext(), "key index " + i);
+            assertFalse(ex.next().asBoolean(), "record should be deleted; index " + i);
+        }
+    }
+
+    /**
+     * Single-key operate also resolves as a non-retryable write, so {@code deleteRecord()} was
+     * affected the same way as batch deletes.
+     */
+    @Test
+    public void defaultSessionOperateDeleteRecordOnStrongConsistencyWithoutExplicitDurableOptIn() {
+        Assumptions.assumeTrue(args.scMode,
+            "Strong-consistency namespace only.");
+        Assumptions.assumeTrue(args.enterprise,
+            "Durable delete is an Enterprise server feature.");
+
+        Key key = args.set.id(10715);
+        String binName = "ddbDefScO";
+        session.upsert(key).bin(binName).setTo(1).execute();
+
+        RecordStream rs = session.update(key)
+            .bin(binName).get()
+            .deleteRecord()
+            .execute();
+
+        assertTrue(rs.hasNext());
+        assertEquals(1, rs.next().recordOrThrow().getInt(binName));
+
+        RecordStream ex = session.exists(key).execute();
+        assertTrue(ex.hasNext());
+        assertFalse(ex.next().asBoolean());
+    }
+
+    /**
      * Baseline on AP: {@link Session} uses {@link Behavior#DEFAULT} and the caller does not set durable
      * explicitly; point delete removes the record.
      */

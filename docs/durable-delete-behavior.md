@@ -50,7 +50,9 @@ If none of these are called, the spec’s durable flag stays **`null`** (no expl
 
 ### Behavior matrix / YAML
 
-**`useDurableDelete(boolean)`** on the appropriate **write** behavior selectors sets the default **`Settings.useDurableDelete`** for matching operations. That value is the baseline until the executor applies an explicit **`OperationSpec`** override (no client-side “always on for SC” default on batch delete or operate `deleteRecord()`—those are opt-in due to server cost).
+**`useDurableDelete(boolean)`** on the appropriate **write** behavior selectors sets the default **`Settings.useDurableDelete`** for matching operations. That value is the baseline until the executor applies an explicit **`OperationSpec`** override.
+
+**`Behavior.DEFAULT`** sets it to **`true`** for every write on an SC namespace (**`writes().cp()`**): point, batch and background, retryable and non-retryable. It is **`false`** for AP. Rules are applied in declaration order and the last one wins, so no write rule declared after **`writes().cp()`** in `DEFAULT` may set **`useDurableDelete`**. In 1.0.0 the non-retryable rule did, which turned durable delete off for SC batch writes and single-key operate, touch and UDF: batch deletes on SC then failed per key with **`FAIL_FORBIDDEN` (22)**.
 
 ### Inherited `withDurableDelete()` / `withoutDurableDelete()` on other builders
 
@@ -62,7 +64,7 @@ If none of these are called, the spec’s durable flag stays **`null`** (no expl
 
 ## Implicit (client-default) durable delete
 
-**Batch `BatchDelete`**, **foreground operate `deleteRecord()`**, and **background task delete / UDF** do **not** turn on durable delete based on **`scMode` alone**—callers must opt in (**`durablyDelete(true)`**, **`withDurableDelete()`**, **`withoutDurableDelete()`**, or behavior **`useDurableDelete`**) because of **server-side cost** of durable deletes.
+**Batch `BatchDelete`**, **foreground operate `deleteRecord()`**, and **background task delete / UDF** do **not** turn on durable delete based on **`scMode` alone**—the executor adds no SC default of its own because of the **server-side cost** of durable deletes. The choice comes from the per-call API (**`durablyDelete(true)`**, **`withDurableDelete()`**, **`withoutDurableDelete()`**) or from behavior **`useDurableDelete`**, which **`Behavior.DEFAULT`** turns on for SC writes (see above).
 
 ---
 
