@@ -17,9 +17,13 @@
 package com.aerospike.client.sdk.query;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
@@ -52,7 +56,7 @@ public class QueryTopKValidationTest extends ClusterTest {
         QueryBuilder qb = new QueryBuilder(session, dataSet());
         AerospikeException ae = assertThrows(AerospikeException.class,
             () -> qb.orderBy(null, BinDataType.INTEGER, Order.ASC));
-        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode());
     }
 
     @Test
@@ -116,18 +120,150 @@ public class QueryTopKValidationTest extends ClusterTest {
     */
 
     @Test
-    void thenOrderByRejectsMissingFirstKeyDuplicateAndThirdKey() {
+    void thenOrderByRejectsMissingFirstKeyAndThirdKey() {
         QueryBuilder empty = new QueryBuilder(session, dataSet());
-        assertThrows(AerospikeException.class,
+        AerospikeException ae = assertThrows(AerospikeException.class,
             () -> empty.thenOrderBy("second", BinDataType.INTEGER, Order.ASC));
+        assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode());
 
         QueryBuilder qb = new QueryBuilder(session, dataSet());
-        qb.orderBy("first", BinDataType.INTEGER, Order.ASC);
-        assertThrows(AerospikeException.class,
-            () -> qb.thenOrderBy("first", BinDataType.INTEGER, Order.DESC));
-        qb.thenOrderBy("second", BinDataType.INTEGER, Order.DESC);
-        assertThrows(AerospikeException.class,
+        qb.orderBy("first", BinDataType.INTEGER, Order.ASC)
+            .thenOrderBy("second", BinDataType.INTEGER, Order.DESC);
+        ae = assertThrows(AerospikeException.class,
             () -> qb.thenOrderBy("third", BinDataType.INTEGER, Order.ASC));
+        assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode());
+        assertEquals(2, qb.getOrderBySpecs().size(), "the rejected call leaves both keys in place");
+    }
+
+    @Test
+    void thenOrderByAddsASecondKeyAfterTheFirst() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.orderBy("score", BinDataType.DOUBLE, Order.DESC)
+            .thenOrderBy("ts", BinDataType.INTEGER, Order.ASC)
+            .topK(5);
+
+        assertEquals(2, qb.getOrderBySpecs().size());
+        assertEquals("score", qb.getOrderBySpecs().get(0).getBinName());
+        assertEquals(Order.DESC, qb.getOrderBySpecs().get(0).getDirection());
+        assertEquals("ts", qb.getOrderBySpecs().get(1).getBinName());
+        assertEquals(Order.ASC, qb.getOrderBySpecs().get(1).getDirection());
+        qb.validateTopKQueryState();
+    }
+
+    @Test
+    void thenOrderByAcceptsTheFirstKeysBin() {
+        // The PRD does not require distinct bins. The second key then never decides anything.
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC)
+            .thenOrderBy("n", BinDataType.INTEGER, Order.DESC)
+            .topK(5);
+
+        assertEquals(2, qb.getOrderBySpecs().size());
+        qb.validateTopKQueryState();
+    }
+
+    @Test
+    void repeatedOrderByReplacesBothKeysAndKeepsTopK() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.orderBy("score", BinDataType.DOUBLE, Order.DESC)
+            .thenOrderBy("ts", BinDataType.INTEGER, Order.ASC)
+            .topK(7)
+            .orderBy("price", BinDataType.INTEGER, Order.ASC);
+
+        assertEquals(1, qb.getOrderBySpecs().size());
+        assertEquals("price", qb.getOrderBySpec().getBinName());
+        assertEquals(7, qb.getTopK());
+
+        // With the second key cleared, thenOrderBy may add one again.
+        qb.thenOrderBy("ts", BinDataType.INTEGER, Order.ASC);
+        assertEquals(2, qb.getOrderBySpecs().size());
+    }
+
+    @Test
+    void secondKeyMustBeInProjection() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        qb.orderBy("n", BinDataType.INTEGER, Order.ASC)
+            .thenOrderBy("m", BinDataType.INTEGER, Order.ASC)
+            .topK(5)
+            .readingOnlyBins("n");
+
+        AerospikeException ae = assertThrows(AerospikeException.class, qb::validateTopKQueryState);
+        assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode());
+        assertTrue(ae.getMessage().contains("'m'"), ae.getMessage());
+
+        qb.readingOnlyBins("n", "m");
+        qb.validateTopKQueryState();
+    }
+
+    @Test
+    void missingTypeMessageListsOnlySupportedTypes() {
+        QueryBuilder qb = new QueryBuilder(session, dataSet());
+        AerospikeException ae = assertThrows(AerospikeException.class,
+            () -> qb.orderBy("n", null, Order.ASC));
+
+        assertTrue(ae.getMessage().contains("INTEGER, DOUBLE, or BYTES"), ae.getMessage());
+        assertFalse(ae.getMessage().contains("STRING"), ae.getMessage());
+    }
+
+    // -- result code of checks made before sending ----------------------------
+
+    @Test
+    void clientErrorCodeIsMinusTwoUntilAgreedAcrossClients() {
+        assertEquals(-2, QueryBuilder.TOP_K_CLIENT_ERROR);
+        assertEquals(ResultCode.PARSE_ERROR, QueryBuilder.TOP_K_CLIENT_ERROR);
+    }
+
+    @Test
+    void everyCheckBeforeSendingFailsWithTheClientErrorCode() {
+        // Server rejections keep PARAMETER_ERROR (4); none of these reach the server.
+        Map<String, Consumer<QueryBuilder>> rejected = Map.ofEntries(
+            Map.entry("null bin name", qb -> qb.orderBy(null, BinDataType.INTEGER, Order.ASC)),
+            Map.entry("empty bin name", qb -> qb.orderBy("", BinDataType.INTEGER, Order.ASC)),
+            Map.entry("bin name too long", qb -> qb.orderBy(
+                "a".repeat(Bin.MAX_BIN_NAME_LENGTH + 1), BinDataType.INTEGER, Order.ASC)),
+            Map.entry("null type", qb -> qb.orderBy("n", null, Order.ASC)),
+            Map.entry("null direction", qb -> qb.orderBy("n", BinDataType.INTEGER, null)),
+            Map.entry("unknown flags", qb -> qb.orderBy("n", BinDataType.INTEGER, Order.ASC, 0x80)),
+            Map.entry("case-insensitive flag", qb -> qb.orderBy("n", BinDataType.INTEGER, Order.ASC,
+                OrderByFlags.CASE_INSENSITIVE)),
+            Map.entry("thenOrderBy first", qb -> qb.thenOrderBy("n", BinDataType.INTEGER, Order.ASC)),
+            Map.entry("third key", qb -> qb.orderBy("a", BinDataType.INTEGER, Order.ASC)
+                .thenOrderBy("b", BinDataType.INTEGER, Order.ASC)
+                .thenOrderBy("c", BinDataType.INTEGER, Order.ASC)),
+            Map.entry("topK zero", qb -> qb.topK(0)),
+            Map.entry("topK over max", qb -> qb.topK(1001)),
+            Map.entry("orderBy without topK", qb -> {
+                qb.orderBy("n", BinDataType.INTEGER, Order.ASC);
+                qb.validateTopKQueryState();
+            }),
+            Map.entry("topK without orderBy", qb -> {
+                qb.topK(5);
+                qb.validateTopKQueryState();
+            }),
+            Map.entry("with limit", qb -> {
+                qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).limit(10);
+                qb.validateTopKQueryState();
+            }),
+            Map.entry("with chunkSize", qb -> {
+                qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).chunkSize(100);
+                qb.validateTopKQueryState();
+            }),
+            Map.entry("with withNoBins", qb -> {
+                qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).withNoBins();
+                qb.validateTopKQueryState();
+            }),
+            Map.entry("not in projection", qb -> {
+                qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5).readingOnlyBins("other");
+                qb.validateTopKQueryState();
+            }),
+            Map.entry("async", qb -> qb.orderBy("n", BinDataType.INTEGER, Order.ASC).topK(5)
+                .executeAsync(ErrorStrategy.IN_STREAM)));
+
+        rejected.forEach((name, call) -> {
+            QueryBuilder qb = new QueryBuilder(session, dataSet());
+            AerospikeException ae = assertThrows(AerospikeException.class, () -> call.accept(qb), name);
+            assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode(), name + ": " + ae.getMessage());
+        });
     }
 
     // -- topK(...) per-call argument validation --------------------------------
@@ -180,7 +316,7 @@ public class QueryTopKValidationTest extends ClusterTest {
         qb.orderBy("n", BinDataType.INTEGER, Order.ASC);
 
         AerospikeException ae = assertThrows(AerospikeException.class, qb::validateTopKQueryState);
-        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode());
     }
 
     @Test
@@ -374,6 +510,6 @@ public class QueryTopKValidationTest extends ClusterTest {
 
         AerospikeException ae = assertThrows(AerospikeException.class,
             () -> qb.executeAsync(ErrorStrategy.IN_STREAM));
-        assertEquals(ResultCode.PARAMETER_ERROR, ae.getResultCode());
+        assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode());
     }
 }

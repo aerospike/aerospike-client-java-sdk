@@ -94,7 +94,8 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
 
     /**
      * Sets the Top-K order-by clause, forming {@code ORDER BY <binName> <ASC|DESC> LIMIT k} when
-     * paired with {@link #topK(int)}.
+     * paired with {@link #topK(int)}. Calling it again replaces the order keys, including a second
+     * key, and keeps the {@link #topK(int)} value.
      *
      * @return this QueryBuilder for method chaining
      */
@@ -108,8 +109,9 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
     T orderBy(String binName, BinDataType type, Order direction, int flags);
 
     /**
-     * Adds a second order-by key for lexicographic tie-breaking. Requires a preceding
-     * {@link #orderBy(String, BinDataType, Order)}.
+     * Adds the second order-by key, which decides the order only where the first key ties. Fails
+     * with a client error before the query is sent if there is no preceding
+     * {@link #orderBy(String, BinDataType, Order)}, or if two keys are already set.
      *
      * @return this QueryBuilder for method chaining
      */
