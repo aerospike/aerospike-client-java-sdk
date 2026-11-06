@@ -105,6 +105,7 @@ public class Cluster implements Closeable {
     private final AtomicInteger nodeIndex;
     private final AtomicInteger replicaIndex;
     private final AtomicBoolean closed;
+    private final AtomicBoolean singleNodeBatchReadsWarned;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
     private MetricsSettings metricsSettings;
@@ -153,6 +154,7 @@ public class Cluster implements Closeable {
         nodeIndex = new AtomicInteger();
         replicaIndex = new AtomicInteger();
         closed = new AtomicBoolean();
+        singleNodeBatchReadsWarned = new AtomicBoolean();
 
         this.applySystemSettings(effectiveSettings);
 
@@ -789,6 +791,14 @@ public class Cluster implements Closeable {
      */
     public final int incrReplicaIndex() {
         return replicaIndex.getAndIncrement();
+    }
+
+    /**
+     * Return true the first time this is called for the cluster and false after that. Used to
+     * log the allowSingleNodeBatchReads replica order warning once per cluster.
+     */
+    public final boolean firstSingleNodeBatchReadsWarning() {
+        return singleNodeBatchReadsWarned.compareAndSet(false, true);
     }
 
     /**

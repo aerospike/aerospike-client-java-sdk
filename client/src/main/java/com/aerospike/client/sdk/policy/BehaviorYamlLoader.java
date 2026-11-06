@@ -492,6 +492,9 @@ public class BehaviorYamlLoader {
         if (config.getAllowInlineSsdAccess() != null) {
             tweaks.allowInlineSsdAccess(config.getAllowInlineSsdAccess());
         }
+        if (config.getAllowSingleNodeBatchReads() != null) {
+            tweaks.allowSingleNodeBatchReads(config.getAllowSingleNodeBatchReads());
+        }
     }
 
     /**

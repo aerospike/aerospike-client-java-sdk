@@ -22,9 +22,8 @@ package com.aerospike.client.sdk.ael;
  *     or {@code Exp} instead.
  */
 @Deprecated(forRemoval = true)
-@SuppressWarnings("removal")
 public enum LogicalOp {
     AND,   // Logical AND
     OR,    // Logical OR
     NOT    // Logical NOT
-} 
+}

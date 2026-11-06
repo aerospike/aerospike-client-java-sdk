@@ -17,6 +17,8 @@
 package com.aerospike.client.sdk.tend;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import org.slf4j.Logger;
@@ -87,6 +89,7 @@ public final class PartitionParser extends Info {
 
         int begin = offset;
         int regime = 0;
+        HashSet<String> namespaces = new HashSet<String>();
 
         while (offset < length) {
             if (buffer[offset] == ':') {
@@ -150,7 +153,11 @@ public final class PartitionParser extends Info {
                     map.put(namespace, partitions);
                 }
 
-                // Parse partition bitmaps.
+                // Parse partition bitmaps. A node is never both master and prole for the same
+                // partition, so its bitmaps are disjoint and the number of partitions mapped to
+                // it across all replica levels is the number of partitions it owns.
+                int ownedCount = 0;
+
                 for (int i = 0; i < replicaCount; i++) {
                     begin = ++offset;
 
@@ -171,20 +178,34 @@ public final class PartitionParser extends Info {
                     }
 
                     // Log.info("Map: " + namespace + '[' + i + "] " + node);
-                    decodeBitmap(node, partitions, i, regime, begin);
+                    ownedCount += decodeBitmap(node, partitions, i, regime, begin);
                 }
+                partitions.setFullOwner(node, ownedCount == partitionCount);
+                namespaces.add(namespace);
                 begin = ++offset;
             }
             else {
                 offset++;
             }
         }
+
+        // The node no longer reports these namespaces, so it can't be a full owner of them.
+        for (Map.Entry<String,Partitions> entry : map.entrySet()) {
+            if (! namespaces.contains(entry.getKey())) {
+                entry.getValue().setFullOwner(node, false);
+            }
+        }
     }
 
-    private void decodeBitmap(Node node, Partitions partitions, int index, int regime, int begin) {
+    /**
+     * Map the node to the partitions set in the bitmap and return how many partitions were
+     * mapped to it. Partitions skipped because of an older regime are not counted.
+     */
+    private int decodeBitmap(Node node, Partitions partitions, int index, int regime, int begin) {
         AtomicReferenceArray<Node> nodeArray = partitions.replicas[index];
         int[] regimes = partitions.regimes;
         byte[] restoreBuffer = Crypto.decodeBase64(buffer, begin, offset - begin);
+        int mappedCount = 0;
 
         for (int i = 0; i < partitionCount; i++) {
             Node nodeOld = nodeArray.get(i);
@@ -202,6 +223,10 @@ public final class PartitionParser extends Info {
                     if (nodeOld != null && nodeOld != node) {
                         // Force previously mapped node to refresh it's partition map on next cluster tend.
                         nodeOld.resetPartitionGeneration();
+
+                        // The previously mapped node may no longer own every partition. Drop it
+                        // from the full-owner set until its own partition map is refreshed.
+                        partitions.setFullOwner(nodeOld, false);
                     }
 
                     // Use lazy set because there is only one producer thread. In addition,
@@ -209,6 +234,7 @@ public final class PartitionParser extends Info {
                     // An extra millisecond for a node change will not make a difference and
                     // overall performance is improved.
                     nodeArray.lazySet(i, node);
+                    mappedCount++;
                 }
                 else {
                     if (!regimeError) {
@@ -222,6 +248,7 @@ public final class PartitionParser extends Info {
                 }
             }
         }
+        return mappedCount;
     }
 
     private void copyPartitionMap() {

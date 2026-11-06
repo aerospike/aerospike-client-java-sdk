@@ -198,6 +198,7 @@ public final class Behavior {
                     .maxConcurrentNodes(1)  // Old: maxConcurrentServers
                     .allowInlineMemoryAccess(true)
                     .allowInlineSsdAccess(false)
+                    .allowSingleNodeBatchReads(false)
             )
             // Query defaults
             .on(Selectors.reads().query(), ops -> ops
@@ -229,11 +230,13 @@ public final class Behavior {
                     .maxConcurrentNodes(1)
                     .allowInlineMemoryAccess(true)
                     .allowInlineSsdAccess(false)
+                    .allowSingleNodeBatchReads(false)
             )
             .on(Selectors.writes().nonRetryable().batch(), ops -> ops
                     .maxConcurrentNodes(1)
                     .allowInlineMemoryAccess(true)
                     .allowInlineSsdAccess(false)
+                    .allowSingleNodeBatchReads(false)
             )
             // Query write defaults (background operations)
             // Background operations run server-side on entire sets and require different timeout/retry settings
@@ -259,8 +262,9 @@ public final class Behavior {
                     .waitForCallToComplete(Duration.ofSeconds(3))
                     .abandonCallAfter(Duration.ofSeconds(10))
                     .delayBetweenRetries(Duration.ofSeconds(1))
-                    .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)
+                    .allowInlineMemoryAccess(false)
+                    .allowSingleNodeBatchReads(false)
                     .sendKey(false)
             )
             // Transaction - txnRoll defaults
@@ -270,8 +274,9 @@ public final class Behavior {
                     .waitForCallToComplete(Duration.ofSeconds(3))
                     .abandonCallAfter(Duration.ofSeconds(10))
                     .delayBetweenRetries(Duration.ofSeconds(1))
-                    .allowInlineMemoryAccess(false)
                     .allowInlineSsdAccess(true)
+                    .allowInlineMemoryAccess(false)
+                    .allowSingleNodeBatchReads(false)
                     .sendKey(false)
             );
         DEFAULT = new Behavior(DEFAULT_ROOT_NAME, db.patches, null);
@@ -999,6 +1004,7 @@ public final class Behavior {
         BatchTweaks maxConcurrentNodes(int n);
         BatchTweaks allowInlineMemoryAccess(boolean v);
         BatchTweaks allowInlineSsdAccess(boolean v);
+        BatchTweaks allowSingleNodeBatchReads(boolean v);
     }
     public interface WriteTweaks extends CommonTweaks {
         @Override WriteTweaks errorDetailVerbosity(int e);
@@ -1052,6 +1058,7 @@ public final class Behavior {
         AllAnyModeTweaks maxConcurrentNodes(int n);
         AllAnyModeTweaks allowInlineMemoryAccess(boolean v);
         AllAnyModeTweaks allowInlineSsdAccess(boolean v);
+        AllAnyModeTweaks allowSingleNodeBatchReads(boolean v);
 
         // Query-specific settings
         AllAnyModeTweaks recordQueueSize(int n);
@@ -1176,6 +1183,7 @@ public final class Behavior {
         @Override ReadBatchAnyModeTweaks maxConcurrentNodes(int n);
         @Override ReadBatchAnyModeTweaks allowInlineMemoryAccess(boolean v);
         @Override ReadBatchAnyModeTweaks allowInlineSsdAccess(boolean v);
+        @Override ReadBatchAnyModeTweaks allowSingleNodeBatchReads(boolean v);
     }
     public interface ReadQueryAnyModeTweaks extends QueryTweaks {
         @Override ReadQueryAnyModeTweaks abandonCallAfter(Duration d);
@@ -1237,6 +1245,7 @@ public final class Behavior {
         @Override ReadBatchApTweaks maxConcurrentNodes(int n);
         @Override ReadBatchApTweaks allowInlineMemoryAccess(boolean v);
         @Override ReadBatchApTweaks allowInlineSsdAccess(boolean v);
+        @Override ReadBatchApTweaks allowSingleNodeBatchReads(boolean v);
         @Override ReadBatchApTweaks readMode(ReadModeAP mode);
         @Override ReadBatchApTweaks resetTtlOnReadAtPercent(int percent);
     }
@@ -1255,6 +1264,7 @@ public final class Behavior {
         @Override ReadBatchCpTweaks maxConcurrentNodes(int n);
         @Override ReadBatchCpTweaks allowInlineMemoryAccess(boolean v);
         @Override ReadBatchCpTweaks allowInlineSsdAccess(boolean v);
+        @Override ReadBatchCpTweaks allowSingleNodeBatchReads(boolean v);
         @Override ReadBatchCpTweaks consistency(ReadModeSC c);
         @Override ReadBatchCpTweaks resetTtlOnReadAtPercent(int percent);
     }
@@ -1747,6 +1757,7 @@ public final class Behavior {
         @Override SystemTxnVerifyTweaks maxConcurrentNodes(int n);
         @Override SystemTxnVerifyTweaks allowInlineMemoryAccess(boolean v);
         @Override SystemTxnVerifyTweaks allowInlineSsdAccess(boolean v);
+        @Override SystemTxnVerifyTweaks allowSingleNodeBatchReads(boolean v);
     }
 
     /**
@@ -2381,6 +2392,7 @@ public final class Behavior {
         @Override public TweaksProxy maxConcurrentNodes(int n) { patch.settings.maxConcurrentNodes = n; return this; }
         @Override public TweaksProxy allowInlineMemoryAccess(boolean v) { patch.settings.allowInlineMemoryAccess = v; return this; }
         @Override public TweaksProxy allowInlineSsdAccess(boolean v) { patch.settings.allowInlineSsdAccess = v; return this; }
+        @Override public TweaksProxy allowSingleNodeBatchReads(boolean v) { patch.settings.allowSingleNodeBatchReads = v; return this; }
 
         // Write
         @Override public TweaksProxy useDurableDelete(boolean b) { patch.settings.useDurableDelete = b; return this; }

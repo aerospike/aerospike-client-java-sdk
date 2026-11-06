@@ -42,6 +42,7 @@ public final class Settings {
     Integer maxConcurrentNodes;
     Boolean allowInlineMemoryAccess;
     Boolean allowInlineSsdAccess;
+    Boolean allowSingleNodeBatchReads;
 
     // Write-mode-specific
     Boolean useDurableDelete;
@@ -76,6 +77,7 @@ public final class Settings {
         this.maxConcurrentNodes = orig.maxConcurrentNodes;
         this.allowInlineMemoryAccess = orig.allowInlineMemoryAccess;
         this.allowInlineSsdAccess = orig.allowInlineSsdAccess;
+        this.allowSingleNodeBatchReads = orig.allowSingleNodeBatchReads;
         this.useDurableDelete = orig.useDurableDelete;
         this.simulateXdrWrite = orig.simulateXdrWrite;
         this.commitLevel = orig.commitLevel;
@@ -137,6 +139,9 @@ public final class Settings {
         }
         if (allowInlineSsdAccess != null) {
             m.put("allowInlineSsdAccess", allowInlineSsdAccess);
+        }
+        if (allowSingleNodeBatchReads != null) {
+            m.put("allowSingleNodeBatchReads", allowSingleNodeBatchReads);
         }
 
         if (useDurableDelete != null) {

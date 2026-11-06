@@ -34,6 +34,7 @@ public final class BatchCommand extends Command {
     final boolean inlineMemory;
     final boolean inlineSSD;
     final boolean linearize;
+    final boolean singleNodeReads;
 
     public BatchCommand(
         Cluster cluster, Partitions partitions, Txn txn, String namespace,
@@ -50,6 +51,7 @@ public final class BatchCommand extends Command {
         this.linearize = linearize;
         this.inlineMemory = settings.getAllowInlineMemoryAccess();
         this.inlineSSD = settings.getAllowInlineSsdAccess();
+        this.singleNodeReads = settings.getAllowSingleNodeBatchReads();
     }
 
     public static boolean inDoubt(boolean isWrite, int commandSentCounter) {

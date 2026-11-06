@@ -545,6 +545,11 @@ public class ClusterTend implements Runnable {
 
             // Remove all nodes at once to avoid copying entire array multiple times.
             removeNodesCopy(nodesToRemove);
+
+            // Departed nodes can't be full partition owners.
+            for (Partitions partitions : cluster.getPartitionMap().values()) {
+                partitions.removeFullOwners(nodesToRemove);
+            }
         });
     }
 

@@ -120,6 +120,7 @@ import com.aerospike.client.sdk.query.QueryUpsertFromChainedTest;
     ReplaceTest.class,
     ServerInfoTest.class,
     SessionExtensionTest.class,
+    SingleNodeBatchReadIntegrationTest.class,
     TouchTest.class,
     TypedQueryMappingTest.class,
     TxnCommitStatusTest.class,

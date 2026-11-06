@@ -24,7 +24,6 @@ import com.aerospike.client.sdk.Record;
 import com.aerospike.client.sdk.RecordResult;
 import com.aerospike.client.sdk.RecordStream;
 import com.aerospike.client.sdk.Session;
-import com.aerospike.client.sdk.ael.Ael;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Mode;
@@ -239,7 +238,7 @@ public class CommonExample extends Example {
         System.out.println("Test filtering out");
 
         Optional<RecordResult> rec = session.query(set.ids(2))
-            .where(Ael.stringBin("name").eq("Bob"))
+            .where("$.name == 'Bob'")
             .execute()
             .getFirst();
 
@@ -249,19 +248,19 @@ public class CommonExample extends Example {
 
         // Run again, this time looking for "fred" on the "Bob" record, but without failing on filtering out
         rec = session.query(set.ids(2))
-                .where(Ael.stringBin("name").eq("Fred"))
-                .execute()
-                .getFirst();
+            .where("$.name == 'Fred'")
+            .execute()
+            .getFirst();
 
         rec.ifPresentOrElse(
                 val -> System.out.println("ERROR: Record for Fred exists, value: " + val),
                 () -> System.out.println("Record for Fred does not exist (expected)"));
 
         rec = session.query(set.ids(2))
-                .where(Ael.stringBin("name").eq("Fred"))
-                .includeMissingKeys()
-                .execute()
-                .getFirst(false);
+            .where("$.name == 'Fred'")
+            .includeMissingKeys()
+            .execute()
+            .getFirst(false);
 
         rec.ifPresentOrElse(
                 val -> System.out.println("Record for Fred exists, value: " + val),
@@ -271,10 +270,10 @@ public class CommonExample extends Example {
         // Run again, failing on filtered out
         try {
             rec = session.query(set.ids(2))
-                    .where(Ael.stringBin("name").eq("Fred"))
-                    .failOnFilteredOut()
-                    .execute()
-                    .getFirst();
+                .where("$.name == 'Fred'")
+                .failOnFilteredOut()
+                .execute()
+                .getFirst();
             System.out.println("ERROR: No exception was thrown, this is unexpected");
         }
         catch (AerospikeException ae) {

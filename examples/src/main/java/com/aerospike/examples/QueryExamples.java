@@ -637,12 +637,13 @@ public class QueryExamples extends Example {
         System.out.println("End sorting customers by Name with a where clause\n");
 
         customers = session.query(customerDataSet)
-                .where(Ael.stringBin("name").eq("Tim").and(Ael.longBin("age").gt(30)))
-                .limit(1000)
-                .execute()
-                .asNavigatableStream()
-                .sortBy("name", SortDir.SORT_ASC, true)
-                .toObjectList(customerMapper);
+            .where("$.name == 'Tim' and $.age > 30")
+            .limit(1000)
+            .execute()
+            .asNavigatableStream()
+            .sortBy("name", SortDir.SORT_ASC, true)
+            .toObjectList(customerMapper);
+
         for (Customer customer : customers) {
             System.out.println(customer);
         }
@@ -870,7 +871,7 @@ public class QueryExamples extends Example {
             .defaultExpireRecordAfter(Duration.ofMinutes(20))
             .execute();
         System.out.println("Multi operations:");
-        print((RecordStream) rsStream);
+        print(rsStream);
 
         rsStream = session.queryTypedKeys(customerDataSet.ids(1,2,3))
                     .bin("name").get()

@@ -191,6 +191,7 @@ public class BehaviorYamlConfig {
         private Integer maxConcurrentServers;
         private Boolean allowInlineMemoryAccess;
         private Boolean allowInlineSsdAccess;
+        private Boolean allowSingleNodeBatchReads;
 
         public Integer getMaxConcurrentServers() { return maxConcurrentServers; }
         public void setMaxConcurrentServers(Integer maxConcurrentServers) { this.maxConcurrentServers = maxConcurrentServers; }
@@ -200,6 +201,9 @@ public class BehaviorYamlConfig {
 
         public Boolean getAllowInlineSsdAccess() { return allowInlineSsdAccess; }
         public void setAllowInlineSsdAccess(Boolean allowInlineSsdAccess) { this.allowInlineSsdAccess = allowInlineSsdAccess; }
+
+        public Boolean getAllowSingleNodeBatchReads() { return allowSingleNodeBatchReads; }
+        public void setAllowSingleNodeBatchReads(Boolean allowSingleNodeBatchReads) { this.allowSingleNodeBatchReads = allowSingleNodeBatchReads; }
     }
 
     // Query configuration

@@ -419,10 +419,13 @@ public final class Batch {
 
         @Override
         protected boolean prepareRetry(boolean timeout) {
-            if (! (parent.replica == Replica.SEQUENCE || parent.replica == Replica.PREFER_RACK)) {
+            if (batch.singleNodeTried == null &&
+                ! (parent.replica == Replica.SEQUENCE || parent.replica == Replica.PREFER_RACK)) {
                 // Perform regular retry to same node.
                 return true;
             }
+            // A single-node read batch always goes through retryBatch(), which moves it to
+            // another node or splits it by key.
             sequenceAP++;
 
             if (! timeout || !parent.linearize) {

@@ -16,6 +16,8 @@
  */
 package com.aerospike.client.sdk.command;
 
+import java.util.List;
+
 import com.aerospike.client.sdk.Node;
 
 public final class BatchNode {
@@ -23,6 +25,12 @@ public final class BatchNode {
     public final Node node;
     public int[] offsets;
     public int offsetsSize;
+
+    /**
+     * Nodes this batch has been sent to as a single-node read batch, most recent last. Null if
+     * the batch was split by key. A retry excludes these nodes.
+     */
+    List<Node> singleNodeTried;
 
     public BatchNode(Node node, int capacity, int offset) {
         this.node = node;

@@ -19,8 +19,10 @@ package com.aerospike.client.sdk;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
+import com.aerospike.client.sdk.command.BatchNodesSingleNodeTest;
 import com.aerospike.client.sdk.command.CommandContainerToStringTest;
 import com.aerospike.client.sdk.command.IndexProbeCommandTest;
+import com.aerospike.client.sdk.policy.AllowSingleNodeBatchReadsSettingTest;
 import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
 import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
 import com.aerospike.client.sdk.policy.BehaviorTest;
@@ -42,6 +44,7 @@ import com.aerospike.client.sdk.query.QueryTopKValidationTest;
 import com.aerospike.client.sdk.query.SortPropertiesValidationTest;
 import com.aerospike.client.sdk.query.TopKMergeTest;
 import com.aerospike.client.sdk.query.TopKMergingRecordStreamTest;
+import com.aerospike.client.sdk.tend.PartitionParserFullOwnerTest;
 import com.aerospike.client.sdk.vector.VectorTest;
 import com.aerospike.client.sdk.query.plan.IndexRangeWireTest;
 import com.aerospike.client.sdk.query.plan.QueryPlanTest;
@@ -51,6 +54,7 @@ import com.aerospike.client.sdk.util.PackerTest;
 @Suite
 @SelectClasses({
     AelPlaceholderBinderTest.class,
+    AllowSingleNodeBatchReadsSettingTest.class,
     AsyncRecordStreamTest.class,
     BehaviorFileMonitorRestartTest.class,
     BehaviorTest.class,
@@ -59,6 +63,7 @@ import com.aerospike.client.sdk.util.PackerTest;
     BinBuilderValueTest.class,
     BackgroundIndexFilterWireTest.class,
     BackgroundOperationBuilderValidationTest.class,
+    BatchNodesSingleNodeTest.class,
     ByteBufferValueTest.class,
     CdtGetOrRemoveBuilderDispatchTest.class,
     CdtGetOrRemoveBuilderPathTest.class,
@@ -82,6 +87,7 @@ import com.aerospike.client.sdk.util.PackerTest;
     IndexProbePlannerWhereFlagsTest.class,
     IndexRangeWireTest.class,
     PackerTest.class,
+    PartitionParserFullOwnerTest.class,
     QueryIndexFilterWireTest.class,
     QueryHintTest.class,
     QueryPlanExecuteWireTest.class,

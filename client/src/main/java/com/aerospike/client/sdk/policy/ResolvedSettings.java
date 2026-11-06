@@ -41,6 +41,7 @@ public final class ResolvedSettings {
     private final boolean useCompression;
     private final boolean allowInlineMemoryAccess;
     private final boolean allowInlineSsdAccess;
+    private final boolean allowSingleNodeBatchReads;
     private final boolean useDurableDelete;
     private final boolean simulateXdrWrite;
     private final boolean allowScansWithWhere;
@@ -109,6 +110,9 @@ public final class ResolvedSettings {
         allowInlineSsdAccess = (src.allowInlineSsdAccess != null) ?
             src.allowInlineSsdAccess : false;
 
+        allowSingleNodeBatchReads = (src.allowSingleNodeBatchReads != null) ?
+            src.allowSingleNodeBatchReads : false;
+
         useDurableDelete = (src.useDurableDelete != null) ?
             src.useDurableDelete : false;
 
@@ -171,6 +175,9 @@ public final class ResolvedSettings {
         allowInlineSsdAccess = (src.allowInlineSsdAccess != null) ?
             src.allowInlineSsdAccess : res.allowInlineSsdAccess;
 
+        allowSingleNodeBatchReads = (src.allowSingleNodeBatchReads != null) ?
+            src.allowSingleNodeBatchReads : res.allowSingleNodeBatchReads;
+
         useDurableDelete = (src.useDurableDelete != null) ?
             src.useDurableDelete : res.useDurableDelete;
 
@@ -201,6 +208,7 @@ public final class ResolvedSettings {
         m.put("useCompression", useCompression);
         m.put("allowInlineMemoryAccess", allowInlineMemoryAccess);
         m.put("allowInlineSsdAccess", allowInlineSsdAccess);
+        m.put("allowSingleNodeBatchReads", allowSingleNodeBatchReads);
         m.put("useDurableDelete", useDurableDelete);
         m.put("simulateXdrWrite", simulateXdrWrite);
 
@@ -290,6 +298,10 @@ public final class ResolvedSettings {
 
     public boolean getAllowInlineSsdAccess() {
         return allowInlineSsdAccess;
+    }
+
+    public boolean getAllowSingleNodeBatchReads() {
+        return allowSingleNodeBatchReads;
     }
 
     /**
