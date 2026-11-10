@@ -670,6 +670,90 @@ public class BehaviorYamlLoader {
             });
         }
 
+        // Apply discovery settings
+        if (config.getDiscovery() != null) {
+            BehaviorYamlConfig.SystemDiscoveryConfig discoveryConfig = config.getDiscovery();
+            builder.discovery (ops -> {
+                if (discoveryConfig.getMergePolicy() != null) {
+                    ops.mergePolicy(discoveryConfig.getMergePolicy());
+                }
+                if (discoveryConfig.getRefreshInterval() != null) {
+                    ops.refreshInterval(discoveryConfig.getRefreshInterval());
+                }
+                if (discoveryConfig.getRefreshTimeout() != null) {
+                    ops.refreshTimeout(discoveryConfig.getRefreshTimeout());
+                }
+                if (discoveryConfig.getTendRefreshDeadline() != null) {
+                    ops.tendRefreshDeadline(discoveryConfig.getTendRefreshDeadline());
+                }
+                if (discoveryConfig.getDns() != null) {
+                    BehaviorYamlConfig.DnsConfig dnsConfig = discoveryConfig.getDns();
+                    ops.dns(ext -> {
+                        if (dnsConfig.getNames() != null) {
+                            ext.names(dnsConfig.getNames());
+                        }
+                        if (dnsConfig.getServers() != null) {
+                            ext.servers(dnsConfig.getServers());
+                        }
+                        if (dnsConfig.getRecordType() != null) {
+                            ext.recordType(dnsConfig.getRecordType());
+                        }
+                        if (dnsConfig.getPort() != null) {
+                            ext.port(dnsConfig.getPort());
+                        }
+                        if (dnsConfig.getTlsName() != null) {
+                            ext.tlsName(dnsConfig.getTlsName());
+                        }
+                        if (dnsConfig.getTimeout() != null) {
+                            ext.timeout(dnsConfig.getTimeout());
+                        }
+                    });
+                }
+                if (discoveryConfig.getAws() != null) {
+                    BehaviorYamlConfig.AwsConfig awsConfig = discoveryConfig.getAws();
+                    ops.aws(ext -> {
+                        if (awsConfig.getRegion() != null) {
+                            ext.region(awsConfig.getRegion());
+                        }
+                        if (awsConfig.getFilters() != null) {
+                            ext.filters(awsConfig.getFilters());
+                        }
+                        if (awsConfig.getAddressField() != null) {
+                            ext.addressField(awsConfig.getAddressField());
+                        }
+                        if (awsConfig.getPort() != null) {
+                            ext.port(awsConfig.getPort());
+                        }
+                        if (awsConfig.getTlsName() != null) {
+                            ext.tlsName(awsConfig.getTlsName());
+                        }
+                        if (awsConfig.getTimeout() != null) {
+                            ext.timeout(awsConfig.getTimeout());
+                        }
+                    });
+                }
+            });
+        }
+
+        // Apply translation settings
+        if (config.getTranslation() != null) {
+            BehaviorYamlConfig.SystemTranslationConfig translationConfig = config.getTranslation();
+            builder.translation(ops -> {
+                if (translationConfig.getOnMiss() != null) {
+                    ops.onMiss(translationConfig.getOnMiss());
+                }
+                if (translationConfig.getStaticMap() != null) {
+                    ops.staticMap(translationConfig.getStaticMap());
+                }
+                if (translationConfig.getPortMap() != null) {
+                    ops.portMap(translationConfig.getPortMap());
+                }
+                if (translationConfig.getUseServicesAlternate() != null) {
+                    ops.useServicesAlternate(translationConfig.getUseServicesAlternate());
+                }
+            });
+        }
+
         return builder.build();
     }
 }

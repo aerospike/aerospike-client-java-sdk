@@ -17,8 +17,14 @@
 package com.aerospike.client.sdk.policy;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import com.aerospike.client.sdk.discovery.SeedMergePolicy;
+import com.aerospike.client.sdk.discovery.TranslationMissMode;
+import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider.AddressField;
+import com.aerospike.client.sdk.discovery.DnsSeedCandidateProvider.RecordType;
 
 public class BehaviorYamlConfig {
 
@@ -49,11 +55,6 @@ public class BehaviorYamlConfig {
         private InfoConfig info;
         private SystemTxnVerifyConfig systemTxnVerify;
         private SystemTxnRollConfig systemTxnRoll;
-        private SystemConnectionsConfig systemConnections;
-        private SystemCircuitBreakerConfig systemCircuitBreaker;
-        private SystemRefreshConfig systemRefresh;
-        private SystemTransactionsConfig systemTransactions;
-        private SystemMetricsConfig systemMetrics;
 
         // Getters and setters
         public String getName() { return name; }
@@ -100,21 +101,6 @@ public class BehaviorYamlConfig {
 
         public SystemTxnRollConfig getSystemTxnRoll() { return systemTxnRoll; }
         public void setSystemTxnRoll(SystemTxnRollConfig systemTxnRoll) { this.systemTxnRoll = systemTxnRoll; }
-
-        public SystemConnectionsConfig getSystemConnections() { return systemConnections; }
-        public void setSystemConnections(SystemConnectionsConfig systemConnections) { this.systemConnections = systemConnections; }
-
-        public SystemCircuitBreakerConfig getSystemCircuitBreaker() { return systemCircuitBreaker; }
-        public void setSystemCircuitBreaker(SystemCircuitBreakerConfig systemCircuitBreaker) { this.systemCircuitBreaker = systemCircuitBreaker; }
-
-        public SystemRefreshConfig getSystemRefresh() { return systemRefresh; }
-        public void setSystemRefresh(SystemRefreshConfig systemRefresh) { this.systemRefresh = systemRefresh; }
-
-        public SystemTransactionsConfig getSystemTransactions() { return systemTransactions; }
-        public void setSystemTransactions(SystemTransactionsConfig systemTransactions) { this.systemTransactions = systemTransactions; }
-
-        public SystemMetricsConfig getSystemMetrics() { return systemMetrics; }
-        public void setSystemMetrics(SystemMetricsConfig metrics) { this.systemMetrics = metrics; }
     }
 
     // Base policy configuration
@@ -310,6 +296,8 @@ public class BehaviorYamlConfig {
         private SystemRefreshConfig refresh;
         private SystemTransactionsConfig transactions;
         private SystemMetricsConfig metrics;
+        private SystemDiscoveryConfig discovery;
+        private SystemTranslationConfig translation;
 
         public SystemConnectionsConfig getConnections() { return connections; }
         public void setConnections(SystemConnectionsConfig connections) { this.connections = connections; }
@@ -325,6 +313,20 @@ public class BehaviorYamlConfig {
 
         public SystemMetricsConfig getMetrics() { return metrics; }
         public void setMetrics(SystemMetricsConfig metrics) { this.metrics = metrics; }
+
+        public SystemDiscoveryConfig getDiscovery() {
+            return discovery;
+        }
+        public void setDiscovery(SystemDiscoveryConfig discovery) {
+            this.discovery = discovery;
+        }
+
+        public SystemTranslationConfig getTranslation() {
+            return translation;
+        }
+        public void setTranslation(SystemTranslationConfig translation) {
+            this.translation = translation;
+        }
     }
 
     public static class SystemMetricsConfig {
@@ -483,6 +485,194 @@ public class BehaviorYamlConfig {
         }
         public void setEnabled(Boolean enabled) {
             this.enabled = enabled;
+        }
+    }
+
+    public static class SystemDiscoveryConfig {
+        private SeedMergePolicy mergePolicy;
+        private Duration refreshInterval;
+        private Duration refreshTimeout;
+        private Duration tendRefreshDeadline;
+        private DnsConfig dns;
+        private AwsConfig aws;
+
+        public SeedMergePolicy getMergePolicy() {
+            return mergePolicy;
+        }
+        public void setMergePolicy(SeedMergePolicy mergePolicy) {
+            this.mergePolicy = mergePolicy;
+        }
+
+        public Duration getRefreshInterval() {
+            return refreshInterval;
+        }
+        public void setRefreshInterval(Duration refreshInterval) {
+            this.refreshInterval = refreshInterval;
+        }
+
+        public Duration getRefreshTimeout() {
+            return refreshTimeout;
+        }
+        public void setRefreshTimeout(Duration refreshTimeout) {
+            this.refreshTimeout = refreshTimeout;
+        }
+
+        public Duration getTendRefreshDeadline() {
+            return tendRefreshDeadline;
+        }
+        public void setTendRefreshDeadline(Duration tendRefreshDeadline) {
+            this.tendRefreshDeadline = tendRefreshDeadline;
+        }
+
+        public DnsConfig getDns() {
+            return dns;
+        }
+        public void setDns(DnsConfig dns) {
+            this.dns = dns;
+        }
+
+        public AwsConfig getAws() {
+            return aws;
+        }
+        public void setAws(AwsConfig aws) {
+            this.aws = aws;
+        }
+    }
+
+    public static class DnsConfig {
+        private List<String> names;
+        private List<String> servers;
+        private RecordType recordType;
+        private String tlsName;
+        private Integer port;
+        private Duration timeout;
+
+        public List<String> getNames() {
+            return names;
+        }
+        public void setNames(List<String> names) {
+            this.names = names;
+        }
+
+        public List<String> getServers() {
+            return servers;
+        }
+        public void setServers(List<String> servers) {
+            this.servers = servers;
+        }
+
+        public RecordType getRecordType() {
+            return recordType;
+        }
+        public void setRecordType(RecordType recordType) {
+            this.recordType = recordType;
+        }
+
+        public String getTlsName() {
+            return tlsName;
+        }
+        public void setTlsName(String tlsName) {
+            this.tlsName = tlsName;
+        }
+
+        public Integer getPort() {
+            return port;
+        }
+        public void setPort(Integer port) {
+            this.port = port;
+        }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+    }
+
+    public static class AwsConfig {
+        private String region;
+        private Map<String,List<String>> filters;
+        private AddressField addressField;
+        private Integer port;
+        private String tlsName;
+        private Duration timeout;
+
+        public String getRegion() {
+            return region;
+        }
+        public void setRegion(String region) {
+            this.region = region;
+        }
+
+        public Map<String, List<String>> getFilters() {
+            return filters;
+        }
+        public void setFilters(Map<String, List<String>> filters) {
+            this.filters = filters;
+        }
+
+        public AddressField getAddressField() {
+            return addressField;
+        }
+        public void setAddressField(AddressField addressField) {
+            this.addressField = addressField;
+        }
+
+        public Integer getPort() {
+            return port;
+        }
+        public void setPort(Integer port) {
+            this.port = port;
+        }
+
+        public String getTlsName() {
+            return tlsName;
+        }
+        public void setTlsName(String tlsName) {
+            this.tlsName = tlsName;
+        }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+    }
+
+    public static class SystemTranslationConfig {
+        private TranslationMissMode onMiss;
+        private Map<String,String> staticMap;
+        private Map<String,String> portMap;
+        private Boolean useServicesAlternate;
+
+        public TranslationMissMode getOnMiss() {
+            return onMiss;
+        }
+        public void setOnMiss(TranslationMissMode onMiss) {
+            this.onMiss = onMiss;
+        }
+
+        public Map<String, String> getStaticMap() {
+            return staticMap;
+        }
+        public void setStaticMap(Map<String, String> staticMap) {
+            this.staticMap = staticMap;
+        }
+
+        public Map<String, String> getPortMap() {
+            return portMap;
+        }
+        public void setPortMap(Map<String, String> portMap) {
+            this.portMap = portMap;
+        }
+
+        public Boolean getUseServicesAlternate() {
+            return useServicesAlternate;
+        }
+        public void setUseServicesAlternate(Boolean useServicesAlternate) {
+            this.useServicesAlternate = useServicesAlternate;
         }
     }
 }

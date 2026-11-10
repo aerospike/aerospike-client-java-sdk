@@ -30,6 +30,9 @@ import org.slf4j.LoggerFactory;
 
 import com.aerospike.client.sdk.command.AdminCommand;
 import com.aerospike.client.sdk.command.Buffer;
+import com.aerospike.client.sdk.discovery.AddressTranslator;
+import com.aerospike.client.sdk.discovery.SeedCandidateProvider;
+import com.aerospike.client.sdk.discovery.TranslationMissMode;
 import com.aerospike.client.sdk.policy.AuthMode;
 import com.aerospike.client.sdk.policy.Behavior;
 
@@ -69,6 +72,12 @@ public class ClusterDefinition {
     byte[] passwordHash;
     int[] rackIds;
     Map<String,String> ipMap;
+    // Source of seed hosts.
+    SeedCandidateProvider seedCandidateProvider;
+    // Advertised address translation.
+    AddressTranslator addressTranslator;
+    // Action when the address translator has no mapping.
+    TranslationMissMode translationOnMiss;
     TlsBuilder tlsBuilder;
     AuthMode authMode = AuthMode.NONE;
     long maxSocketIdleNanosTrim = TimeUnit.SECONDS.toNanos(55);

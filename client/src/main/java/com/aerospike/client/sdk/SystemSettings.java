@@ -17,14 +17,26 @@
 package com.aerospike.client.sdk;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider.AddressField;
+import com.aerospike.client.sdk.discovery.AwsEnvironment;
+import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
+import com.aerospike.client.sdk.discovery.DiscoverySettings;
+import com.aerospike.client.sdk.discovery.DiscoverySettings.DiscoveryTweaks;
+import com.aerospike.client.sdk.discovery.DnsSeedCandidateProvider;
+import com.aerospike.client.sdk.discovery.SeedMergePolicy;
+import com.aerospike.client.sdk.discovery.TranslationMissMode;
+import com.aerospike.client.sdk.discovery.TranslationSettings;
+import com.aerospike.client.sdk.discovery.TranslationSettings.TranslationTweaks;
 import com.aerospike.client.sdk.metrics.MetricsExporterType;
 import com.aerospike.client.sdk.metrics.MetricsSettings;
 import com.aerospike.client.sdk.metrics.MetricsSettings.MetricsTweaks;
+
 
 /**
  * System-level settings that apply to an entire Cluster instance.
@@ -96,6 +108,10 @@ public class SystemSettings {
     // ===== Metrics Settings =====
     private final MetricsSettings metrics;
 
+    // ===== Discovery Settings =====
+    private final DiscoverySettings discovery;
+    private final TranslationSettings translation;
+
     /**
      * Hard-coded default system settings.
      * These are the lowest priority and serve as the base for all other settings.
@@ -142,6 +158,49 @@ public class SystemSettings {
                 )
             )
         )
+        .discovery(ops -> ops
+            .provider("")
+            .options(new HashMap<>())
+            .mergePolicy(SeedMergePolicy.MERGE)
+            .executionMode(DiscoveryExecutionMode.THREAD)
+            .refreshInterval(Duration.ofSeconds(30))
+            .refreshTimeout(Duration.ofSeconds(2))
+            .tendRefreshDeadline(Duration.ofMillis(100))
+            .dns(dops -> dops
+                .names(new ArrayList<>(0))
+                .recordType(DnsSeedCandidateProvider.RecordType.A)
+                .port(3000)
+                .tlsName("")
+                .timeout(Duration.ofMillis(80))
+                .servers(new ArrayList<>(0))
+                .providerUrl("")
+                .serverCount(0)
+            )
+            .aws(aops -> aops
+                .region("")
+                .filters(new HashMap<>())
+                .addressField(AddressField.PRIVATE_IP)
+                .port(3000)
+                .tlsName("")
+                .timeout(Duration.ofSeconds(2))
+                .initTimeout(Duration.ofSeconds(10))
+                .endpoint("")
+                .uri(null)
+                .hostHeader("")
+                .path("")
+                .query("")
+                .env(AwsEnvironment.SYSTEM)
+                .xml(null)
+                .chain(null)
+            )
+        )
+        .translation(ops -> ops
+            .provider("")
+            .options(new HashMap<>())
+            .onMiss(TranslationMissMode.PASS_THROUGH)
+            .staticMap(null)
+            .portMap(null)
+        )
         .build();
 
     private SystemSettings(Builder builder) {
@@ -155,6 +214,8 @@ public class SystemSettings {
         this.sleepBetweenAttempts = builder.sleepBetweenAttempts;
         this.numberOfAttempts = builder.numberOfAttempts;
         this.metrics = new MetricsSettings(builder.metrics);
+        this.discovery = new DiscoverySettings(builder.discovery);
+        this.translation = new TranslationSettings(builder.translation);
     }
 
     /**
@@ -207,6 +268,10 @@ public class SystemSettings {
         // Metrics
         merged.metrics = this.metrics.mergeWith(base.metrics);
 
+        // Discovery
+        merged.discovery = this.discovery.mergeWith(base.discovery);
+        merged.translation = this.translation.mergeWith(base.translation);
+
         return merged.build();
     }
 
@@ -221,6 +286,8 @@ public class SystemSettings {
     public Duration getSleepBetweenAttempts() { return sleepBetweenAttempts; }
     public Integer getNumberOfAttempts() { return numberOfAttempts; }
     public MetricsSettings getMetrics() { return metrics; }
+    public DiscoverySettings getDiscovery() { return discovery; }
+    public TranslationSettings getTranslation() { return translation; }
 
     @Override
     public boolean equals(Object o) {
@@ -240,14 +307,17 @@ public class SystemSettings {
                Objects.equals(implicitBatchWriteTransactions, that.implicitBatchWriteTransactions) &&
                Objects.equals(sleepBetweenAttempts, that.sleepBetweenAttempts) &&
                Objects.equals(numberOfAttempts, that.numberOfAttempts) &&
-               Objects.equals(metrics, that.metrics);
+               Objects.equals(metrics, that.metrics) &&
+               Objects.equals(discovery, that.discovery) &&
+               Objects.equals(translation, that.translation);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(minimumConnectionsPerNode, maximumConnectionsPerNode, maximumSocketIdleTime,
            numTendIntervalsInErrorWindow, maximumErrorsInErrorWindow, tendInterval,
-           implicitBatchWriteTransactions, sleepBetweenAttempts, numberOfAttempts, metrics);
+           implicitBatchWriteTransactions, sleepBetweenAttempts, numberOfAttempts, metrics,
+           discovery, translation);
     }
 
     @Override
@@ -263,6 +333,8 @@ public class SystemSettings {
                ", sleepBetweenAttempts=" + sleepBetweenAttempts +
                ", numberOfAttempts=" + numberOfAttempts +
                ", metrics=" + metrics +
+               ", discovery=" + discovery +
+               ", translation=" + translation +
                '}';
     }
 
@@ -280,6 +352,8 @@ public class SystemSettings {
         private Duration sleepBetweenAttempts;
         private Integer numberOfAttempts;
         private MetricsSettings.Builder metrics = MetricsSettings.builder();
+        private DiscoverySettings.Builder discovery = DiscoverySettings.builder();
+        private TranslationSettings.Builder translation = TranslationSettings.builder();
 
         /**
          * Configure connection settings using a lambda.
@@ -375,6 +449,28 @@ public class SystemSettings {
          */
         public Builder metrics(Consumer<MetricsTweaks> configurator) {
             configurator.accept(new MetricsSettings.MetricsTweaksImpl(metrics));
+            return this;
+        }
+
+        /**
+         * Configure network discovery settings using a lambda.
+         *
+         * @param configurator lambda to configure discovery settings
+         * @return this builder for method chaining
+         */
+        public Builder discovery(Consumer<DiscoveryTweaks> configurator) {
+            configurator.accept(new DiscoverySettings.DiscoveryTweaksImpl(discovery));
+            return this;
+        }
+
+        /**
+         * Configure network translation settings using a lambda.
+         *
+         * @param configurator lambda to configure translation settings
+         * @return this builder for method chaining
+         */
+        public Builder translation(Consumer<TranslationTweaks> configurator) {
+            configurator.accept(new TranslationSettings.TranslationTweaksImpl(translation));
             return this;
         }
 
