@@ -19,9 +19,14 @@ package com.aerospike.client.sdk.tend;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aerospike.client.sdk.AerospikeException;
+import com.aerospike.client.sdk.Cluster;
 import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
+import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
 import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.command.Info;
@@ -30,20 +35,38 @@ import com.aerospike.client.sdk.command.Info;
  * Parse node's peers.
  */
 public final class PeerParser {
-    private final ClusterDefinition def;
+    private static final Logger log = LoggerFactory.getLogger(Loggers.TEND);
+
+    private final Cluster cluster;
     private final Info parser;
+    private String nodeName;
     private String tlsName;
+    private List<Host> advertised;
     private final int portDefault;
     public final int generation;
 
-    public PeerParser(ClusterDefinition def, Node node, Connection conn, List<Peer> peers) {
-        this.def = def;
+    public PeerParser(Cluster cluster, Node node, Connection conn, List<Peer> peers) {
+        this.cluster = cluster;
+
+        ClusterDefinition def = cluster.getClusterDefinition();
 
         String command = (def.getTlsBuilder() != null)?
             def.isUseServicesAlternate() ? "peers-tls-alt" : "peers-tls-std" :
             def.isUseServicesAlternate() ? "peers-clear-alt" : "peers-clear-std";
 
-        parser = new Info(node, conn, command);
+        List<String> stdNames = null;
+
+        if (def.isUseServicesAlternate()) {
+            // The alternate list omits peers that have no alternate address.
+            String stdCommand = (def.getTlsBuilder() != null)? "peers-tls-std" : "peers-clear-std";
+            parser = new Info(node, conn, stdCommand, command);
+            parser.parseName(stdCommand);
+            stdNames = parseNodeNames();
+            parser.skipDelimiter('\n');
+        }
+        else {
+            parser = new Info(node, conn, command);
+        }
 
         if (parser.length == 0) {
             throw new AerospikeException.Parse(command + " response is empty");
@@ -59,10 +82,16 @@ public final class PeerParser {
         // Reset peers
         peers.clear();
 
-        if (parser.buffer[parser.offset] == ']') {
-            return;
+        if (parser.buffer[parser.offset] != ']') {
+            parsePeers(peers);
         }
 
+        if (stdNames != null) {
+            addAlternateMissing(peers, stdNames);
+        }
+    }
+
+    private void parsePeers(List<Peer> peers) {
         while (true) {
             Peer peer = parsePeer();
             peers.add(peer);
@@ -76,13 +105,56 @@ public final class PeerParser {
         }
     }
 
+    private List<String> parseNodeNames() {
+        ArrayList<String> names = new ArrayList<String>();
+        parser.skipDelimiter('[');
+        int depth = 1;
+
+        while (depth > 0 && parser.offset < parser.length && parser.buffer[parser.offset] != '\n') {
+            byte b = parser.buffer[parser.offset++];
+
+            if (b == '[') {
+                if (++depth == 2) {
+                    names.add(parser.parseString(','));
+                }
+            }
+            else if (b == ']') {
+                depth--;
+            }
+        }
+        return names;
+    }
+
+    private static void addAlternateMissing(List<Peer> peers, List<String> stdNames) {
+        for (String name : stdNames) {
+            boolean found = false;
+
+            for (Peer peer : peers) {
+                if (peer.nodeName.equals(name)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (! found) {
+                Peer peer = new Peer();
+                peer.nodeName = name;
+                peer.hosts = new ArrayList<Host>(0);
+                peer.alternateMissing = true;
+                peers.add(peer);
+            }
+        }
+    }
+
     private Peer parsePeer() {
         Peer peer = new Peer();
         parser.expect('[');
-        peer.nodeName = parser.parseString(',');
+        peer.nodeName = nodeName = parser.parseString(',');
         parser.offset++;
         peer.tlsName = tlsName = parser.parseString(',');
         parser.offset++;
+        peer.alternateMissing = cluster.getClusterDefinition().isUseServicesAlternate() && parser.buffer[parser.offset + 1] == ']';
+        peer.advertised = advertised = cluster.getClusterTend().getNotifyViewChange() ? new ArrayList<Host>() : null;
         peer.hosts = parseHosts();
         parser.expect(']');
         return peer;
@@ -93,12 +165,20 @@ public final class PeerParser {
         parser.expect('[');
 
         if (parser.buffer[parser.offset] == ']') {
+            parser.offset++;
             return hosts;
         }
 
         while (true) {
-            Host host = parseHost();
-            hosts.add(host);
+            try {
+                hosts.add(parseHost());
+            }
+            catch (AerospikeException.TranslationMiss tm) {
+                if (log.isWarnEnabled()) {
+                    log.atWarn()
+                        .log(tm.getMessage());
+                }
+            }
 
             if (parser.buffer[parser.offset] == ']') {
                 parser.offset++;
@@ -121,29 +201,27 @@ public final class PeerParser {
             host = parser.parseString(':', ',', ']');
         }
 
-        if (def.getIpMap() != null) {
-            String alternativeHost = def.getIpMap().get(host);
-
-            if (alternativeHost != null) {
-                host = alternativeHost;
-            }
-        }
-
         if (parser.offset < parser.length) {
             byte b = parser.buffer[parser.offset];
 
             if (b == ':') {
                 parser.offset++;
-                int port = parser.parseInt();
-                return new Host(host, tlsName, port);
+                return translate(host, parser.parseInt());
             }
 
             if (b == ',' || b == ']') {
-                return new Host(host, tlsName, portDefault);
+                return translate(host, portDefault);
             }
         }
 
         String response = parser.getTruncatedResponse();
         throw new AerospikeException.Parse("Unterminated host in response: " + response);
+    }
+
+    private Host translate(String host, int port) {
+        if (advertised != null) {
+            advertised.add(new Host(host, tlsName, port));
+        }
+        return cluster.getClusterTend().translateAddress(nodeName, tlsName, host, port);
     }
 }

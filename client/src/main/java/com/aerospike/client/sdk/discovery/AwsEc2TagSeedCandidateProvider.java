@@ -22,7 +22,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +37,7 @@ import org.w3c.dom.Element;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.Loggers;
+import com.aerospike.client.sdk.discovery.AwsSettings.Builder;
 
 /**
  * Seed candidate provider that lists running EC2 instances matching a set of filters, usually a tag,
@@ -277,23 +277,16 @@ public final class AwsEc2TagSeedCandidateProvider implements SeedCandidateProvid
 	private final AwsXml xml;
 	private final AwsCredentialChain chain;
 
-	/**
-	 * Return a builder.
-	 */
-	public static Builder builder() {
-		return new Builder();
-	}
-
-	private AwsEc2TagSeedCandidateProvider(Builder builder) {
-		if (builder.region == null || ! builder.region.matches("[a-z0-9]+(-[a-z0-9]+)+")) {
-			throw new AerospikeException("Invalid AWS EC2 seed provider region: '" + builder.region + "'");
+	public AwsEc2TagSeedCandidateProvider(AwsSettings settings) {
+		if (settings.getRegion() == null || ! settings.getRegion().matches("[a-z0-9]+(-[a-z0-9]+)+")) {
+			throw new AerospikeException("Invalid AWS EC2 seed provider region: '" + settings.getRegion() + "'");
 		}
 
-		if (builder.filters.isEmpty()) {
+		if (settings.getFilters().isEmpty()) {
 			throw new AerospikeException("Invalid AWS EC2 seed provider filters: at least one filter is required");
 		}
 
-		for (Map.Entry<String,List<String>> entry : builder.filters.entrySet()) {
+		for (Map.Entry<String,List<String>> entry : settings.getFilters().entrySet()) {
 			String name = entry.getKey();
 
 			if (name == null || name.isEmpty()) {
@@ -318,33 +311,33 @@ public final class AwsEc2TagSeedCandidateProvider implements SeedCandidateProvid
 			}
 		}
 
-		if (builder.addressField == null) {
+		if (settings.getAddressField() == null) {
 			throw new AerospikeException("Invalid AWS EC2 seed provider addressField: null");
 		}
 
-		if (builder.port <= 0 || builder.port > 65535) {
-			throw new AerospikeException("Invalid AWS EC2 seed provider port: " + builder.port);
+		if (settings.getPort() <= 0 || settings.getPort() > 65535) {
+			throw new AerospikeException("Invalid AWS EC2 seed provider port: " + settings.getPort());
 		}
 
-		if (builder.tlsName != null && builder.tlsName.isEmpty()) {
+		if (settings.getTlsName() != null && settings.getTlsName().isEmpty()) {
 			throw new AerospikeException("Invalid AWS EC2 seed provider tlsName: empty");
 		}
 
-		if (builder.timeout <= 0) {
-			throw new AerospikeException("Invalid AWS EC2 seed provider timeout: " + builder.timeout);
+		if (settings.getTimeout().toMillis() <= 0) {
+			throw new AerospikeException("Invalid AWS EC2 seed provider timeout: " + settings.getTimeout());
 		}
 
-		if (builder.initTimeout <= 0) {
-			throw new AerospikeException("Invalid AWS EC2 seed provider initTimeout: " + builder.initTimeout);
+		if (settings.getInitTimeout().toMillis() <= 0) {
+			throw new AerospikeException("Invalid AWS EC2 seed provider initTimeout: " + settings.getInitTimeout());
 		}
 
-		if (builder.credentials != null && builder.credentialsHook != null) {
+		if (settings.getCredentials() != null && settings.getCredentialsHook() != null) {
 			throw new AerospikeException("Invalid AWS EC2 seed provider credentials: credentials and credentialsHook " +
 				"cannot both be set");
 		}
 
-		this.env = builder.env;
-		String target = (builder.endpoint != null)? builder.endpoint : env.ec2Endpoint(builder.region);
+		this.env = settings.getEnv();
+		String target = (settings.getEndpoint() != null)? settings.getEndpoint() : env.ec2Endpoint(settings.getRegion());
 
 		try {
 			this.uri = new URI(target);
@@ -359,19 +352,19 @@ public final class AwsEc2TagSeedCandidateProvider implements SeedCandidateProvid
 				"': expected http or https URL with a host and no query");
 		}
 
-		this.region = builder.region;
-		this.filters = Collections.unmodifiableMap(copy(builder.filters));
-		this.addressField = builder.addressField;
-		this.port = builder.port;
-		this.tlsName = builder.tlsName;
-		this.timeout = builder.timeout;
-		this.initTimeout = builder.initTimeout;
-		this.endpoint = builder.endpoint;
+		this.region = settings.getRegion();
+		this.filters = Collections.unmodifiableMap(copy(settings.getFilters()));
+		this.addressField = settings.getAddressField();
+		this.port = settings.getPort();
+		this.tlsName = settings.getTlsName();
+		this.timeout = (int)settings.getTimeout().toMillis();
+		this.initTimeout = (int)settings.getInitTimeout().toMillis();
+		this.endpoint = settings.getEndpoint();
 		this.hostHeader = AwsHttp.host(uri);
 		this.path = (uri.getRawPath() == null || uri.getRawPath().isEmpty())? "/" : uri.getRawPath();
 		this.query = query(filters);
 		this.xml = new AwsXml();
-		this.chain = new AwsCredentialChain(builder.credentials, builder.credentialsHook, env, region, xml);
+		this.chain = new AwsCredentialChain(settings.getCredentials(), settings.getCredentialsHook(), env, region, xml);
 	}
 
 	private static Map<String,List<String>> copy(Map<String,List<String>> filters) {
@@ -588,181 +581,5 @@ public final class AwsEc2TagSeedCandidateProvider implements SeedCandidateProvid
 	@Override
 	public String toString() {
 		return StaticDiscoveryConfig.AWS_TAGS + ' ' + region + ' ' + filters;
-	}
-
-	/**
-	 * Builder for {@link AwsEc2TagSeedCandidateProvider}. Values are validated by {@link #build()}.
-	 */
-	public static final class Builder {
-		private String region;
-		private final Map<String,List<String>> filters = new LinkedHashMap<>();
-		private AddressField addressField = AddressField.PRIVATE_IP;
-		private int port = DEFAULT_PORT;
-		private String tlsName;
-		private int timeout = DEFAULT_TIMEOUT;
-		private int initTimeout = DEFAULT_INIT_TIMEOUT;
-		private String endpoint;
-		private Credentials credentials;
-		private CredentialsHook credentialsHook;
-		private AwsEnvironment env = AwsEnvironment.SYSTEM;
-
-		private Builder() {
-		}
-
-		/**
-		 * AWS region of the instances and of the EC2 and STS endpoints, such as {@code us-east-1}.
-		 * Required.
-		 */
-		public Builder region(String region) {
-			this.region = region;
-			return this;
-		}
-
-		/**
-		 * Add a {@code DescribeInstances} filter, passed to EC2 as given: {@code tag:<key>} or any
-		 * other EC2 filter name. An instance matches when it matches one of the values of every
-		 * filter. Adding a name again replaces its values. {@code instance-state-name=running} is
-		 * always added and cannot be set. At least one filter is required.
-		 */
-		public Builder filter(String name, String... values) {
-			filters.put(name, (values != null)? Arrays.asList(values.clone()) : null);
-			return this;
-		}
-
-		/**
-		 * Add a {@code DescribeInstances} filter. See {@link #filter(String, String...)}.
-		 */
-		public Builder filter(String name, List<String> values) {
-			filters.put(name, (values != null)? new ArrayList<>(values) : null);
-			return this;
-		}
-
-		/**
-		 * Add filters by name. See {@link #filter(String, String...)}.
-		 */
-		public Builder filters(Map<String,List<String>> filters) {
-			if (filters != null) {
-				for (Map.Entry<String,List<String>> entry : filters.entrySet()) {
-					filter(entry.getKey(), entry.getValue());
-				}
-			}
-			return this;
-		}
-
-		/**
-		 * Add filter {@code tag:<key>} with the given values.
-		 */
-		public Builder tagFilter(String key, String... values) {
-			return filter("tag:" + key, values);
-		}
-
-		/**
-		 * Instance field returned as the seed address.
-		 * <p>
-		 * Default: {@link AddressField#PRIVATE_IP}
-		 */
-		public Builder addressField(AddressField addressField) {
-			this.addressField = addressField;
-			return this;
-		}
-
-		/**
-		 * Port set on every host.
-		 * <p>
-		 * Default: {@link AwsEc2TagSeedCandidateProvider#DEFAULT_PORT}
-		 */
-		public Builder port(int port) {
-			this.port = port;
-			return this;
-		}
-
-		/**
-		 * TLS name set on every host. Null leaves the TLS name to be defaulted the same way as for
-		 * configured seeds.
-		 * <p>
-		 * Default: null
-		 */
-		public Builder tlsName(String tlsName) {
-			this.tlsName = tlsName;
-			return this;
-		}
-
-		/**
-		 * Total time in milliseconds for one refresh, credentials and every page included. Must be
-		 * greater than zero, and must not exceed
-		 * {@link com.aerospike.client.policy.ClientPolicy#discoveryRefreshTimeout}; the latter is
-		 * checked at client construction.
-		 * <p>
-		 * Default: {@link AwsEc2TagSeedCandidateProvider#DEFAULT_TIMEOUT}
-		 */
-		public Builder timeout(int timeout) {
-			this.timeout = timeout;
-			return this;
-		}
-
-		/**
-		 * Total time in milliseconds for the first refresh, which resolves the credential chain. Must
-		 * be greater than zero. Client construction waits for the first refresh at most
-		 * {@link com.aerospike.client.policy.ClientPolicy#discoveryRefreshTimeout}; a first refresh
-		 * that completes later still supplies the seeds for later re-seeds.
-		 * <p>
-		 * Default: {@link AwsEc2TagSeedCandidateProvider#DEFAULT_INIT_TIMEOUT}
-		 */
-		public Builder initTimeout(int initTimeout) {
-			this.initTimeout = initTimeout;
-			return this;
-		}
-
-		/**
-		 * EC2 endpoint URL, such as a VPC interface endpoint. Null uses the regional endpoint
-		 * {@code https://ec2.<region>.amazonaws.com}.
-		 * <p>
-		 * Default: null
-		 */
-		public Builder endpoint(String endpoint) {
-			this.endpoint = endpoint;
-			return this;
-		}
-
-		/**
-		 * Static credentials, the first source of the credential chain. Cannot be combined with
-		 * {@link #credentialsHook}.
-		 * <p>
-		 * Default: null
-		 *
-		 * @param accessKeyId		access key id
-		 * @param secretAccessKey	secret access key
-		 * @param sessionToken		session token of temporary credentials, may be null
-		 * @throws AerospikeException	if the access key id or secret is null or empty
-		 */
-		public Builder credentials(String accessKeyId, String secretAccessKey, String sessionToken) {
-			this.credentials = new Credentials(accessKeyId, secretAccessKey, sessionToken);
-			return this;
-		}
-
-		/**
-		 * Credentials hook that replaces the built-in credential chain. See {@link CredentialsHook}.
-		 * Cannot be combined with {@link #credentials}.
-		 * <p>
-		 * Default: null
-		 */
-		public Builder credentialsHook(CredentialsHook credentialsHook) {
-			this.credentialsHook = credentialsHook;
-			return this;
-		}
-
-		Builder environment(AwsEnvironment env) {
-			this.env = env;
-			return this;
-		}
-
-		/**
-		 * Validate the settings and build the provider.
-		 *
-		 * @throws AerospikeException	if a setting is invalid. The message names the setting and value.
-		 */
-		public AwsEc2TagSeedCandidateProvider build() {
-			return new AwsEc2TagSeedCandidateProvider(this);
-		}
 	}
 }

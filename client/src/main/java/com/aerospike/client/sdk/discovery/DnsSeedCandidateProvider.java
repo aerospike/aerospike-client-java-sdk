@@ -18,7 +18,6 @@ package com.aerospike.client.sdk.discovery;
 
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -140,21 +139,14 @@ public final class DnsSeedCandidateProvider implements SeedCandidateProvider {
 	private final String providerUrl;
 	private final int serverCount;
 
-	/**
-	 * Return a builder.
-	 */
-	public static Builder builder() {
-		return new Builder();
-	}
-
-	private DnsSeedCandidateProvider(Builder builder) {
-		if (builder.names == null || builder.names.isEmpty()) {
-			throw new AerospikeException("Invalid DNS seed provider names: at least one name is required");
-		}
+	public DnsSeedCandidateProvider(DnsSettings settings) {
+	    if (settings.getNames() == null || settings.getNames().isEmpty()) {
+            throw new AerospikeException("Invalid DNS seed provider names: at least one name is required");
+        }
 
 		LinkedHashSet<String> set = new LinkedHashSet<>();
 
-		for (String name : builder.names) {
+		for (String name : settings.getNames()) {
 			if (name == null || name.isEmpty() || name.equals(".") || name.contains(" ")) {
 				throw new AerospikeException("Invalid DNS seed provider name: '" + name + "'");
 			}
@@ -163,38 +155,38 @@ public final class DnsSeedCandidateProvider implements SeedCandidateProvider {
 			}
 		}
 
-		if (builder.recordType == null) {
+		if (settings.getRecordType() == null) {
 			throw new AerospikeException("Invalid DNS seed provider recordType: null");
 		}
 
-		if (builder.port <= 0 || builder.port > 65535) {
-			throw new AerospikeException("Invalid DNS seed provider port: " + builder.port);
+		if (settings.getPort() <= 0 || settings.getPort() > 65535) {
+			throw new AerospikeException("Invalid DNS seed provider port: " + settings.getPort());
 		}
 
-		if (builder.tlsName != null && builder.tlsName.isEmpty()) {
+		if (settings.getTlsName() != null && settings.getTlsName().isEmpty()) {
 			throw new AerospikeException("Invalid DNS seed provider tlsName: empty");
 		}
 
-		if (builder.timeout <= 0) {
-			throw new AerospikeException("Invalid DNS seed provider timeout: " + builder.timeout);
+		if (settings.getTimeout().toMillis() <= 0) {
+			throw new AerospikeException("Invalid DNS seed provider timeout: " + settings.getTimeout());
 		}
 
-		this.names = Collections.unmodifiableList(new ArrayList<>(builder.names));
-		this.recordType = builder.recordType;
-		this.port = builder.port;
-		this.tlsName = builder.tlsName;
-		this.timeout = builder.timeout;
+		this.names = Collections.unmodifiableList(new ArrayList<>(settings.getNames()));
+		this.recordType = settings.getRecordType();
+		this.port = settings.getPort();
+		this.tlsName = settings.getTlsName();
+		this.timeout = (int)settings.getTimeout().toMillis();
 
-		if (builder.servers != null && ! builder.servers.isEmpty()) {
+		if (settings.getServers() != null && ! settings.getServers().isEmpty()) {
 			StringBuilder sb = new StringBuilder();
 
-			for (String server : builder.servers) {
+			for (String server : settings.getServers()) {
 				if (sb.length() > 0) {
 					sb.append(' ');
 				}
 				sb.append(serverUrl(server));
 			}
-			this.servers = Collections.unmodifiableList(new ArrayList<>(builder.servers));
+			this.servers = Collections.unmodifiableList(new ArrayList<>(settings.getServers()));
 			this.providerUrl = sb.toString();
 
 			try {
@@ -623,113 +615,6 @@ public final class DnsSeedCandidateProvider implements SeedCandidateProvider {
 	@Override
 	public String toString() {
 		return "dns " + names + ' ' + recordType;
-	}
-
-	/**
-	 * Builder for {@link DnsSeedCandidateProvider}. Values are validated by {@link #build()}.
-	 */
-	public static final class Builder {
-		private List<String> names;
-		private RecordType recordType = RecordType.A;
-		private int port = DEFAULT_PORT;
-		private String tlsName;
-		private int timeout = DEFAULT_TIMEOUT;
-		private List<String> servers;
-
-		private Builder() {
-		}
-
-		/**
-		 * DNS names to resolve. Required: one or more names, no duplicates. A name is queried as an
-		 * absolute name; a trailing dot is optional.
-		 */
-		public Builder names(String... names) {
-			this.names = (names != null)? Arrays.asList(names.clone()) : null;
-			return this;
-		}
-
-		/**
-		 * DNS names to resolve. See {@link #names(String...)}.
-		 */
-		public Builder names(List<String> names) {
-			this.names = (names != null)? new ArrayList<>(names) : null;
-			return this;
-		}
-
-		/**
-		 * Record type queried for each name.
-		 * <p>
-		 * Default: {@link RecordType#A} (A and AAAA)
-		 */
-		public Builder recordType(RecordType recordType) {
-			this.recordType = recordType;
-			return this;
-		}
-
-		/**
-		 * Port set on hosts resolved from A and AAAA records. Ignored for {@link RecordType#SRV},
-		 * which uses each record's port.
-		 * <p>
-		 * Default: {@link DnsSeedCandidateProvider#DEFAULT_PORT}
-		 */
-		public Builder port(int port) {
-			this.port = port;
-			return this;
-		}
-
-		/**
-		 * TLS name set on every returned host. Null leaves the TLS name to be defaulted the same way
-		 * as for configured seeds.
-		 * <p>
-		 * Default: null
-		 */
-		public Builder tlsName(String tlsName) {
-			this.tlsName = tlsName;
-			return this;
-		}
-
-		/**
-		 * Total time in milliseconds for one refresh, across every name, record type, SRV target
-		 * and resolver. Must be greater than zero, and must not exceed
-		 * {@link com.aerospike.client.policy.ClientPolicy#discoveryRefreshTimeout} in thread mode or
-		 * {@link com.aerospike.client.policy.ClientPolicy#discoveryTendRefreshDeadline} in tend
-		 * mode; the latter is checked at client construction.
-		 * <p>
-		 * Default: {@link DnsSeedCandidateProvider#DEFAULT_TIMEOUT}
-		 */
-		public Builder timeout(int timeout) {
-			this.timeout = timeout;
-			return this;
-		}
-
-		/**
-		 * Resolver addresses, each an IP address with an optional port: {@code ip[:port]}, with an
-		 * IPv6 address in brackets when a port is given ({@code [2001:db8::1]:53}). Resolvers are
-		 * tried in order. Null or empty uses the system resolvers, read once by {@link #build()}.
-		 * <p>
-		 * Default: null (system resolvers, port 53)
-		 */
-		public Builder servers(String... servers) {
-			this.servers = (servers != null)? Arrays.asList(servers.clone()) : null;
-			return this;
-		}
-
-		/**
-		 * Resolver addresses. See {@link #servers(String...)}.
-		 */
-		public Builder servers(List<String> servers) {
-			this.servers = (servers != null)? new ArrayList<>(servers) : null;
-			return this;
-		}
-
-		/**
-		 * Validate the settings and build the provider.
-		 *
-		 * @throws AerospikeException	if a setting is invalid. The message names the setting and value.
-		 */
-		public DnsSeedCandidateProvider build() {
-			return new DnsSeedCandidateProvider(this);
-		}
 	}
 
 	private static final class Srv {

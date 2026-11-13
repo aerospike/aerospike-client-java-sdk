@@ -191,15 +191,16 @@ public class SystemSettings {
                 .query("")
                 .env(AwsEnvironment.SYSTEM)
                 .xml(null)
-                .chain(null)
+                //.credentials(null, null, null) Leave credentials at null.
+                //.credentialsHook(null) Leave credentialsHook at null.
             )
         )
         .translation(ops -> ops
             .provider("")
             .options(new HashMap<>())
             .onMiss(TranslationMissMode.PASS_THROUGH)
-            .staticMap(null)
-            .portMap(null)
+            .staticMap(new HashMap<>())
+            .portMap(new HashMap<>())
         )
         .build();
 

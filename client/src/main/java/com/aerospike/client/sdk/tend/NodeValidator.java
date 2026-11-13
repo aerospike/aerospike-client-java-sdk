@@ -16,12 +16,19 @@
  */
 package com.aerospike.client.sdk.tend;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +54,7 @@ public final class NodeValidator {
 
     public Node fallback;
     public String name;
+    public String hostname;
     public Host primaryHost;
     public InetSocketAddress primaryAddress;
     public Connection primaryConn;
@@ -62,6 +70,7 @@ public final class NodeValidator {
      */
     public Node seedNode(Cluster cluster, Host host, Peers peers) throws Throwable {
         name = null;
+        hostname = null;
         primaryHost = null;
         primaryAddress = null;
         primaryConn = null;
@@ -75,6 +84,7 @@ public final class NodeValidator {
         for (InetAddress address : addresses) {
             try {
                 validateAddress(cluster, address, host.tlsName, host.port, true);
+                setHostname(host, address);
 
                 Node node = new Node(cluster, this);
 
@@ -151,11 +161,18 @@ public final class NodeValidator {
      */
     public void validateNode(Cluster cluster, Host host) throws Throwable {
         InetAddress[] addresses = getAddresses(host);
+
+        if (addresses.length > 1) {
+            addresses = connectAll(cluster, host, addresses);
+        }
+
         Throwable exception = null;
 
         for (InetAddress address : addresses) {
             try {
                 validateAddress(cluster, address, host.tlsName, host.port, false);
+                setHostname(host, address);
+                cluster.setValidAddress(host, address);
                 return;
             }
             catch (Throwable e) {
@@ -175,6 +192,172 @@ public final class NodeValidator {
         // Exception can't be null here because getAddresses() will throw exception
         // if aliases length is zero.
         throw exception;
+    }
+
+    /**
+     * Start a connect to every address at once and wait until one completes or
+     * min(connectTimeout, tendInterval) passes. Return the addresses that completed by then, the last
+     * validated address first, then in DNS order.
+     */
+    private static InetAddress[] connectAll(Cluster cluster, Host host, InetAddress[] addresses) throws IOException {
+        InetAddress preferred = cluster.getValidAddress(host);
+        ClusterDefinition def = cluster.getClusterDefinition();
+        int bound = (def.getTendTimeout() > 0) ? Math.min(def.getTendTimeout(), def.getTendInterval()) : def.getTendInterval();
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(bound);
+        List<InetAddress> connected = new ArrayList<InetAddress>(addresses.length);
+        int pending = 0;
+
+        try (Selector selector = Selector.open()) {
+            try {
+                if (preferred != null) {
+                    for (InetAddress address : addresses) {
+                        if (address.equals(preferred)) {
+                            pending += startConnect(cluster, selector, address, host.port, connected);
+                            break;
+                        }
+                    }
+                }
+
+                for (InetAddress address : addresses) {
+                    if (! address.equals(preferred)) {
+                        pending += startConnect(cluster, selector, address, host.port, connected);
+                    }
+                }
+
+                while (connected.isEmpty() && pending > 0) {
+                    long remaining = deadline - System.nanoTime();
+
+                    if (remaining <= 0) {
+                        break;
+                    }
+                    selector.select(TimeUnit.NANOSECONDS.toMillis(remaining + 999999));
+                    pending -= finishConnects(cluster, selector, host.port, connected);
+                }
+
+                if (! connected.isEmpty() && pending > 0) {
+                    selector.selectNow();
+                    finishConnects(cluster, selector, host.port, connected);
+                }
+            }
+            finally {
+                for (SelectionKey key : selector.keys()) {
+                    if (key.isValid()) {
+                        if (log.isDebugEnabled()) {
+                            log.atDebug()
+                                .addKeyValue(Cluster.CONTEXT, cluster.getClusterDefinition().getClusterName())
+                                .log("Address " + key.attachment() + ' ' + host.port +
+                                    " failed: connect did not complete within " + bound + "ms");
+                        }
+                        key.channel().close();
+                    }
+                }
+            }
+        }
+
+        if (connected.isEmpty()) {
+            throw new AerospikeException.Connection("No connection to " + host + " completed for " + addresses.length +
+                " addresses within " + bound + "ms");
+        }
+        connected.sort(Comparator.comparingInt(address -> rank(addresses, preferred, address)));
+        return connected.toArray(new InetAddress[connected.size()]);
+    }
+
+    private static int startConnect(Cluster cluster, Selector selector, InetAddress address, int port, List<InetAddress> connected)
+        throws IOException {
+
+        SocketChannel channel = SocketChannel.open();
+
+        try {
+            channel.configureBlocking(false);
+
+            if (channel.connect(new InetSocketAddress(address, port))) {
+                connected.add(address);
+                channel.close();
+                return 0;
+            }
+            channel.register(selector, SelectionKey.OP_CONNECT, address);
+            return 1;
+        }
+        catch (IOException e) {
+            channel.close();
+
+            if (log.isDebugEnabled()) {
+                log.atDebug()
+                    .addKeyValue(Cluster.CONTEXT, cluster.getClusterDefinition().getClusterName())
+                    .log("Address " + address + ' ' + port + " failed: " + Util.getErrorMessage(e));
+            }
+            return 0;
+        }
+    }
+
+    private static int finishConnects(
+        Cluster cluster, Selector selector, int port, List<InetAddress> connected
+    ) throws IOException {
+        Set<SelectionKey> keys = selector.selectedKeys();
+        int done = 0;
+
+        for (SelectionKey key : keys) {
+            SocketChannel channel = (SocketChannel)key.channel();
+            InetAddress address = (InetAddress)key.attachment();
+
+            try {
+                if (! channel.finishConnect()) {
+                    continue;
+                }
+                connected.add(address);
+            }
+            catch (IOException e) {
+                if (log.isDebugEnabled()) {
+                    log.atDebug()
+                        .addKeyValue(Cluster.CONTEXT, cluster.getClusterDefinition().getClusterName())
+                        .log("Address " + address + ' ' + port + " failed: " + Util.getErrorMessage(e));
+                }
+            }
+            channel.close();
+            done++;
+        }
+        keys.clear();
+        return done;
+    }
+
+    private static int rank(InetAddress[] addresses, InetAddress preferred, InetAddress address) {
+        if (address.equals(preferred)) {
+            return -1;
+        }
+
+        for (int i = 0; i < addresses.length; i++) {
+            if (addresses[i].equals(address)) {
+                return i;
+            }
+        }
+        return addresses.length;
+    }
+
+    /**
+     * Verify that one address of a host references a valid node.
+     */
+    public void validateAlias(Cluster cluster, Host host, InetAddress address) throws Exception {
+        validateAddress(cluster, address, host.tlsName, host.port, false);
+        setHostname(host, address);
+    }
+
+    private void setHostname(Host host, InetAddress address) {
+        hostname = (isHostname(host.name) && address.equals(primaryAddress.getAddress())) ? host.name : null;
+    }
+
+    private static boolean isHostname(String name) {
+        if (name.indexOf(':') >= 0) {
+            return false;
+        }
+
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+
+            if (c != '.' && ! Character.isDigit(c)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static InetAddress[] getAddresses(Host host) {
@@ -198,7 +381,6 @@ public final class NodeValidator {
     ) throws Exception {
         ClusterDefinition def = cluster.getClusterDefinition();
         TlsBuilder tls = def.getTlsBuilder();
-
         InetSocketAddress socketAddress = new InetSocketAddress(address, port);
         Connection conn = (tls != null) ?
             new Connection(tls, tlsName, socketAddress, def.getTendTimeout(), cluster) :
@@ -213,7 +395,7 @@ public final class NodeValidator {
 
                 if (def.getTlsBuilder() != null && def.getTlsBuilder().isForLoginOnly()) {
                     // Switch to using non-TLS socket.
-                    SwitchClear sc = new SwitchClear(cluster, conn, sessionToken);
+                    SwitchClear sc = new SwitchClear(cluster, conn, tlsName, sessionToken);
                     conn.close();
                     address = sc.clearAddress;
                     socketAddress = sc.clearSocketAddress;
@@ -233,19 +415,19 @@ public final class NodeValidator {
 
             String addressCommand = null;
 
-            if (detectLoadBalancer) {
-                if (address.isLoopbackAddress()) {
-                    // Disable load balancer detection for localhost.
-                    detectLoadBalancer = false;
-                }
-                else {
-                    // Seed may be load balancer with changing address. Determine real address.
-                    addressCommand = (def.getTlsBuilder() != null)?
-                        def.isUseServicesAlternate() ? "service-tls-alt" : "service-tls-std" :
-                        def.isUseServicesAlternate() ? "service-clear-alt" : "service-clear-std";
+            if (detectLoadBalancer && address.isLoopbackAddress()) {
+                // Disable load balancer detection for localhost.
+                detectLoadBalancer = false;
+            }
 
-                    commands.add(addressCommand);
-                }
+            if (detectLoadBalancer || def.isUseServicesAlternate()) {
+                // Seed may be load balancer with changing address. Determine real address.
+                // The alternate address list must also contain the node itself.
+                addressCommand = (tls != null)?
+                    def.isUseServicesAlternate() ? "service-tls-alt" : "service-tls-std" :
+                    def.isUseServicesAlternate() ? "service-clear-alt" : "service-clear-std";
+
+                commands.add(addressCommand);
             }
 
             // Issue commands.
@@ -267,7 +449,11 @@ public final class NodeValidator {
 
             processClusterName(def, map);
 
-            if (addressCommand != null) {
+            if (def.isUseServicesAlternate()) {
+                validateAlternateAddress(map, addressCommand);
+            }
+
+            if (detectLoadBalancer) {
                 setAddress(cluster, map, addressCommand, tlsName);
             }
         }
@@ -351,6 +537,14 @@ public final class NodeValidator {
         }
     }
 
+    private void validateAlternateAddress(HashMap<String,String> map, String addressCommand) {
+        String result = map.get(addressCommand);
+
+        if (result == null || result.length() == 0) {
+            throw new AerospikeException.AlternateAddressMissing(this.name, this.primaryHost);
+        }
+    }
+
     private void setAddress(
         Cluster cluster, HashMap<String,String> map, String addressCommand, String tlsName
     ) {
@@ -368,14 +562,11 @@ public final class NodeValidator {
 
         // Search real hosts for seed.
         for (Host host : hosts) {
-            h = host;
-
-            if (def.getIpMap() != null) {
-                String alt = def.getIpMap().get(h.name);
-
-                if (alt != null) {
-                    h = new Host(alt, h.port);
-                }
+            try {
+                h = cluster.getClusterTend().translateAddress(this.name, tlsName, host.name, host.port);
+            }
+            catch (AerospikeException.TranslationMiss tm) {
+                continue;
             }
 
             if (h.equals(this.primaryHost)) {
@@ -388,15 +579,7 @@ public final class NodeValidator {
         // Find first valid real host.
         for (Host host : hosts) {
             try {
-                h = host;
-
-                if (def.getIpMap() != null) {
-                    String alt = def.getIpMap().get(h.name);
-
-                    if (alt != null) {
-                        h = new Host(alt, h.port);
-                    }
-                }
+                h = cluster.getClusterTend().translateAddress(this.name, tlsName, host.name, host.port);
 
                 InetAddress[] addresses = InetAddress.getAllByName(h.name);
 
@@ -451,18 +634,20 @@ public final class NodeValidator {
         private Connection clearConn;
 
         // Switch from TLS connection to non-TLS connection.
-        private SwitchClear(Cluster cluster, Connection conn, byte[] sessionToken) throws Exception {
+        private SwitchClear(Cluster cluster, Connection conn, String tlsName, byte[] sessionToken) throws Exception {
             // Obtain non-TLS addresses.
             ClusterDefinition def = cluster.getClusterDefinition();
             String command = def.isUseServicesAlternate() ? "service-clear-alt" : "service-clear-std";
-            String result = Info.request(conn, command);
+            HashMap<String,String> map = Info.request(conn, command, "node");
+            String result = map.get(command);
+            String nodeName = map.get("node");
             List<Host> hosts = Host.parseServiceHosts(result);
             Host clearHost;
 
             // Find first valid non-TLS host.
             for (Host host : hosts) {
                 try {
-                    clearHost = host;
+                    clearHost = cluster.getClusterTend().translateAddress(nodeName, tlsName, host.name, host.port);
 
                     if (def.getIpMap() != null) {
                         String alternativeHost = def.getIpMap().get(clearHost.name);

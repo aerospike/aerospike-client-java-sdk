@@ -17,12 +17,15 @@
 package com.aerospike.client.sdk;
 
 import java.io.Closeable;
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,10 +37,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider;
+import com.aerospike.client.sdk.discovery.DiscoverySettings;
+import com.aerospike.client.sdk.discovery.DnsSeedCandidateProvider;
+import com.aerospike.client.sdk.discovery.StaticDiscoveryConfig;
+import com.aerospike.client.sdk.discovery.TranslationSettings;
 import com.aerospike.client.sdk.metrics.Histogram;
 import com.aerospike.client.sdk.metrics.IMetricsExporter;
 import com.aerospike.client.sdk.metrics.LatencyType;
@@ -52,6 +61,7 @@ import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.tend.ClusterTend;
 import com.aerospike.client.sdk.tend.ConnectionRecover;
 import com.aerospike.client.sdk.tend.Partitions;
+import com.aerospike.client.sdk.tend.SeedRefresher;
 import com.aerospike.client.sdk.util.Util;
 import com.aerospike.client.sdk.util.Version;
 
@@ -108,6 +118,8 @@ public class Cluster implements Closeable {
     private final AtomicBoolean singleNodeBatchReadsWarned;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
+    private SeedRefresher seedRefresher;
+    private final Map<String,InetAddress> validAddresses = new ConcurrentHashMap<>();
     private MetricsSettings metricsSettings;
     private final Object metricsLock = new Object();
     private final ReentrantLock metricsSleepLock = new ReentrantLock();
@@ -156,15 +168,30 @@ public class Cluster implements Closeable {
         closed = new AtomicBoolean();
         singleNodeBatchReadsWarned = new AtomicBoolean();
 
-        this.applySystemSettings(effectiveSettings);
+        applySystemSettings(effectiveSettings);
 
-        tend = new ClusterTend(this);
+        try {
+            Host[] seeds = seedRefresher.discover();
 
-        if (def.forceSingleNode) {
-            forceSingleNode();
+            // Default TLS names when TLS enabled.
+            if (def.isTlsEnabled()) {
+                seeds = defaultTlsNames(seeds);
+            }
+
+            seedRefresher.start(seeds);
+
+            tend = new ClusterTend(this, seeds);
+
+            if (def.forceSingleNode) {
+                forceSingleNode();
+            }
+            else {
+                tend.runThread();
+            }
         }
-        else {
-            tend.runThread();
+        catch (Throwable t) {
+            seedRefresher.abort();
+            throw t;
         }
     }
 
@@ -304,6 +331,13 @@ public class Cluster implements Closeable {
     }
 
     /**
+     * Return cluster tend instance.
+     */
+    public ClusterTend getClusterTend() {
+        return tend;
+    }
+
+    /**
      * Gets the cluster name.
      *
      * <p>This may be the name provided via {@code validateClusterName()}, or the
@@ -339,7 +373,6 @@ public class Cluster implements Closeable {
         }
 
         //System.out.println("FINAL SYSTEM SETTINGS=" + settings.toString());
-        this.effectiveSystemSettings = settings;
 
         if (settings.getMinimumConnectionsPerNode() != null) {
             setMinConnsPerNode(settings.getMinimumConnectionsPerNode());
@@ -358,12 +391,36 @@ public class Cluster implements Closeable {
         }
 
         if (settings.getTendInterval() != null) {
-            this.def.tendInterval = (int)settings.getTendInterval().toMillis();
+            def.tendInterval = (int)settings.getTendInterval().toMillis();
         }
 
         if (settings.getMaximumSocketIdleTime() != null) {
-            this.def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
+            def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
         }
+
+        DiscoverySettings ds = settings.getDiscovery();
+
+        if (seedRefresher == null || !ds.equals(effectiveSystemSettings.getDiscovery())) {
+            String provider = ds.getProvider();
+
+            if (provider.equals(StaticDiscoveryConfig.DNS)) {
+                def.seedCandidateProvider = new DnsSeedCandidateProvider(ds.getDns());
+            }
+            else if (provider.equals(StaticDiscoveryConfig.AWS_TAGS)) {
+                def.seedCandidateProvider = new AwsEc2TagSeedCandidateProvider(ds.getAws());
+            }
+            else {
+                def.seedCandidateProvider = buildSeedProvider(provider, ds.getOptions(),
+                    ds.getProviderFactories());
+            }
+            seedRefresher = new SeedRefresher(def.seedCandidateProvider, def, ds, def.getHosts(), this::setSeeds);
+            seedRefresher.validate(def.tendInterval);
+        }
+
+        TranslationSettings ts = settings.getTranslation();
+        def.translationOnMiss = ts.getOnMiss();
+
+        this.effectiveSystemSettings = settings;
 
         if (settings.getMetrics() != null) {
             MetricsSettings metrics = settings.getMetrics();
@@ -413,6 +470,75 @@ public class Cluster implements Closeable {
                     this.def.maxSocketIdleNanosTrim
             );
         }
+    }
+
+    private Host[] defaultTlsNames(Host[] hosts) {
+        if (tlsNamesExist(hosts)) {
+            return hosts;
+        }
+
+        String tlsName = def.tlsBuilder.getTlsName();
+        Host[] newHosts = new Host[hosts.length];
+
+        for (int i = 0; i < hosts.length; i++) {
+            Host originalHost = hosts[i];
+
+            // Only create new Host with TLS name if the existing host doesn't have one
+            if (originalHost.tlsName == null) {
+                newHosts[i] = new Host(originalHost.name, tlsName, originalHost.port);
+            }
+            else {
+                // Keep the existing host as-is if it already has a TLS name
+                newHosts[i] = originalHost;
+            }
+        }
+        return newHosts;
+    }
+
+    private boolean tlsNamesExist(Host[] hosts) {
+        for (Host host : hosts) {
+            if (host.tlsName == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public final void refreshSeedRefresher() {
+        seedRefresher.requestRefresh();
+    }
+
+    public final void closeSeedRefresher() {
+        seedRefresher.close();
+    }
+
+    public final void tendSeedRefresher(int tendCount) {
+        seedRefresher.tend(tendCount, def.getTendInterval());
+    }
+
+    final void setSeeds(Host[] hosts) {
+        if (def.tlsBuilder != null) {
+            defaultTlsNames(hosts);
+        }
+        tend.setSeeds(hosts);
+    }
+
+    private static <T> T buildSeedProvider(
+        String name, Map<String,Object> options, Map<String,Function<Map<String,Object>,T>> factories
+    ) {
+        T instance;
+
+        try {
+            instance = factories.get(name).apply(options);
+        }
+        catch (Throwable e) {
+            throw new AerospikeException("Invalid value '" + name + "': factory failed: " + e, e);
+        }
+
+        if (instance == null) {
+            throw new AerospikeException("Invalid value '" + name + "': factory returned null");
+        }
+        return instance;
     }
 
     public final void enableMetrics(MetricsSettings settings) {
@@ -731,6 +857,20 @@ public class Cluster implements Closeable {
      */
     public final HashMap<String,Partitions> getPartitionMap() {
         return partitionMap;
+    }
+
+    /**
+     * Return address from host. For internal use only.
+     */
+    public InetAddress getValidAddress(Host host) {
+        return validAddresses.get(host.name + ':' + host.port);
+    }
+
+    /**
+     * Set address for host. For internal use only.
+     */
+    public void setValidAddress(Host host, InetAddress address) {
+        validAddresses.put(host.name + ':' + host.port, address);
     }
 
     /**
@@ -1473,7 +1613,7 @@ public class Cluster implements Closeable {
      * never sees a node in both the active nodes and departed nodes lists.
      * For internal use only.
      */
-    public void metricsNodeClose(HashSet<Node> nodesToRemove, Runnable removeAction) {
+    public void metricsNodeClose(Set<Node> nodesToRemove, Runnable removeAction) {
         synchronized(metricsLock) {
             if (metricsEnabled) {
                 try {
@@ -1531,7 +1671,17 @@ public class Cluster implements Closeable {
             return;
         }
 
+        // The tend thread closes the seed provider on exit, so close it here only if it never ran.
+        // A discovery thread is stopped here, so close waits for its refresh in flight.
+        boolean tendRunning = tend.isTendRunning();
+
         tend.close();
+
+        if (! tendRunning || seedRefresher.isThreaded()) {
+            seedRefresher.close();
+        }
+
+        validAddresses.clear();
 
         synchronized(metricsLock) {
             try {

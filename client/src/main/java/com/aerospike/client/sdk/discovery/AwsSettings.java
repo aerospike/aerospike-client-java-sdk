@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider.AddressField;
+import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider.Credentials;
+import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider.CredentialsHook;
 
 /**
  * Network translation settings that apply to an entire Cluster instance.
@@ -42,7 +44,8 @@ public class AwsSettings {
     private final String query;
     private final AwsEnvironment env;
     private final AwsXml xml;
-    private final AwsCredentialChain chain;
+    private final Credentials credentials;
+    private final CredentialsHook credentialsHook;
 
     public AwsSettings(Builder builder) {
         this.region = builder.region;
@@ -59,7 +62,8 @@ public class AwsSettings {
         this.query = builder.query;
         this.env = builder.env;
         this.xml = builder.xml;
-        this.chain = builder.chain;
+        this.credentials = builder.credentials;
+        this.credentialsHook = builder.credentialsHook;
    }
 
     /**
@@ -107,8 +111,10 @@ public class AwsSettings {
             ? this.env : base.env;
         merged.xml = this.xml != null
             ? this.xml : base.xml;
-        merged.chain = this.chain != null
-            ? this.chain : base.chain;
+        merged.credentials = this.credentials != null
+            ? this.credentials : base.credentials;
+        merged.credentialsHook = this.credentialsHook != null
+            ? this.credentialsHook : base.credentialsHook;
 
         return merged;
     }
@@ -170,8 +176,12 @@ public class AwsSettings {
         return xml;
     }
 
-    public AwsCredentialChain getChain() {
-        return chain;
+    public Credentials getCredentials() {
+        return credentials;
+    }
+
+    public CredentialsHook getCredentialsHook() {
+        return credentialsHook;
     }
 
     @Override
@@ -198,7 +208,8 @@ public class AwsSettings {
             Objects.equals(query, that.query) &&
             Objects.equals(env, that.env) &&
             Objects.equals(xml, that.xml) &&
-            Objects.equals(chain, that.chain);
+            Objects.equals(credentials, that.credentials) &&
+            Objects.equals(credentialsHook, that.credentialsHook);
     }
 
     @Override
@@ -218,7 +229,8 @@ public class AwsSettings {
             query,
             env,
             xml,
-            chain);
+            credentials,
+            credentialsHook);
     }
 
     @Override
@@ -238,7 +250,8 @@ public class AwsSettings {
             ", query=" + query +
             ", env=" + env +
             ", xml=" + xml +
-            ", chain=" + chain +
+            ", credentials=" + credentials +
+            ", credentialsHook=" + credentialsHook +
             '}';
     }
 
@@ -260,7 +273,8 @@ public class AwsSettings {
         private String query;
         private AwsEnvironment env;
         private AwsXml xml;
-        private AwsCredentialChain chain;
+        private Credentials credentials;
+        private CredentialsHook credentialsHook;
 
         /**
          * Builds the MetricsSettings instance.
@@ -292,7 +306,8 @@ public class AwsSettings {
         AwsTweaks query(String query);
         AwsTweaks env(AwsEnvironment env);
         AwsTweaks xml(AwsXml xml);
-        AwsTweaks chain(AwsCredentialChain chain);
+        AwsTweaks credentials(String accessKeyId, String secretAccessKey, String sessionToken);
+        AwsTweaks credentialsHook(CredentialsHook credentialsHook);
     }
 
     // -----------------------------------------------------------------------------------
@@ -391,8 +406,14 @@ public class AwsSettings {
         }
 
         @Override
-        public AwsTweaks chain(AwsCredentialChain chain) {
-            builder.chain = chain;
+        public AwsTweaks credentials(String accessKeyId, String secretAccessKey, String sessionToken) {
+            builder.credentials = new Credentials(accessKeyId, secretAccessKey, sessionToken);
+            return this;
+        }
+
+        @Override
+        public AwsTweaks credentialsHook(CredentialsHook credentialsHook) {
+            builder.credentialsHook = credentialsHook;
             return this;
         }
     }

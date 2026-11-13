@@ -17,9 +17,14 @@
 package com.aerospike.client.sdk.discovery;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
+
+import com.aerospike.client.sdk.AerospikeException;
 
 /**
  * Metrics settings that apply to an entire Cluster instance.
@@ -32,6 +37,7 @@ public class DiscoverySettings {
     private final Duration refreshInterval;
     private final Duration refreshTimeout;
     private final Duration tendRefreshDeadline;
+    private final Map<String,Function<Map<String,Object>,SeedCandidateProvider>> providerFactories;
     private final DnsSettings dns;
     private final AwsSettings aws;
 
@@ -43,6 +49,7 @@ public class DiscoverySettings {
         this.refreshInterval = builder.refreshInterval;
         this.refreshTimeout = builder.refreshTimeout;
         this.tendRefreshDeadline = builder.tendRefreshDeadline;
+        this.providerFactories = builder.providerFactories;
         this.dns = new DnsSettings(builder.dns);
         this.aws = new AwsSettings(builder.aws);
    }
@@ -78,6 +85,10 @@ public class DiscoverySettings {
             ? this.refreshTimeout : base.refreshTimeout;
         merged.tendRefreshDeadline = this.tendRefreshDeadline != null
             ? this.tendRefreshDeadline : base.tendRefreshDeadline;
+        merged.tendRefreshDeadline = this.tendRefreshDeadline != null
+            ? this.tendRefreshDeadline : base.tendRefreshDeadline;
+        merged.providerFactories = this.providerFactories != null
+            ? this.providerFactories : base.providerFactories;
 
         merged.dns = this.dns.mergeWith(base.dns);
         merged.aws = this.aws.mergeWith(base.aws);
@@ -93,6 +104,11 @@ public class DiscoverySettings {
     public Duration getRefreshInterval() { return refreshInterval; }
     public Duration getRefreshTimeout() { return refreshTimeout; }
     public Duration getTendRefreshDeadline() { return tendRefreshDeadline; }
+
+    public Map<String, Function<Map<String, Object>, SeedCandidateProvider>> getProviderFactories() {
+        return providerFactories;
+    }
+
     public DnsSettings getDns() { return dns; }
     public AwsSettings getAws() { return aws; }
 
@@ -113,6 +129,7 @@ public class DiscoverySettings {
             Objects.equals(refreshInterval, that.refreshInterval) &&
             Objects.equals(refreshTimeout, that.refreshTimeout) &&
             Objects.equals(tendRefreshDeadline, that.tendRefreshDeadline) &&
+            Objects.equals(providerFactories, that.providerFactories) &&
             Objects.equals(dns, that.dns) &&
             Objects.equals(aws, that.aws);
     }
@@ -120,7 +137,7 @@ public class DiscoverySettings {
     @Override
     public int hashCode() {
         return Objects.hash(provider, options, mergePolicy, executionMode, refreshInterval,
-            refreshTimeout, tendRefreshDeadline, dns, aws);
+            refreshTimeout, tendRefreshDeadline, providerFactories, dns, aws);
     }
 
     @Override
@@ -133,6 +150,7 @@ public class DiscoverySettings {
             ", refreshIntervalMs=" + refreshInterval +
             ", refreshTimeoutMs=" + refreshTimeout +
             ", tendRefreshDeadlineMs=" + tendRefreshDeadline +
+            ", providerFactories=" + providerFactories +
             ", dns=" + dns +
             ", aws=" + aws +
             '}';
@@ -149,6 +167,7 @@ public class DiscoverySettings {
         private Duration refreshInterval;
         private Duration refreshTimeout;
         private Duration tendRefreshDeadline;
+        private Map<String,Function<Map<String,Object>,SeedCandidateProvider>> providerFactories;
         private DnsSettings.Builder dns = DnsSettings.builder();
         private AwsSettings.Builder aws = AwsSettings.builder();
 
@@ -175,6 +194,7 @@ public class DiscoverySettings {
         DiscoveryTweaks refreshInterval(Duration refreshInterval);
         DiscoveryTweaks refreshTimeout(Duration refreshTimeout);
         DiscoveryTweaks tendRefreshDeadline(Duration tendRefreshDeadline);
+        DiscoveryTweaks addProviderFactory(String name, Function<Map<String,Object>,SeedCandidateProvider> factory);
         DiscoveryTweaks dns(Consumer<DnsSettings.DnsTweaks> configurator);
         DiscoveryTweaks aws(Consumer<AwsSettings.AwsTweaks> configurator);
     }
@@ -233,6 +253,15 @@ public class DiscoverySettings {
         }
 
         @Override
+        public DiscoveryTweaks addProviderFactory(
+            String name, Function<Map<String,Object>,SeedCandidateProvider> factory
+        ) {
+            builder.providerFactories = register("seed candidate provider", name, factory,
+                StaticDiscoveryConfig.PROVIDERS, builder.providerFactories);
+            return this;
+        }
+
+        @Override
         public DiscoveryTweaks dns(Consumer<DnsSettings.DnsTweaks> configurator) {
             configurator.accept(new DnsSettings.DnsTweaksImpl(builder.dns));
             return this;
@@ -242,6 +271,36 @@ public class DiscoverySettings {
         public DiscoveryTweaks aws(Consumer<AwsSettings.AwsTweaks> configurator) {
             configurator.accept(new AwsSettings.AwsTweaksImpl(builder.aws));
             return this;
+        }
+
+        private static <T> Map<String,Function<Map<String,Object>,T>> register(
+            String type,
+            String name,
+            Function<Map<String,Object>,T> factory,
+            List<String> builtIn,
+            Map<String,Function<Map<String,Object>,T>> factories
+        ) {
+            if (name == null || name.isEmpty()) {
+                throw new AerospikeException("Invalid " + type + " name: " + name);
+            }
+
+            if (builtIn.contains(name)) {
+                throw new AerospikeException("Invalid " + type + " name '" + name + "': built-in name");
+            }
+
+            if (factories != null && factories.containsKey(name)) {
+                throw new AerospikeException("Invalid " + type + " name '" + name + "': already registered");
+            }
+
+            if (factory == null) {
+                throw new AerospikeException("Invalid " + type + " factory for '" + name + "': null");
+            }
+
+            if (factories == null) {
+                factories = new LinkedHashMap<>();
+            }
+            factories.put(name, factory);
+            return factories;
         }
     }
 }

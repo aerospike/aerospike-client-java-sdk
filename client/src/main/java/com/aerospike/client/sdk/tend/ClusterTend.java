@@ -18,7 +18,11 @@ package com.aerospike.client.sdk.tend;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.LongAdder;
@@ -32,6 +36,13 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.Loggers;
 import com.aerospike.client.sdk.Node;
+import com.aerospike.client.sdk.discovery.AddressTranslator;
+import com.aerospike.client.sdk.discovery.Endpoint;
+import com.aerospike.client.sdk.discovery.PassThroughAddressTranslator;
+import com.aerospike.client.sdk.discovery.PortMapAddressTranslator;
+import com.aerospike.client.sdk.discovery.StaticMapAddressTranslator;
+import com.aerospike.client.sdk.discovery.StaticTranslationConfig;
+import com.aerospike.client.sdk.discovery.TranslationMissMode;
 import com.aerospike.client.sdk.util.Util;
 
 /**
@@ -43,22 +54,39 @@ public class ClusterTend implements Runnable {
     private final Cluster cluster;
     private final ClusterDefinition def;
     private volatile Thread tendThread;
-    final HashMap<String,Node> nodesMap;
+    private final HashMap<String,Node> nodesMap;
     private final ConcurrentLinkedDeque<ConnectionRecover> recoverQueue;
+    private final AddressTranslator addressTranslator;
+    private final Map<String,String> translationMisses;
     private final LongAdder recoverCount;
     private volatile Host[] seeds;
     private int tendCount;
     private volatile int invalidNodeCount;
+    private int viewChange;
+    private final boolean notifyViewChange;
     private volatile boolean valid;
 
-    public ClusterTend(Cluster cluster) {
+    public ClusterTend(Cluster cluster, Host[] seeds) {
         this.cluster = cluster;
         this.def = cluster.getClusterDefinition();
-        this.seeds = this.def.getEffectiveHosts();
+        this.seeds = seeds;
         this.nodesMap = new HashMap<String,Node>();
-
         this.recoverCount = new LongAdder();
         this.recoverQueue = new ConcurrentLinkedDeque<ConnectionRecover>();
+        this.translationMisses = (def.getAddressTranslator() != null)? new ConcurrentHashMap<>() : null;
+        this.addressTranslator = (def.getAddressTranslator() != null)?
+            def.getAddressTranslator() : new StaticMapAddressTranslator(def.getIpMap());
+        this.notifyViewChange = overridesViewChange(addressTranslator);
+    }
+
+    private static boolean overridesViewChange(AddressTranslator translator) {
+        try {
+            return translator.getClass().getMethod("onClusterViewChanged", int.class)
+                .getDeclaringClass() != AddressTranslator.class;
+        }
+        catch (NoSuchMethodException e) {
+            return false;
+        }
     }
 
     public void runThread() {
@@ -111,6 +139,7 @@ public class ClusterTend implements Runnable {
             // Sleep between polling intervals.
             Util.sleep(def.getTendInterval());
         }
+        cluster.closeSeedRefresher();
     }
 
     public void forceSingleNode() {
@@ -187,6 +216,7 @@ public class ClusterTend implements Runnable {
         // All node additions/deletions are performed in tend thread.
         // Initialize tend iteration node statistics.
         Node[] nodes = cluster.getNodes();
+        Node[] nodesBefore = nodes;
         Peers peers = new Peers(nodes.length + 16);
 
         // Clear node reference counts.
@@ -196,6 +226,9 @@ public class ClusterTend implements Runnable {
 
         // If active nodes don't exist, seed cluster.
         if (nodes.length == 0) {
+            if (! isInit) {
+                cluster.refreshSeedRefresher();
+            }
             seedNode(peers, failIfNotConnected);
 
             // Reset nodes because seedNode changes them.
@@ -212,6 +245,10 @@ public class ClusterTend implements Runnable {
                 node.refresh(peers);
             }
 
+            for (Node node : nodes) {
+                node.refreshAddress(peers);
+            }
+
             // Refresh peers when necessary.
             if (peers.genChanged) {
                 // Refresh peers for all nodes that responded the first time even if only one node's peers changed.
@@ -223,22 +260,32 @@ public class ClusterTend implements Runnable {
 
                 // Handle nodes changes determined from refreshes.
                 findNodesToRemove(peers);
-
-                // Remove nodes in a batch.
-                if (peers.removeNodes.size() > 0) {
-                    removeNodes(peers.removeNodes);
-                }
             }
 
-            // Add peer nodes to cluster.
-            if (peers.nodes.size() > 0) {
+            // Add peer nodes to cluster before removing the nodes they replace.
+            boolean added = peers.nodes.size() > 0;
+
+            if (added) {
                 addNodes(peers.nodes);
+            }
+
+            // Remove nodes in a batch.
+            if (peers.nodesToRemove.size() > 0) {
+                removeNodes(peers);
+            }
+
+            if (added) {
                 refreshPeers(peers);
             }
         }
 
-        invalidNodeCount += peers.getInvalidCount();
         nodes = cluster.getNodes();
+
+        if (notifyViewChange && ! isInit && (nodes != nodesBefore || peers.addressChanged)) {
+            clusterViewChanged();
+        }
+
+        invalidNodeCount += peers.getInvalidCount();
 
         // Refresh partition map when necessary.
         for (Node node : nodes) {
@@ -267,7 +314,27 @@ public class ClusterTend implements Runnable {
             }
         }
 
+        if (! isInit) {
+            cluster.tendSeedRefresher(tendCount);
+        }
+
         processRecoverQueue();
+    }
+
+    private void clusterViewChanged() {
+        viewChange++;
+
+        try {
+            addressTranslator.onClusterViewChanged(viewChange);
+        }
+        catch (Throwable e) {
+            if (log.isWarnEnabled()) {
+                log.atWarn()
+                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .log("Address translator " + translatorName() + " onClusterViewChanged failed: " +
+                        Util.getErrorMessage(e));
+            }
+        }
     }
 
     private boolean seedNode(Peers peers, boolean failIfNotConnected) {
@@ -303,6 +370,13 @@ public class ClusterTend implements Runnable {
                     }
                     exceptions[i] = e;
                 }
+                else if (e instanceof AerospikeException.AlternateAddressMissing) {
+                    if (log.isErrorEnabled()) {
+                        log.atError()
+                            .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                            .log("Seed " + seed + " failed: " + e.getMessage());
+                    }
+                }
                 else {
                     if (log.isWarnEnabled()) {
                         log.atWarn()
@@ -323,6 +397,14 @@ public class ClusterTend implements Runnable {
         }
 
         if (failIfNotConnected) {
+            if (exceptions != null) {
+                for (Throwable ex : exceptions) {
+                    if (ex instanceof AerospikeException.AlternateAddressMissing) {
+                        throw (AerospikeException.AlternateAddressMissing)ex;
+                    }
+                }
+            }
+
             StringBuilder sb = new StringBuilder(500);
             sb.append("Failed to connect to ["+ seedArray.length +"] host(s): ");
             sb.append(System.lineSeparator());
@@ -375,14 +457,25 @@ public class ClusterTend implements Runnable {
                 node.refreshPeers(peers);
             }
 
-            if (peers.nodes.size() > 0) {
-                // Add new peer nodes to cluster.
+            boolean added = peers.nodes.size() > 0;
+
+            if (added) {
+                // Add new peer nodes to cluster before removing the nodes they replace.
                 addNodes(peers.nodes);
             }
-            else {
+
+            if (peers.nodesToRemove.size() > 0) {
+                removeNodes(peers);
+            }
+
+            if (! added) {
                 break;
             }
         }
+    }
+
+    public void setSeeds(Host[] seeds) {
+        this.seeds = seeds;
     }
 
     private void addSeeds(Host[] hosts) {
@@ -420,13 +513,12 @@ public class ClusterTend implements Runnable {
 
     private void findNodesToRemove(Peers peers) {
         int refreshCount = peers.refreshCount;
-        HashSet<Node> removeNodes = peers.removeNodes;
         Node[] nodes = cluster.getNodes();
 
         for (Node node : nodes) {
             if (! node.isActive()) {
                 // Inactive nodes must be removed.
-                removeNodes.add(node);
+                peers.removeNode(node);
                 continue;
             }
 
@@ -434,7 +526,7 @@ public class ClusterTend implements Runnable {
                 // All node info requests failed and this node had 5 consecutive failures.
                 // Remove node.  If no nodes are left, seeds will be tried in next cluster
                 // tend iteration.
-                removeNodes.add(node);
+                peers.removeNode(node);
                 continue;
             }
 
@@ -446,12 +538,12 @@ public class ClusterTend implements Runnable {
                     if (! findNodeInPartitionMap(node)) {
                         // Node doesn't have any partitions mapped to it.
                         // There is no point in keeping it in the cluster.
-                        removeNodes.add(node);
+                        peers.removeNode(node);
                     }
                 }
                 else {
                     // Node not responding. Remove it.
-                    removeNodes.add(node);
+                    peers.removeNode(node);
                 }
             }
         }
@@ -529,22 +621,27 @@ public class ClusterTend implements Runnable {
         nodesMap.put(node.getName(), node);
     }
 
-    private void removeNodes(HashSet<Node> nodesToRemove) {
+    private void removeNodes(Peers peers) {
         // There is no need to delete nodes from partitionWriteMap because the nodes
         // have already been set to inactive. Further connection requests will result
         // in an exception and a different node will be tried.
+        Set<Node> nodesToRemove = peers.nodesToRemove;
 
         // Flush node metrics and remove nodes atomically with respect to the metrics thread.
         cluster.metricsNodeClose(nodesToRemove, () -> {
             // Cleanup node resources.
             for (Node node : nodesToRemove) {
-                // Remove node from map.
-                nodesMap.remove(node.getName());
+                // Remove node from map unless a replacement node already took its name.
+                if (nodesMap.get(node.getName()) == node) {
+                    nodesMap.remove(node.getName());
+                }
                 node.close();
             }
 
             // Remove all nodes at once to avoid copying entire array multiple times.
             removeNodesCopy(nodesToRemove);
+            peers.removeNodes.clear();
+            nodesToRemove.clear();
 
             // Departed nodes can't be full partition owners.
             for (Partitions partitions : cluster.getPartitionMap().values()) {
@@ -556,7 +653,7 @@ public class ClusterTend implements Runnable {
     /**
      * Remove nodes using copy on write semantics.
      */
-    private void removeNodesCopy(HashSet<Node> nodesToRemove) {
+    private void removeNodesCopy(Set<Node> nodesToRemove) {
         // Create temporary nodes array.
         // Since nodes are only marked for deletion using node references in the nodes array,
         // and the tend thread is the only thread modifying nodes, we are guaranteed that nodes
@@ -641,6 +738,85 @@ public class ClusterTend implements Runnable {
         }
     }
 
+    /**
+     * Translate a server advertised address. The advertised TLS name is always kept.
+     * Throw {@link AerospikeException.TranslationMiss} on a strict miss.
+     */
+    public final Host translateAddress(String nodeName, String tlsName, String host, int port) {
+        Endpoint.SourceList sourceList = def.isUseServicesAlternate()?
+            Endpoint.SourceList.ALTERNATE : Endpoint.SourceList.STANDARD;
+
+        return translate(addressTranslator, def.getTranslationOnMiss(),
+            new Endpoint(nodeName, tlsName, host, port, sourceList), translationMisses);
+    }
+
+    Host translate(AddressTranslator translator, Endpoint advertised) {
+        return translate(translator, TranslationMissMode.PASS_THROUGH, advertised);
+    }
+
+    Host translate(AddressTranslator translator, TranslationMissMode onMiss, Endpoint advertised) {
+        return translate(translator, onMiss, advertised, null);
+    }
+
+    /**
+     * Translate an advertised address. On a pass-through miss, warn once per node and advertised
+     * address when {@code misses} is not null.
+     */
+    private Host translate(AddressTranslator translator, TranslationMissMode onMiss, Endpoint advertised,
+        Map<String,String> misses) {
+        Optional<Host> result = translator.translate(advertised);
+
+        if (result == null) {
+            throw new AerospikeException("Address translator " + translatorName(translator) +
+                " returned null for " + advertised);
+        }
+
+        if (! result.isPresent()) {
+            if (onMiss == TranslationMissMode.STRICT) {
+                throw new AerospikeException.TranslationMiss(advertised, translatorName(translator));
+            }
+
+            if (misses != null) {
+                String address = advertised.host + ':' + advertised.port;
+
+                if (! address.equals(misses.put(String.valueOf(advertised.nodeName), address)) && log.isWarnEnabled()) {
+                    log.atWarn()
+                        .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                        .log("Address translator " + translatorName(translator) + " has no mapping for node " +
+                        advertised.nodeName + " advertised address " + address + " in the " +
+                        (advertised.sourceList == Endpoint.SourceList.ALTERNATE ? "alternate" : "standard") +
+                        " list. Connecting to the advertised address because translation.on_miss is pass_through");
+                }
+            }
+            return new Host(advertised.host, advertised.tlsName, advertised.port);
+        }
+
+        Host host = result.get();
+
+        if (! Objects.equals(host.tlsName, advertised.tlsName)) {
+            host = new Host(host.name, advertised.tlsName, host.port);
+        }
+        return host;
+    }
+
+    public final String translatorName() {
+        return translatorName(addressTranslator);
+    }
+
+    private static String translatorName(AddressTranslator translator) {
+        if (translator instanceof PassThroughAddressTranslator) {
+            return StaticTranslationConfig.PASS_THROUGH;
+        }
+        if (translator instanceof PortMapAddressTranslator) {
+            return StaticTranslationConfig.PORT_MAP;
+        }
+        return (translator instanceof StaticMapAddressTranslator)? StaticTranslationConfig.STATIC_MAP : translator.getClass().getName();
+    }
+
+    public final boolean getNotifyViewChange() {
+        return notifyViewChange;
+    }
+
     public final void interruptTendSleep() {
         // Interrupt tendThread's sleep(), so node refreshes will be performed sooner.
         tendThread.interrupt();
@@ -675,6 +851,13 @@ public class ClusterTend implements Runnable {
      */
     public final int getInvalidNodeCount() {
         return invalidNodeCount;
+    }
+
+    /**
+     * Return if tend thread is current running.
+     */
+    public final boolean isTendRunning() {
+        return tendThread != null && tendThread.isAlive();
     }
 
     public final void close() {

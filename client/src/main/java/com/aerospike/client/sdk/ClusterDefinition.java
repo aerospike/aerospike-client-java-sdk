@@ -72,11 +72,8 @@ public class ClusterDefinition {
     byte[] passwordHash;
     int[] rackIds;
     Map<String,String> ipMap;
-    // Source of seed hosts.
     SeedCandidateProvider seedCandidateProvider;
-    // Advertised address translation.
     AddressTranslator addressTranslator;
-    // Action when the address translator has no mapping.
     TranslationMissMode translationOnMiss;
     TlsBuilder tlsBuilder;
     AuthMode authMode = AuthMode.NONE;
@@ -94,6 +91,11 @@ public class ClusterDefinition {
     boolean isDynamicConfigEnabled;
     boolean forceSingleNode;
 
+    /**
+     * This field represents the initial seeds defined by the user.
+     * The new seed discovery process can change the active seeds
+     * which exist in {@link Cluster#seeds}.
+     */
     private final Host[] hosts;
 
     /**
@@ -539,6 +541,31 @@ public class ClusterDefinition {
     }
 
     /**
+     * Set translator applied to every server advertised address before the client connects to it.
+     * When set, {@link #ipMap} is ignored. Built-in translators:
+     * <ul>
+     * <li>{@code static-map}: {@link com.aerospike.client.sdk.discovery.StaticMapAddressTranslator},
+     * advertised host to host, port kept.</li>
+     * <li>{@code port-map}: {@link com.aerospike.client.sdk.discovery.PortMapAddressTranslator},
+     * advertised {@code host:port} or node name to {@code host:port}.</li>
+     * <li>{@code pass-through}: {@link com.aerospike.client.sdk.discovery.PassThroughAddressTranslator},
+     * every advertised address unchanged, for servers that advertise a client-reachable address and
+     * port per node.</li>
+     * </ul>
+     * <p>
+     * Default: null (use {@link com.aerospike.client.sdk.discovery.StaticMapAddressTranslator} with
+     * {@link #ipMap})
+     * <p>
+     * YAML keys: {@code static.client.translation.provider} ({@code static-map}, {@code port-map},
+     * {@code pass-through} or a name registered with {@link #registerAddressTranslator}) with
+     * {@code static.client.translation.static_map} or {@code static.client.translation.port_map}.
+     */
+    public ClusterDefinition addressTranslator(AddressTranslator addressTranslator) {
+        this.addressTranslator = addressTranslator;
+        return this;
+    }
+
+    /**
      * Establishes a connection to the Aerospike cluster.
      *
      * <p>This method creates and returns a Cluster instance using the configured
@@ -599,34 +626,6 @@ public class ClusterDefinition {
             .registerCluster(cluster, clusterName, effectiveSettings);
 
         return cluster;
-    }
-
-    /**
-     * Gets the effective hosts array, potentially creating new Host instances with TLS names
-     * if TLS is configured and the existing hosts don't have TLS names set.
-     */
-    public Host[] getEffectiveHosts() {
-        // If no TLS configuration or no TLS name specified, return original hosts
-        if (tlsBuilder == null || !tlsBuilder.isTlsEnabled() || tlsBuilder.getTlsName() == null) {
-            return hosts;
-        }
-
-        String tlsName = tlsBuilder.getTlsName();
-        Host[] newHosts = new Host[hosts.length];
-
-        for (int i = 0; i < hosts.length; i++) {
-            Host originalHost = hosts[i];
-
-            // Only create new Host with TLS name if the existing host doesn't have one
-            if (originalHost.tlsName == null) {
-                newHosts[i] = new Host(originalHost.name, tlsName, originalHost.port);
-            } else {
-                // Keep the existing host as-is if it already has a TLS name
-                newHosts[i] = originalHost;
-            }
-        }
-
-        return newHosts;
     }
 
     boolean isRackAware() {
@@ -728,12 +727,33 @@ public class ClusterDefinition {
     }
 
     /**
+     * Return user defined address translator.
+     */
+    public AddressTranslator getAddressTranslator() {
+        return addressTranslator;
+    }
+
+    /**
+     * Return translationOnMiss enum.
+     */
+    public TranslationMissMode getTranslationOnMiss() {
+        return translationOnMiss;
+    }
+
+    /**
      * Gets the TLS builder configuration.
      *
      * @return the TLS builder, or null if TLS is not configured
      */
     public TlsBuilder getTlsBuilder() {
         return tlsBuilder;
+    }
+
+    /**
+     * Return if TLS is enabled.
+     */
+    public boolean isTlsEnabled() {
+        return ! (tlsBuilder == null || !tlsBuilder.isTlsEnabled() || tlsBuilder.getTlsName() == null);
     }
 
     /**

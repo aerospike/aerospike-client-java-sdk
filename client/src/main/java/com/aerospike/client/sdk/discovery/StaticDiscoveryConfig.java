@@ -16,9 +16,14 @@
  */
 package com.aerospike.client.sdk.discovery;
 
+import java.util.List;
+
 /**
- * Server node address as advertised by the cluster.
+ * Network discovery constants.
  */
 public final class StaticDiscoveryConfig {
+    public static final String STATIC = "static";
+    public static final String DNS = "dns";
     public static final String AWS_TAGS = "aws-tags";
+    public static final List<String> PROVIDERS = List.of(STATIC, DNS, AWS_TAGS);
 }
