@@ -33,7 +33,7 @@ public final class Peers {
     public final HashSet<Node> removeNodes;
     public final Set<Node> nodesToRemove;
     private final HashSet<Host> invalidHosts;
-    private final HashMap<String,String> collided;
+    public final HashMap<String,String> collided;
     public int refreshCount;
     public boolean genChanged;
     public boolean addressChanged;
