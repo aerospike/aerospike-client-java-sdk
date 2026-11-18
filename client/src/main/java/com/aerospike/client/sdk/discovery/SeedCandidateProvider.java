@@ -34,14 +34,14 @@ public interface SeedCandidateProvider {
      * A host with a port outside 1 to 65535 is dropped and logged at warning level.
      * <p>
      * Called once at client initialization, with {@link SeedCandidateContext#tendIteration} 0, then on
-     * each periodic refresh. With {@link com.aerospike.client.policy.ClientPolicy#discoveryExecutionMode}
+     * each periodic refresh. With {@link DiscoverySettings#getExecutionMode()}
      * {@link DiscoveryExecutionMode#THREAD} and a provider that needs periodic refresh, every call runs
      * on the client's discovery thread; otherwise the first call runs on the application thread that
      * constructs the client and periodic refreshes on the cluster tend thread. Calls are never made
      * concurrently. An exception at initialization is logged at warning level and the client continues
-     * with the seeds left by {@link com.aerospike.client.policy.ClientPolicy#discoveryMergePolicy};
+     * with the seeds left by {@link DiscoverySettings#getMergePolicy()};
      * when none are left, client construction fails with
-     * {@link com.aerospike.client.ResultCode#SEED_DISCOVERY_FAILED}. An exception on a periodic
+     * {@link com.aerospike.client.sdk.ResultCode#SEED_DISCOVERY_FAILED}. An exception on a periodic
      * refresh is logged at warning level and the previous seed list is kept.
      *
      * @param ctx   cluster name, configured seeds and tend count for this call
@@ -69,10 +69,10 @@ public interface SeedCandidateProvider {
     /**
      * Release resources held by the provider. The default does nothing.
      * <p>
-     * Called once after {@link com.aerospike.client.AerospikeClient#close()}, when the last refresh
+     * Called once after {@link com.aerospike.client.sdk.Cluster#close()}, when the last refresh
      * has returned: on the discovery thread as it exits, when one runs; otherwise on the cluster tend
      * thread as it exits, or on the thread that closes the client when no tend thread runs. Also
-     * called once when client construction fails. {@code AerospikeClient.close()} does not wait for
+     * called once when client construction fails. {@code Cluster.close()} does not wait for
      * it. An exception is
      * logged at warning level and not thrown. A provider instance shared by several clients is closed
      * by each of them.

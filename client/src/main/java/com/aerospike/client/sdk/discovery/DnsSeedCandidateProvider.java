@@ -53,7 +53,7 @@ import com.aerospike.client.sdk.Loggers;
  * <p>
  * Record types:
  * <ul>
- * <li>{@link RecordType#A}: A and AAAA records. One host per address, with {@link Builder#port}.</li>
+ * <li>{@link RecordType#A}: A and AAAA records. One host per address, with {@link DnsSettings.DnsTweaks#port(Integer)}.</li>
  * <li>{@link RecordType#SRV}: SRV records. One host per record with the record's port, ordered by
  * priority (lowest first), then weight (highest first). Each record's target is resolved within
  * the same refresh by an A query, then an AAAA query when the target has no A record, and returned
@@ -63,18 +63,18 @@ import com.aerospike.client.sdk.Loggers;
  * </ul>
  * Every returned host is an IP address literal, never a hostname, so the client does no further
  * name resolution when it seeds from the result. Hosts are deduplicated and returned in the same
- * order for the same DNS answers. {@link Builder#tlsName} is set on every host.
+ * order for the same DNS answers. {@link DnsSettings.DnsTweaks#tlsName(String)} is set on every host.
  * <p>
- * Queries go to {@link Builder#servers}, or to the system resolvers read once when the provider
+ * Queries go to {@link DnsSettings.DnsTweaks#servers(List)}, or to the system resolvers read once when the provider
  * is built, through the JDK DNS provider ({@code com.sun.jndi.dns.DnsContextFactory}, module
- * {@code jdk.naming.dns}). All I/O of one refresh is bounded by {@link Builder#timeout}, and the
+ * {@code jdk.naming.dns}). All I/O of one refresh is bounded by {@link DnsSettings.DnsTweaks#timeout(java.time.Duration)}, and the
  * provider starts no thread.
  * <p>
  * The provider needs periodic refresh and runs in either
- * {@link com.aerospike.client.policy.ClientPolicy#discoveryExecutionMode}. {@link Builder#timeout}
- * must not exceed {@link com.aerospike.client.policy.ClientPolicy#discoveryRefreshTimeout} in
+ * {@link DiscoverySettings#getExecutionMode()}. {@link DnsSettings.DnsTweaks#timeout(java.time.Duration)}
+ * must not exceed {@link DiscoverySettings#getRefreshTimeout()} in
  * {@link DiscoveryExecutionMode#THREAD} mode, or
- * {@link com.aerospike.client.policy.ClientPolicy#discoveryTendRefreshDeadline} in
+ * {@link DiscoverySettings#getTendRefreshDeadline()} in
  * {@link DiscoveryExecutionMode#TEND} mode; client construction fails otherwise. With the default
  * tend deadline of 100ms, only a local resolver answers reliably in time.
  * <p>
@@ -82,18 +82,23 @@ import com.aerospike.client.sdk.Loggers;
  * warning level. When every name fails (NXDOMAIN, SERVFAIL, timeout or an empty answer), the refresh
  * throws an {@link AerospikeException} naming each name and its failure. The client then keeps the
  * previous seed list, or at initialization continues with the seeds left by
- * {@link com.aerospike.client.policy.ClientPolicy#discoveryMergePolicy}.
+ * {@link DiscoverySettings#getMergePolicy()}.
  * <p>
  * Split-network example: {@code seeds.aerospike.internal} resolves only on the client's network.
  * <pre>{@code
- * ClientPolicy policy = new ClientPolicy();
- * policy.seedCandidateProvider = DnsSeedCandidateProvider.builder()
- *     .names("seeds.aerospike.internal")
- *     .port(3000)
- *     .timeout(50)
- *     .servers("10.0.0.2")
- *     .build();
- * AerospikeClient client = new AerospikeClient(policy);
+ * Cluster cluster = new ClusterDefinition()
+ *     .withSystemSettings(builder -> builder
+ *         .discovery(ops -> ops
+ *             .provider(StaticDiscoveryConfig.DNS)
+ *             .dns(dns -> dns
+ *                 .names(List.of("seeds.aerospike.internal"))
+ *                 .port(3000)
+ *                 .timeout(Duration.ofMillis(50))
+ *                 .servers(List.of("10.0.0.2"))
+ *             )
+ *         )
+ *     )
+ *     .connect();
  * }</pre>
  */
 public final class DnsSeedCandidateProvider implements SeedCandidateProvider {

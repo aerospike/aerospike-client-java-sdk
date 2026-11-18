@@ -32,7 +32,7 @@ public interface AddressTranslator {
      * {@link Optional#empty()} when the translator has no mapping for it (a miss). A present
      * value is a hit, even when it equals the advertised host and port, unless its port is outside
      * 1 to 65535, which is a miss. The client applies
-     * {@link com.aerospike.client.sdk.ClusterDefinition#translationOnMiss} to a miss. Never return
+     * {@link TranslationSettings#getOnMiss()} to a miss. Never return
      * null.
      * <p>
      * This method is called on the cluster tend thread and must be in-memory only. It must not

@@ -37,7 +37,6 @@ import org.w3c.dom.Element;
 import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.Loggers;
-import com.aerospike.client.sdk.discovery.AwsSettings.Builder;
 
 /**
  * Seed candidate provider that lists running EC2 instances matching a set of filters, usually a tag,
@@ -45,9 +44,9 @@ import com.aerospike.client.sdk.discovery.AwsSettings.Builder;
  * a self-managed Aerospike cluster on EC2 whose nodes carry a known tag.
  * <p>
  * Each refresh sends one SigV4-signed EC2 Query API {@code DescribeInstances} request (API version
- * 2016-11-15) with {@link Builder#filters} plus {@code instance-state-name=running}, and follows
+ * 2016-11-15) with {@link AwsSettings.AwsTweaks#filters(Map)} plus {@code instance-state-name=running}, and follows
  * {@code NextToken} pagination. It returns one host per instance with a non-empty
- * {@link Builder#addressField}, with {@link Builder#port} and {@link Builder#tlsName}, deduplicated
+ * {@link AwsSettings.AwsTweaks#addressField(AddressField)}, with {@link AwsSettings.AwsTweaks#port(Integer)} and {@link AwsSettings.AwsTweaks#tlsName(String)}, deduplicated
  * and sorted by address. An instance without that field is skipped and the count is logged at debug
  * level. Any API, credential or timeout failure throws an {@link AerospikeException} with the AWS
  * error code and request id when there is one, so the client keeps the previous seed list. No access
@@ -63,10 +62,10 @@ import com.aerospike.client.sdk.discovery.AwsSettings.Builder;
  * }
  * }</pre>
  * <p>
- * Credentials: {@link Builder#credentialsHook}, when set, replaces the chain below. Otherwise the
+ * Credentials: {@link AwsSettings.AwsTweaks#credentialsHook(CredentialsHook)}, when set, replaces the chain below. Otherwise the
  * first source found, in this order, is used:
  * <ol>
- * <li>{@link Builder#credentials} keys;</li>
+ * <li>{@link AwsSettings.AwsTweaks#credentials(String, String, String)} keys;</li>
  * <li>environment variables {@code AWS_ACCESS_KEY_ID}, {@code AWS_SECRET_ACCESS_KEY} and
  * {@code AWS_SESSION_TOKEN};</li>
  * <li>static keys of profile {@code AWS_PROFILE} (default {@code default}) in the shared
@@ -87,14 +86,14 @@ import com.aerospike.client.sdk.discovery.AwsSettings.Builder;
  * <p>
  * Threads and timeouts: a cold EC2 call takes several hundred milliseconds, more than the tend
  * thread can give, so the provider runs only in
- * {@link com.aerospike.client.policy.ClientPolicy#discoveryExecutionMode}
+ * {@link DiscoverySettings#getExecutionMode()}
  * {@link DiscoveryExecutionMode#THREAD}, on the client's discovery thread; client construction fails
- * in {@link DiscoveryExecutionMode#TEND}. {@link Builder#timeout} must not exceed
- * {@link com.aerospike.client.policy.ClientPolicy#discoveryRefreshTimeout}; client construction fails
+ * in {@link DiscoveryExecutionMode#TEND}. {@link AwsSettings.AwsTweaks#timeout(java.time.Duration)} must not exceed
+ * {@link DiscoverySettings#getRefreshTimeout()}; client construction fails
  * otherwise. Every connect and read of one refresh, credentials included, is bounded by the time left
- * of {@link Builder#timeout}, and the first refresh, which also resolves the credential chain, by
- * {@link Builder#initTimeout}. Client construction waits for the first refresh at most
- * {@code discoveryRefreshTimeout}. Endpoint host names are resolved by the system resolver, which the
+ * of {@link AwsSettings.AwsTweaks#timeout(java.time.Duration)}, and the first refresh, which also resolves the credential chain, by
+ * {@link AwsSettings.AwsTweaks#initTimeout(java.time.Duration)}. Client construction waits for the first refresh at most
+ * {@link DiscoverySettings#getRefreshTimeout()}. Endpoint host names are resolved by the system resolver, which the
  * provider cannot bound. The provider starts no thread and uses no HTTP proxy.
  * <p>
  * The provider sees only the instances of the credentials' own account, so it serves self-managed
@@ -102,15 +101,20 @@ import com.aerospike.client.sdk.discovery.AwsSettings.Builder;
  * <p>
  * Example, with a static seed kept as a fallback:
  * <pre>{@code
- * ClientPolicy policy = new ClientPolicy();
- * policy.seedCandidateProvider = AwsEc2TagSeedCandidateProvider.builder()
- *     .region("us-east-1")
- *     .tagFilter("aerospike-cluster", "prod-a")
- *     .addressField(AwsEc2TagSeedCandidateProvider.AddressField.PRIVATE_IP)
- *     .port(3000)
- *     .build();
- * policy.discoveryMergePolicy = SeedMergePolicy.MERGE;
- * AerospikeClient client = new AerospikeClient(policy, new Host("10.0.1.10", 3000));
+ * Cluster cluster = new ClusterDefinition("10.0.1.10", 3000)
+ *     .withSystemSettings(builder -> builder
+ *         .discovery(ops -> ops
+ *             .provider(StaticDiscoveryConfig.AWS_TAGS)
+ *             .mergePolicy(SeedMergePolicy.MERGE)
+ *             .aws(aws -> aws
+ *                 .region("us-east-1")
+ *                 .filters(Map.of("tag:aerospike-cluster", List.of("prod-a")))
+ *                 .addressField(AwsEc2TagSeedCandidateProvider.AddressField.PRIVATE_IP)
+ *                 .port(3000)
+ *             )
+ *         )
+ *     )
+ *     .connect();
  * }</pre>
  */
 public final class AwsEc2TagSeedCandidateProvider implements SeedCandidateProvider {
@@ -227,7 +231,7 @@ public final class AwsEc2TagSeedCandidateProvider implements SeedCandidateProvid
 	 * Source of credentials that replaces the built-in credential chain.
 	 * <p>
 	 * Called on the client's discovery thread, which refreshes the provider. It must return quickly,
-	 * well within {@link Builder#timeout}; an implementation that does I/O should cache. It may wrap
+	 * well within {@link AwsSettings.AwsTweaks#timeout(java.time.Duration)}; an implementation that does I/O should cache. It may wrap
 	 * the application's own AWS SDK credentials provider, which caches and refreshes its credentials.
 	 * Credentials returned with an expiry are cached until five minutes before it; credentials without
 	 * one are used for the life of the provider.

@@ -38,13 +38,13 @@ import com.aerospike.client.sdk.Host;
  * <li>An IPv6 host is written in brackets, in keys and values: {@code [2001:db8::1]:3000}.</li>
  * </ul>
  * Keys are matched against the endpoint as advertised on the list the client uses, the alternate
- * list when {@link com.aerospike.client.policy.ClientPolicy#useServicesAlternate} is true and the
+ * list when {@link com.aerospike.client.sdk.ClusterDefinition#usingServicesAlternate()} is true and the
  * standard list otherwise. Author the map against that list: a map written for the other list
  * misses on every host:port key.
  * <p>
  * Precedence: the advertised {@code host:port} is looked up first and the node name second, so a
  * host:port key wins over a node-name key when both match. Any other endpoint is a miss and
- * {@link com.aerospike.client.policy.ClientPolicy#translationOnMiss} applies. The advertised TLS
+ * {@link TranslationSettings#getOnMiss()} applies. The advertised TLS
  * name is kept.
  * <p>
  * The map is parsed and validated once, by the constructor, and is copied: later changes to the
@@ -57,7 +57,9 @@ import com.aerospike.client.sdk.Host;
  * Map&lt;String,String&gt; map = new HashMap&lt;&gt;();
  * map.put("10.0.0.1:3000", "lb.example.com:30001");
  * map.put("10.0.0.2:3000", "lb.example.com:30002");
- * policy.addressTranslator = new PortMapAddressTranslator(map);
+ * Cluster cluster = new ClusterDefinition("lb.example.com", 30001)
+ *     .addressTranslator(new PortMapAddressTranslator(map))
+ *     .connect();
  * </pre>
  * Example: a load balancer that derives each node's port from the node address, for example
  * {@code 30000} plus the last octet of a node in 10.0.0.0/24. The map is static, so pre-fill it
@@ -69,8 +71,14 @@ import com.aerospike.client.sdk.Host;
  * for (int i = 1; i &lt; 255; i++) {
  *     map.put("10.0.0." + i + ":3000", "lb.example.com:" + (30000 + i));
  * }
- * policy.addressTranslator = new PortMapAddressTranslator(map);
- * policy.translationOnMiss = TranslationMissMode.STRICT;
+ * Cluster cluster = new ClusterDefinition("lb.example.com", 30001)
+ *     .addressTranslator(new PortMapAddressTranslator(map))
+ *     .withSystemSettings(builder -> builder
+ *         .translation(ops -> ops
+ *             .onMiss(TranslationMissMode.STRICT)
+ *         )
+ *     )
+ *     .connect();
  * </pre>
  * Node-name keys map nodes whose addresses are not known in advance:
  * {@code map.put("BB9020011AC4202", "lb.example.com:30001")}.

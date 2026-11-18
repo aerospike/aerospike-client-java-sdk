@@ -18,7 +18,7 @@ package com.aerospike.client.sdk.discovery;
 
 /**
  * Where periodic {@link SeedCandidateProvider#refreshSeedCandidates(SeedCandidateContext)} calls run.
- * See {@link com.aerospike.client.policy.ClientPolicy#discoveryExecutionMode}.
+ * See {@link DiscoverySettings#getExecutionMode()}.
  */
 public enum DiscoveryExecutionMode {
 	/**
@@ -30,8 +30,8 @@ public enum DiscoveryExecutionMode {
 
 	/**
 	 * Refresh on the cluster tend thread every
-	 * {@link com.aerospike.client.policy.ClientPolicy#discoveryRefreshInterval} /
-	 * {@link com.aerospike.client.policy.ClientPolicy#tendInterval} tend iterations. Starts no
+	 * {@link DiscoverySettings#getRefreshInterval()} /
+	 * {@link com.aerospike.client.sdk.SystemSettings#getTendInterval()} tend iterations. Starts no
 	 * thread; the provider must support a deadline. YAML value: {@code tend}.
 	 */
 	TEND

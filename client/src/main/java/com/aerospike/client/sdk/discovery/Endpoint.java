@@ -31,7 +31,7 @@ public final class Endpoint {
 
 		/**
 		 * Alternate list: peers-clear-alt, peers-tls-alt, service-clear-alt, service-tls-alt.
-		 * Used when {@link com.aerospike.client.policy.ClientPolicy#useServicesAlternate} is true.
+		 * Used when {@link com.aerospike.client.sdk.ClusterDefinition#usingServicesAlternate()} is true.
 		 */
 		ALTERNATE
 	}

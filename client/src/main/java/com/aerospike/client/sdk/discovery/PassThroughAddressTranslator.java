@@ -23,7 +23,7 @@ import com.aerospike.client.sdk.Host;
 /**
  * Address translator that returns every advertised endpoint unchanged: the identity translation.
  * Host name, port and TLS name are kept. It never misses, so
- * {@link com.aerospike.client.policy.ClientPolicy#translationOnMiss} never applies. Two nodes that
+ * {@link TranslationSettings#getOnMiss()} never applies. Two nodes that
  * advertise the same host and port still fail the client's address collision check, which names
  * this translator as {@code pass-through}.
  *
@@ -44,9 +44,9 @@ import com.aerospike.client.sdk.Host;
  * <p>
  * Client settings:
  * <ul>
- * <li>{@link com.aerospike.client.policy.ClientPolicy#useServicesAlternate}: true to read the
+ * <li>{@link com.aerospike.client.sdk.ClusterDefinition#usingServicesAlternate()}: true to read the
  * alternate list, false (default) to read the standard list.</li>
- * <li>{@link com.aerospike.client.policy.ClientPolicy#addressTranslator}: {@link #INSTANCE}.</li>
+ * <li>{@link com.aerospike.client.sdk.ClusterDefinition#addressTranslator(AddressTranslator)}: {@link #INSTANCE}.</li>
  * </ul>
  * <p>
  * Branch A, a distinct name per node. Each node advertises its own host name on the default port:
@@ -55,10 +55,10 @@ import com.aerospike.client.sdk.Host;
  * node 2: alternate-access-address node2.priv.example.com
  * node 3: alternate-access-address node3.priv.example.com
  *
- * ClientPolicy policy = new ClientPolicy();
- * policy.useServicesAlternate = true;
- * policy.addressTranslator = PassThroughAddressTranslator.INSTANCE;
- * AerospikeClient client = new AerospikeClient(policy, new Host("node1.priv.example.com", 3000));
+ * Cluster cluster = new ClusterDefinition("node1.priv.example.com", 3000)
+ *     .usingServicesAlternate()
+ *     .addressTranslator(PassThroughAddressTranslator.INSTANCE)
+ *     .connect();
  * </pre>
  * <p>
  * Branch B, one name with a port per node. Every node advertises the same host name and its own
@@ -68,10 +68,10 @@ import com.aerospike.client.sdk.Host;
  * node 2: alternate-access-address as.priv.example.com, alternate-access-port 31002
  * node 3: alternate-access-address as.priv.example.com, alternate-access-port 31003
  *
- * ClientPolicy policy = new ClientPolicy();
- * policy.useServicesAlternate = true;
- * policy.addressTranslator = PassThroughAddressTranslator.INSTANCE;
- * AerospikeClient client = new AerospikeClient(policy, new Host("as.priv.example.com", 31001));
+ * Cluster cluster = new ClusterDefinition("as.priv.example.com", 31001)
+ *     .usingServicesAlternate()
+ *     .addressTranslator(PassThroughAddressTranslator.INSTANCE)
+ *     .connect();
  * </pre>
  * <p>
  * Each node must advertise a distinct host and port. In Branch B, giving two nodes the same

@@ -18,7 +18,7 @@ package com.aerospike.client.sdk.discovery;
 
 /**
  * Action taken when an {@link AddressTranslator} has no mapping for an advertised endpoint.
- * See {@link com.aerospike.client.policy.ClientPolicy#translationOnMiss}.
+ * See {@link TranslationSettings#getOnMiss()}.
  */
 public enum TranslationMissMode {
 	/**
@@ -28,7 +28,7 @@ public enum TranslationMissMode {
 
 	/**
 	 * Do not connect to the advertised endpoint and fail with
-	 * {@link com.aerospike.client.AerospikeException.TranslationMiss}. YAML value: {@code strict}.
+	 * {@link com.aerospike.client.sdk.AerospikeException.TranslationMiss}. YAML value: {@code strict}.
 	 */
 	STRICT
 }

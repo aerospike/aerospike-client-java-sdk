@@ -28,7 +28,7 @@ import com.aerospike.client.sdk.Host;
  */
 public final class SeedCandidateContext {
 	/**
-	 * Expected cluster name from {@link com.aerospike.client.policy.ClientPolicy#clusterName}.
+	 * Expected cluster name from {@link com.aerospike.client.sdk.ClusterDefinition#clusterName(String)}.
 	 * May be null.
 	 */
 	public final String clusterName;
