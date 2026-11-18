@@ -16,7 +16,9 @@
  */
 package com.aerospike.client.sdk.command;
 
+import java.io.EOFException;
 import java.io.IOException;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +68,7 @@ public abstract class SyncExecutor {
         // A batch node sub-batch records one namespace latency sample that includes its own
         // retries to the same node. If a retry moves to a different node, restart the timer.
         final boolean timeRetries = latencyType == LatencyType.BATCH;
+        boolean staleRetry = false;
         Node timerNode = null;
 
         // Execute command until successful, timed out or maximum iterations have been reached.
@@ -91,7 +94,11 @@ public abstract class SyncExecutor {
                     timerNode = node;
                 }
 
-                Connection conn = node.getConnection(this, cmd.connectTimeout, socketTimeout, cmd.timeoutDelay);
+                Connection conn = staleRetry ?
+                    node.getNewConnection(this, cmd.connectTimeout, socketTimeout, cmd.timeoutDelay) :
+                    node.getConnection(this, cmd.connectTimeout, socketTimeout, cmd.timeoutDelay);
+
+                int sentCounter = commandSentCounter;
 
                 try {
                     // Set command buffer.
@@ -187,6 +194,13 @@ public abstract class SyncExecutor {
                 catch (IOException ioe) {
                     // IO errors are considered temporary anomalies.  Retry.
                     // Log.info("IOException: " + tranId + ',' + node + ',' + sequence + ',' + iteration);
+                    if (! staleRetry && isStaleConnection(ioe, commandSentCounter != sentCounter) &&
+                        node.closeStaleConnection(conn)) {
+                        // Pooled socket was already closed by the peer. Run the same attempt on a new connection.
+                        staleRetry = true;
+                        continue;
+                    }
+
                     node.closeConnection(conn);
                     exception = new AerospikeException.Connection(ioe);
                     isClientTimeout = false;
@@ -272,6 +286,7 @@ public abstract class SyncExecutor {
             exception.setInDoubt(isWrite(), commandSentCounter);
             addSubException(exception);
             iteration++;
+            staleRetry = false;
 
             if (! prepareRetry(isClientTimeout || exception.getResultCode() != ResultCode.SERVER_NOT_AVAILABLE)) {
                 // Batch may be retried in separate commands.
@@ -288,6 +303,34 @@ public abstract class SyncExecutor {
         // Log.info("Runtime exception: " + tranId + ',' + sequence + ',' + iteration + ',' + exception.getMessage());
         prepareException(node, exception, subExceptions);
         throw exception;
+    }
+
+    private boolean isStaleConnection(IOException ioe, boolean sent) {
+        if (sent && (isWrite() || ! (ioe instanceof EOFException || isReset(ioe)))) {
+            return false;
+        }
+
+        if (totalTimeout > 0) {
+            long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+
+            if (remaining <= 0) {
+                return false;
+            }
+
+            if (remaining < totalTimeout) {
+                totalTimeout = (int)remaining;
+
+                if (socketTimeout > totalTimeout) {
+                    socketTimeout = totalTimeout;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static boolean isReset(IOException ioe) {
+        String message = ioe.getMessage();
+        return ioe instanceof SocketException && message != null && message.contains("reset");
     }
 
     protected void addSubException(AerospikeException exception) {
