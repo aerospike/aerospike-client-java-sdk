@@ -164,7 +164,7 @@ public class SystemSettings {
             .mergePolicy(SeedMergePolicy.MERGE)
             .executionMode(DiscoveryExecutionMode.THREAD)
             .refreshInterval(Duration.ofSeconds(30))
-            .refreshTimeout(Duration.ofSeconds(2))
+            .refreshTimeout(Duration.ofSeconds(10))
             .tendRefreshDeadline(Duration.ofMillis(100))
             .dns(dops -> dops
                 .names(new ArrayList<>(0))

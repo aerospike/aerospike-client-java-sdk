@@ -16,8 +16,11 @@
  */
 package com.aerospike.client.sdk.tend;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -57,6 +60,7 @@ public final class SeedRefresher {
 	private final int tendRefreshDeadline;
 	private final int refreshTimeout;
 	private final Object lock = new Object();
+    private final AtomicBoolean providerClosed = new AtomicBoolean();
 	private Host[] initSeeds;
 	private volatile int overrunCount;
 	private volatile boolean tripped;
@@ -71,6 +75,7 @@ public final class SeedRefresher {
 	private boolean firstDone;
 	private boolean firstAbandoned;
 	private boolean started;
+    private boolean refreshing;
 	private boolean urgent;
 	private boolean stopped;
 
@@ -166,6 +171,7 @@ public final class SeedRefresher {
 
 			synchronized (lock) {
 				thread = t;
+                refreshing = true;
 				t.start();
 
 				long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(refreshTimeout);
@@ -230,29 +236,33 @@ public final class SeedRefresher {
 		}
 	}
 
-	/**
-	 * Ask the discovery thread to refresh now, without waiting for it. Called on the tend thread when
-	 * no nodes are active. Honored at most once per refresh interval; does nothing in tend mode.
-	 */
-	public void requestRefresh() {
-		if (! threaded) {
-			return;
-		}
+    /**
+     * Ask the discovery thread to refresh now, without waiting for it. Called on the tend thread when
+     * no nodes are active. Honored at most once per refresh interval; does nothing in tend mode or
+     * while a refresh is running.
+     */
+    public void requestRefresh() {
+        if (! threaded) {
+            return;
+        }
 
-		long now = System.nanoTime();
+        long now = System.nanoTime();
 
-		if (urgentRequested && now - lastUrgent < TimeUnit.MILLISECONDS.toNanos(refreshInterval)) {
-			return;
-		}
+        if (urgentRequested && now - lastUrgent < TimeUnit.MILLISECONDS.toNanos(refreshInterval)) {
+            return;
+        }
 
-		urgentRequested = true;
-		lastUrgent = now;
+        synchronized (lock) {
+            if (refreshing) {
+                return;
+            }
+            urgent = true;
+            lock.notifyAll();
+        }
 
-		synchronized (lock) {
-			urgent = true;
-			lock.notifyAll();
-		}
-	}
+        urgentRequested = true;
+        lastUrgent = now;
+    }
 
 	Host[] merge(Host[] discovered, boolean init) {
 		switch (mergePolicy) {
@@ -320,11 +330,7 @@ public final class SeedRefresher {
 		overrunCount = 0;
 
 		if (hosts != null) {
-			Host[] seeds = merge(hosts, false);
-
-			if (seeds.length > 0) {
-				publish(seeds);
-			}
+            publishMerged(hosts, false);
 		}
 	}
 
@@ -348,6 +354,7 @@ public final class SeedRefresher {
 				firstHosts = hosts;
 				firstError = error;
 				firstDone = true;
+                refreshing = false;
 				lock.notifyAll();
 			}
 			checkOverrun(begin);
@@ -398,11 +405,13 @@ public final class SeedRefresher {
 	private boolean awaitRefresh(long next) throws InterruptedException {
 		synchronized (lock) {
 			long remaining;
+            refreshing = false;
 
 			while (! stopped && ! urgent && (remaining = next - System.nanoTime()) > 0) {
 				TimeUnit.NANOSECONDS.timedWait(lock, remaining);
 			}
 			urgent = false;
+            refreshing = ! stopped;
 			return ! stopped;
 		}
 	}
@@ -425,10 +434,23 @@ public final class SeedRefresher {
 		publish(merge(hosts, init));
 	}
 
-	private Host[] candidates(int tendCount) {
-		SeedCandidateContext ctx = new SeedCandidateContext(clusterName, staticSeeds, tendCount);
-		return provider.refreshSeedCandidates(ctx).toArray(new Host[0]);
-	}
+    private Host[] candidates(int tendCount) {
+        SeedCandidateContext ctx = new SeedCandidateContext(clusterName, staticSeeds, tendCount);
+        List<Host> hosts = provider.refreshSeedCandidates(ctx);
+        List<Host> valid = new ArrayList<>(hosts.size());
+
+        for (Host host : hosts) {
+            if (ClusterTend.isValidPort(host.port)) {
+                valid.add(host);
+            }
+            else if (log.isWarnEnabled()) {
+                log.atWarn()
+                    .log("Seed candidate provider " + providerName(provider) + " returned host " +
+                        host.name + " with port " + host.port + " outside 1-65535. Host dropped");
+            }
+        }
+        return valid.toArray(new Host[valid.size()]);
+    }
 
 	private Host[] refresh(int tendCount) {
 		try {
@@ -504,25 +526,35 @@ public final class SeedRefresher {
 		}
 	}
 
-	/**
-	 * Stop the discovery thread when client construction fails, without waiting for a refresh in
-	 * flight. Does nothing in tend mode.
-	 */
-	public void abort() {
-		if (threaded) {
-			boolean idle;
+    /**
+     * Release the provider when client construction fails. In thread mode, stop the discovery thread
+     * without waiting for a refresh in flight; a running thread closes the provider as it exits.
+     */
+    public void abort() {
+        if (threaded) {
+            boolean running;
 
-			synchronized (lock) {
-				idle = ! stopped && stop() == null;
-			}
+            synchronized (lock) {
+                if (stopped) {
+                    return;
+                }
+                running = stop() != null;
+            }
 
-			if (idle) {
-				closeProvider();
-			}
-		}
-	}
+            if (running) {
+                return;
+            }
+        }
+        closeProvider();
+    }
 
-	private void closeProvider() {
+    private void closeProvider() {
+        if (providerClosed.compareAndSet(false, true)) {
+            closeProvider(provider);
+        }
+    }
+
+	public static void closeProvider(SeedCandidateProvider provider) {
 		try {
 			provider.close();
 		}

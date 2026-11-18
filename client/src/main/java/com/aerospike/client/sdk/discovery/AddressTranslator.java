@@ -24,39 +24,52 @@ import com.aerospike.client.sdk.Host;
  * Rewrite of a server advertised address into the address the client connects to. The client
  * applies the translator to every address returned by peers and service info commands.
  * <p>
- * When no translator is configured, {@link StaticMapAddressTranslator} is used with
- * {@link com.aerospike.client.policy.ClientPolicy#ipMap}.
+ * When no translator is configured, {@link StaticMapAddressTranslator} is used.
  */
 public interface AddressTranslator {
-	/**
-	 * Return the host the client should connect to for the advertised endpoint, or
-	 * {@link Optional#empty()} when the translator has no mapping for it (a miss). A present
-	 * value is a hit, even when it equals the advertised host and port. The client applies
-	 * {@link com.aerospike.client.policy.ClientPolicy#translationOnMiss} to a miss. Never return
-	 * null.
-	 * <p>
-	 * This method is called on the cluster tend thread and must be in-memory only. It must not
-	 * perform I/O of any kind, including DNS resolution.
-	 * <p>
-	 * The TLS name is never rewritten. The client always uses the advertised endpoint's TLS name,
-	 * regardless of the TLS name on the returned host.
-	 */
-	Optional<Host> translate(Endpoint advertised);
+    /**
+     * Return the host the client should connect to for the advertised endpoint, or
+     * {@link Optional#empty()} when the translator has no mapping for it (a miss). A present
+     * value is a hit, even when it equals the advertised host and port, unless its port is outside
+     * 1 to 65535, which is a miss. The client applies
+     * {@link com.aerospike.client.sdk.ClusterDefinition#translationOnMiss} to a miss. Never return
+     * null.
+     * <p>
+     * This method is called on the cluster tend thread and must be in-memory only. It must not
+     * perform I/O of any kind, including DNS resolution.
+     * <p>
+     * The TLS name is never rewritten. The client always uses the advertised endpoint's TLS name,
+     * regardless of the TLS name on the returned host.
+     */
+    Optional<Host> translate(Endpoint advertised);
 
-	/**
-	 * Notify the translator that the cluster view changed, so it can drop cached state. The default
-	 * does nothing.
-	 * <p>
-	 * The client keeps one counter per client instance, starting at 0, and adds one each time a peers
-	 * refresh adds or removes a node or changes the address a node advertises. This method is then
-	 * called with the new counter value. The cluster view established at client initialization is
-	 * the starting view and is not notified.
-	 * <p>
-	 * This method is called on the cluster tend thread and must be in-memory only. An exception is
-	 * logged at warning level and does not stop the cluster tend.
-	 *
-	 * @param viewChange	counter value: 1 for the first change, then 2, 3, ...
-	 */
-	default void onClusterViewChanged(int viewChange) {
-	}
+    /**
+     * Notify the translator that the cluster view changed, so it can drop cached state. The default
+     * does nothing.
+     * <p>
+     * The client keeps one counter per client instance, starting at 0, and adds one each time a peers
+     * refresh adds or removes a node or changes the address a node advertises. This method is then
+     * called with the new counter value. The cluster view established at client initialization is
+     * the starting view and is not notified.
+     * <p>
+     * This method is called on the cluster tend thread and must be in-memory only. An exception is
+     * logged at warning level and does not stop the cluster tend.
+     *
+     * @param viewChange    counter value: 1 for the first change, then 2, 3, ...
+     */
+    default void onClusterViewChanged(int viewChange) {
+    }
+
+    /**
+     * Release resources held by the translator. The default does nothing.
+     * <p>
+     * Called once after {@link com.aerospike.client.sdk.Cluster#close()}, when the cluster tend
+     * has stopped and no other call to the translator is in progress: on the cluster tend thread as
+     * it exits, or on the thread that closes the client when no tend thread runs. Also called once
+     * when client construction fails. {@code Cluster.close()} does not wait for it. An
+     * exception is logged at warning level and not thrown. A translator instance shared by several
+     * clients is closed by each of them.
+     */
+    default void close() {
+    }
 }

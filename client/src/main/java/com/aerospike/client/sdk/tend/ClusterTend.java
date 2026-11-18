@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -59,6 +60,7 @@ public class ClusterTend implements Runnable {
     private final AddressTranslator addressTranslator;
     private final Map<String,String> translationMisses;
     private final LongAdder recoverCount;
+    private final AtomicBoolean translatorClosed = new AtomicBoolean();
     private volatile Host[] seeds;
     private int tendCount;
     private volatile int invalidNodeCount;
@@ -140,6 +142,7 @@ public class ClusterTend implements Runnable {
             Util.sleep(def.getTendInterval());
         }
         cluster.closeSeedRefresher();
+        closeTranslator();
     }
 
     public void forceSingleNode() {
@@ -226,10 +229,13 @@ public class ClusterTend implements Runnable {
 
         // If active nodes don't exist, seed cluster.
         if (nodes.length == 0) {
+            // Must copy array reference for copy on write semantics to work.
+            Host[] seedArray = seeds;
+
             if (! isInit) {
                 cluster.refreshSeedRefresher();
             }
-            seedNode(peers, failIfNotConnected);
+            seedNode(seedArray, peers, failIfNotConnected);
 
             // Reset nodes because seedNode changes them.
             nodes = cluster.getNodes();
@@ -337,9 +343,7 @@ public class ClusterTend implements Runnable {
         }
     }
 
-    private boolean seedNode(Peers peers, boolean failIfNotConnected) {
-        // Must copy array reference for copy on write semantics to work.
-        Host[] seedArray = seeds;
+    private boolean seedNode(Host[] seedArray, Peers peers, boolean failIfNotConnected) {
         Throwable[] exceptions = null;
         NodeValidator nv = new NodeValidator();
 
@@ -771,7 +775,7 @@ public class ClusterTend implements Runnable {
                 " returned null for " + advertised);
         }
 
-        if (! result.isPresent()) {
+        if (! result.isPresent() || ! isValidPort(result.get().port)) {
             if (onMiss == TranslationMissMode.STRICT) {
                 throw new AerospikeException.TranslationMiss(advertised, translatorName(translator));
             }
@@ -797,6 +801,10 @@ public class ClusterTend implements Runnable {
             host = new Host(host.name, advertised.tlsName, host.port);
         }
         return host;
+    }
+
+    static boolean isValidPort(int port) {
+        return port >= 1 && port <= 65535;
     }
 
     public final String translatorName() {
@@ -858,6 +866,23 @@ public class ClusterTend implements Runnable {
      */
     public final boolean isTendRunning() {
         return tendThread != null && tendThread.isAlive();
+    }
+
+    public void closeTranslator() {
+        if (! translatorClosed.compareAndSet(false, true)) {
+            return;
+        }
+
+        try {
+            addressTranslator.close();
+        }
+        catch (Throwable e) {
+            if (log.isWarnEnabled()) {
+                log.atWarn()
+                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .log("Address translator " + translatorName() + " close failed: " + Util.getErrorMessage(e));
+            }
+        }
     }
 
     public final void close() {

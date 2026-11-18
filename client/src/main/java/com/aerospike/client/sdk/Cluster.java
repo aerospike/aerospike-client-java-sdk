@@ -191,6 +191,10 @@ public class Cluster implements Closeable {
         }
         catch (Throwable t) {
             seedRefresher.abort();
+
+            if (tend != null) {
+                tend.closeTranslator();
+            }
             throw t;
         }
     }
@@ -398,7 +402,12 @@ public class Cluster implements Closeable {
             def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
         }
 
+        TranslationSettings ts = settings.getTranslation();
+        def.translationOnMiss = ts.getOnMiss();
+
         DiscoverySettings ds = settings.getDiscovery();
+        SeedRefresher refresher = null;
+        boolean seedProviderChanged = false;
 
         if (seedRefresher == null || !ds.equals(effectiveSystemSettings.getDiscovery())) {
             String provider = ds.getProvider();
@@ -413,62 +422,61 @@ public class Cluster implements Closeable {
                 def.seedCandidateProvider = buildSeedProvider(provider, ds.getOptions(),
                     ds.getProviderFactories());
             }
-            seedRefresher = new SeedRefresher(def.seedCandidateProvider, def, ds, def.getHosts(), this::setSeeds);
-            seedRefresher.validate(def.tendInterval);
+            seedProviderChanged = true;
         }
-
-        TranslationSettings ts = settings.getTranslation();
-        def.translationOnMiss = ts.getOnMiss();
 
         this.effectiveSystemSettings = settings;
 
-        if (settings.getMetrics() != null) {
-            MetricsSettings metrics = settings.getMetrics();
-
-            if (metrics.getEnabled()) {
-                synchronized(metricsLock) {
-                    enableMetricsInternal(metrics);
-                }
+        try {
+            if (log.isInfoEnabled()) {
+                log.atInfo()
+                    .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                    .log("System settings updated for cluster '" +
+                        (def.clusterName != null ? def.clusterName : "(unnamed)") +
+                        "'. Note: Settings will take effect on next connection.");
             }
-            else if (metricsEnabled) {
-                synchronized(metricsLock) {
-                    disableMetricsInternal();
+
+            if (log.isDebugEnabled()) {
+                log.atDebug()
+                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                    .log(
+                        "\tMinConnsPerNode={};MaxConnsPerNode={};MaxErrorRate={};ErrorRateWindow={};TendInterval={}ms;MaxSocketIdleNanos={}ns",
+                        this.def.minConnsPerNode,
+                        this.def.maxConnsPerNode,
+                        this.def.maxErrorRate,
+                        this.def.errorRateWindow,
+                        this.def.tendInterval,
+                        this.def.maxSocketIdleNanosTrim
+                );
+            }
+
+            if (seedProviderChanged) {
+                seedRefresher = refresher = new SeedRefresher(def.seedCandidateProvider, def, ds, def.getHosts(), this::setSeeds);
+                seedRefresher.validate(def.tendInterval);
+            }
+
+            if (settings.getMetrics() != null) {
+                MetricsSettings metrics = settings.getMetrics();
+
+                if (metrics.getEnabled()) {
+                    synchronized(metricsLock) {
+                        enableMetricsInternal(metrics);
+                    }
+                }
+                else if (metricsEnabled) {
+                    synchronized(metricsLock) {
+                        disableMetricsInternal();
+                    }
                 }
             }
         }
-
-        // Currently, the Aerospike Java client does not support dynamic updates
-        // to system-level settings like connection pool sizes, socket idle times,
-        // circuit breaker settings, or tend intervals.
-        //
-        // These settings are applied at connection time via ClientPolicy.
-        // This method is a placeholder for future enhancement.
-        //
-        // When dynamic updates become available, implement them here:
-        // - client.setMinConnsPerNode(settings.getMinimumConnectionsPerNode())
-        // - client.setMaxConnsPerNode(settings.getMaximumConnectionsPerNode())
-        // - etc.
-
-        if (log.isInfoEnabled()) {
-            log.atInfo()
-                .addKeyValue(Cluster.CONTEXT, def.clusterName)
-                .log("System settings updated for cluster '" +
-                    (def.clusterName != null ? def.clusterName : "(unnamed)") +
-                    "'. Note: Settings will take effect on next connection.");
-        }
-
-        if (log.isDebugEnabled()) {
-            log.atDebug()
-                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                .log(
-                    "\tMinConnsPerNode={};MaxConnsPerNode={};MaxErrorRate={};ErrorRateWindow={};TendInterval={}ms;MaxSocketIdleNanos={}ns",
-                    this.def.minConnsPerNode,
-                    this.def.maxConnsPerNode,
-                    this.def.maxErrorRate,
-                    this.def.errorRateWindow,
-                    this.def.tendInterval,
-                    this.def.maxSocketIdleNanosTrim
-            );
+        catch (Throwable t) {
+            if (refresher != null) {
+                refresher.abort();
+            }
+            else {
+                SeedRefresher.closeProvider(def.seedCandidateProvider);
+            }
         }
     }
 
@@ -1671,14 +1679,19 @@ public class Cluster implements Closeable {
             return;
         }
 
-        // The tend thread closes the seed provider on exit, so close it here only if it never ran.
-        // A discovery thread is stopped here, so close waits for its refresh in flight.
+        // The tend thread closes the seed provider and address translator on exit, so close them here
+        // only if it never ran. A discovery thread is stopped here, so close waits for its refresh in
+        // flight.
         boolean tendRunning = tend.isTendRunning();
 
         tend.close();
 
         if (! tendRunning || seedRefresher.isThreaded()) {
             seedRefresher.close();
+        }
+
+        if (! tendRunning) {
+            tend.closeTranslator();
         }
 
         validAddresses.clear();
