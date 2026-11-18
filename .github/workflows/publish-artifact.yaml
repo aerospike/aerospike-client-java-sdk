@@ -248,7 +248,7 @@ jobs:
           echo "  - zip the artifacts into ${{ inputs.bundle_name }}_${{ inputs.build_number }}.zip"
           echo "  - POST the bundle to \${{ vars.SONATYPE_DOMAIN_NAME }}/api/v1/publisher/upload"
           echo "    (publishingType=AUTOMATIC — Sonatype publishes to Maven Central without manual intervention)"
-          echo "  - poll /api/v1/publisher/status until deploymentState=PUBLISHED"
+          echo "  - poll /api/v1/publisher/status until validation passes, then keep watching for publication (warn if it is not confirmed)"
 
   github-release:
     needs: promote
@@ -317,5 +317,5 @@ jobs:
         run: |
           echo "Sonatype release id: ${{ steps.publish-to-sonatype.outputs.maven-central-release-id }}"
           echo "Bundle: ${{ inputs.bundle_name }} version: ${{ inputs.bundle_version }} build: ${{ inputs.build_number }}"
-          echo "Deployment was uploaded with publishingType=AUTOMATIC and reached PUBLISHED."
-          echo "Artifacts are live on Maven Central."
+          echo "Deployment was uploaded with publishingType=AUTOMATIC and passed Sonatype validation."
+          echo "Sonatype publishes it to Maven Central automatically; check the publish step for any publication warning."

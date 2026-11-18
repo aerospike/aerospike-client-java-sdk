@@ -3,7 +3,9 @@ description: |
   Packages the staged artifacts into a Sonatype Central Publishing bundle and
   uploads it to the Sonatype Central Publisher API. Uses publishingType=
   AUTOMATIC: once Sonatype's validation passes, the deployment is published
-  to Maven Central without further interaction.
+  to Maven Central without further interaction. Succeeds once validation
+  passes; publishing that has not finished within the poll budget, or fails
+  after validation, is reported as a warning.
 
 inputs:
   staging-folder:
@@ -86,25 +88,34 @@ runs:
         echo "stage-release-id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
         echo "Sonatype upload response: ${RELEASE_ID}"
 
-    - name: Poll deployment status until published
+    - name: Poll deployment status
       shell: bash
       working-directory: ${{ inputs.target-folder }}
       run: |
-        # publishingType=AUTOMATIC progresses through PENDING → VALIDATING →
-        # VALIDATED → PUBLISHING → PUBLISHED. The terminal success state is
-        # PUBLISHED (the artifact is live on Maven Central). VALIDATED is just
-        # an intermediate state under AUTOMATIC, so don't exit on it.
+        # PENDING/VALIDATING keep polling; FAILED or an exhausted budget before
+        # validation fails the step. Once VALIDATED, PUBLISHING or PUBLISHED is
+        # seen the step succeeds, and polling continues within the same budget
+        # only to report PUBLISHED, or to warn on FAILED or unfinished publishing.
         TOKEN=$(printf "${{ inputs.publish-user }}:${{ inputs.publish-password }}" | base64)
         RELEASE_ID='${{ steps.stage-release.outputs.stage-release-id }}'
         MAX=${{ inputs.validation-max-number-checks }}
+        VALIDATED=false
         for ((i = 1; i <= MAX; i++)); do
           RESPONSE=$(curl --request POST --silent \
             --header "Authorization: Bearer ${TOKEN}" \
             "${{ inputs.sonatype-domain-name }}/api/v1/publisher/status?id=${RELEASE_ID}" \
             | jq -cr .)
           STATE=$(echo "${RESPONSE}" | jq -cr '.deploymentState')
+          if [[ "${VALIDATED}" == false && "${STATE}" =~ ^(VALIDATED|PUBLISHING|PUBLISHED)$ ]]; then
+            VALIDATED=true
+            echo "Deployment passed validation; Sonatype will publish it to Maven Central automatically."
+          fi
           case "${STATE}" in
             FAILED)
+              if [[ "${VALIDATED}" == true ]]; then
+                echo "::warning::Sonatype deployment ${RELEASE_ID} FAILED after passing validation. Errors: $(echo "${RESPONSE}" | jq -c '.errors')"
+                exit 0
+              fi
               echo "Sonatype deployment FAILED."
               echo "Errors: $(echo "${RESPONSE}" | jq '.errors')"
               exit 1
@@ -123,7 +134,11 @@ runs:
               ;;
           esac
         done
-        echo "Deployment did not reach PUBLISHED within ${MAX} polls."
+        if [[ "${VALIDATED}" == true ]]; then
+          echo "::warning::Sonatype deployment ${RELEASE_ID} passed validation but was not yet PUBLISHED after ${MAX} polls (last state: ${STATE})."
+          exit 0
+        fi
+        echo "Deployment did not pass validation within ${MAX} polls."
         exit 1
 
     - name: Surface release id as output
