@@ -787,6 +787,7 @@ public class Node implements Closeable {
             node.advertisedHosts = advertisedHosts;
             peers.nodes.put(name, node);
             peers.removeNode(this);
+            logMove(node);
         }
         catch (Throwable e) {
             if (log.isDebugEnabled()) {
