@@ -46,6 +46,7 @@ import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.DiscoverySettings;
 import com.aerospike.client.sdk.discovery.DnsSeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.StaticDiscoveryConfig;
+import com.aerospike.client.sdk.discovery.StaticSeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.TranslationSettings;
 import com.aerospike.client.sdk.metrics.Histogram;
 import com.aerospike.client.sdk.metrics.IMetricsExporter;
@@ -412,7 +413,10 @@ public class Cluster implements Closeable {
         if (seedRefresher == null || !ds.equals(effectiveSystemSettings.getDiscovery())) {
             String provider = ds.getProvider();
 
-            if (provider.equals(StaticDiscoveryConfig.DNS)) {
+            if (provider.length() == 0) {
+                def.seedCandidateProvider = new StaticSeedCandidateProvider(def.getHosts());
+            }
+            else if (provider.equals(StaticDiscoveryConfig.DNS)) {
                 def.seedCandidateProvider = new DnsSeedCandidateProvider(ds.getDns());
             }
             else if (provider.equals(StaticDiscoveryConfig.AWS_TAGS)) {

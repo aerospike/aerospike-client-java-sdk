@@ -149,6 +149,9 @@ public class ClusterDefinition {
         this.passwordHash = other.passwordHash;
         this.rackIds = other.rackIds;
         this.ipMap = other.ipMap;
+        this.seedCandidateProvider = other.seedCandidateProvider;
+        this.addressTranslator = other.addressTranslator;
+        this.translationOnMiss = other.translationOnMiss;
         this.tlsBuilder = other.tlsBuilder;
         this.authMode = other.authMode;
         this.maxSocketIdleNanosTrim = other.maxSocketIdleNanosTrim;
@@ -513,6 +516,56 @@ public class ClusterDefinition {
     }
 
     /**
+     * Set translator applied to every server advertised address before the client connects to it.
+     * When set, {@link #ipMap} is ignored. Built-in translators:
+     * <ul>
+     * <li>{@code static-map}: {@link com.aerospike.client.sdk.discovery.StaticMapAddressTranslator},
+     * advertised host to host, port kept.</li>
+     * <li>{@code port-map}: {@link com.aerospike.client.sdk.discovery.PortMapAddressTranslator},
+     * advertised {@code host:port} or node name to {@code host:port}.</li>
+     * <li>{@code pass-through}: {@link com.aerospike.client.sdk.discovery.PassThroughAddressTranslator},
+     * every advertised address unchanged, for servers that advertise a client-reachable address and
+     * port per node.</li>
+     * </ul>
+     * <p>
+     * Default: null (use {@link com.aerospike.client.sdk.discovery.StaticMapAddressTranslator} with
+     * {@link #ipMap})
+     * <p>
+     * YAML keys: {@code static.client.translation.provider} ({@code static-map}, {@code port-map},
+     * {@code pass-through} or a name registered with {@link #registerAddressTranslator}) with
+     * {@code static.client.translation.static_map} or {@code static.client.translation.port_map}.
+     */
+    public ClusterDefinition addressTranslator(AddressTranslator addressTranslator) {
+        this.addressTranslator = addressTranslator;
+        return this;
+    }
+
+    /**
+     * Action taken when the address translator has no mapping for a server advertised endpoint.
+     * Applies to every translator, including the default
+     * {@link com.aerospike.client.discovery.StaticMapAddressTranslator} built from {@link #ipMap}.
+     * YAML key: {@code static.client.translation.on_miss}.
+     * <ul>
+     * <li>{@link TranslationMissMode#PASS_THROUGH} ({@code pass_through}): connect to the advertised
+     * endpoint unchanged, as {@link #ipMap} does for an unmapped address. When
+     * {@link #addressTranslator} is set, the miss is logged at warning level once per node and
+     * advertised endpoint.</li>
+     * <li>{@link TranslationMissMode#STRICT} ({@code strict}): do not connect to the advertised
+     * endpoint and do not create a node for it. The miss fails with
+     * {@link com.aerospike.client.AerospikeException.TranslationMiss}, which names the node, the
+     * advertised endpoint and the translator. A missed peer is logged at warning level and
+     * retried on the next cluster tend.</li>
+     * </ul>
+     * A null value is treated as {@link TranslationMissMode#PASS_THROUGH}.
+     * <p>
+     * Default: {@link TranslationMissMode#PASS_THROUGH}
+     */
+    public ClusterDefinition translationOnMiss(TranslationMissMode translationOnMiss) {
+        this.translationOnMiss = translationOnMiss;
+        return this;
+    }
+
+    /**
      * Set number of synchronous connection pools used for each node.  Machines with 8 cpu cores or
      * less usually need just one connection pool per node.  Machines with a large number of cpu
      * cores may have their synchronous performance limited by contention for pooled connections.
@@ -537,31 +590,6 @@ public class ClusterDefinition {
      */
     public ClusterDefinition forceSingleNode(boolean forceSingleNode) {
         this.forceSingleNode = forceSingleNode;
-        return this;
-    }
-
-    /**
-     * Set translator applied to every server advertised address before the client connects to it.
-     * When set, {@link #ipMap} is ignored. Built-in translators:
-     * <ul>
-     * <li>{@code static-map}: {@link com.aerospike.client.sdk.discovery.StaticMapAddressTranslator},
-     * advertised host to host, port kept.</li>
-     * <li>{@code port-map}: {@link com.aerospike.client.sdk.discovery.PortMapAddressTranslator},
-     * advertised {@code host:port} or node name to {@code host:port}.</li>
-     * <li>{@code pass-through}: {@link com.aerospike.client.sdk.discovery.PassThroughAddressTranslator},
-     * every advertised address unchanged, for servers that advertise a client-reachable address and
-     * port per node.</li>
-     * </ul>
-     * <p>
-     * Default: null (use {@link com.aerospike.client.sdk.discovery.StaticMapAddressTranslator} with
-     * {@link #ipMap})
-     * <p>
-     * YAML keys: {@code static.client.translation.provider} ({@code static-map}, {@code port-map},
-     * {@code pass-through} or a name registered with {@link #registerAddressTranslator}) with
-     * {@code static.client.translation.static_map} or {@code static.client.translation.port_map}.
-     */
-    public ClusterDefinition addressTranslator(AddressTranslator addressTranslator) {
-        this.addressTranslator = addressTranslator;
         return this;
     }
 
@@ -724,6 +752,13 @@ public class ClusterDefinition {
      */
     public Map<String, String> getIpMap() {
         return ipMap;
+    }
+
+    /**
+     * Return seed candidate provider.
+     */
+    public SeedCandidateProvider getSeedCandidateProvider() {
+        return seedCandidateProvider;
     }
 
     /**
