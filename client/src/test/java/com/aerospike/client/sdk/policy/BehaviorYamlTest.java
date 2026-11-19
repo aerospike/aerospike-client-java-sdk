@@ -38,9 +38,23 @@ import com.aerospike.client.sdk.SystemSettingsRegistry;
 @DisplayName("Behavior YAML Serialization Tests")
 public class BehaviorYamlTest {
 
+    /**
+     * Cluster names whose system settings these tests load into {@link SystemSettingsRegistry}.
+     */
+    private static final String[] CLUSTER_NAMES = {"production", "development", "fast-refresh", "slow-refresh"};
+
     @AfterEach
     void resetBehaviorRegistryAfterEachYamlTest() {
         Behavior.restoreBehaviorRegistry();
+
+        // System settings loaded from YAML go to the JVM-wide SystemSettingsRegistry and take
+        // priority over code-provided settings, so reset them for the clusters of later tests.
+        SystemSettingsRegistry registry = SystemSettingsRegistry.getInstance();
+        registry.updateDefaultSettings(SystemSettings.DEFAULT);
+
+        for (String name : CLUSTER_NAMES) {
+            registry.removeClusterSettings(name);
+        }
     }
 
     /**

@@ -237,6 +237,7 @@ public class DynamicConfig {
         private Integer minimumConnectionsPerNode;
         private Integer maximumConnectionsPerNode;
         private Duration maximumSocketIdleTime;
+        private Duration maximumSocketIdleTimeOnCheckout;
 
         public Integer getMinimumConnectionsPerNode() { return minimumConnectionsPerNode; }
         public void setMinimumConnectionsPerNode(Integer minimumConnectionsPerNode) { this.minimumConnectionsPerNode = minimumConnectionsPerNode; }
@@ -246,6 +247,9 @@ public class DynamicConfig {
 
         public Duration getMaximumSocketIdleTime() { return maximumSocketIdleTime; }
         public void setMaximumSocketIdleTime(Duration maximumSocketIdleTime) { this.maximumSocketIdleTime = maximumSocketIdleTime; }
+
+        public Duration getMaximumSocketIdleTimeOnCheckout() { return maximumSocketIdleTimeOnCheckout; }
+        public void setMaximumSocketIdleTimeOnCheckout(Duration maximumSocketIdleTimeOnCheckout) { this.maximumSocketIdleTimeOnCheckout = maximumSocketIdleTimeOnCheckout; }
     }
 
     // System - Circuit Breaker configuration

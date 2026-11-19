@@ -559,6 +559,9 @@ public class BehaviorYamlLoader {
                 if (connConfig.getMaximumSocketIdleTime() != null) {
                     ops.maximumSocketIdleTime(connConfig.getMaximumSocketIdleTime());
                 }
+                if (connConfig.getMaximumSocketIdleTimeOnCheckout() != null) {
+                    ops.maximumSocketIdleTimeOnCheckout(connConfig.getMaximumSocketIdleTimeOnCheckout());
+                }
             });
         }
 

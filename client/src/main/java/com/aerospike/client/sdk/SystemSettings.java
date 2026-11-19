@@ -92,6 +92,7 @@ public class SystemSettings {
     private final Integer minimumConnectionsPerNode;
     private final Integer maximumConnectionsPerNode;
     private final Duration maximumSocketIdleTime;
+    private final Duration maximumSocketIdleTimeOnCheckout;
 
     // ===== Circuit Breaker Settings =====
     private final Integer numTendIntervalsInErrorWindow;
@@ -121,6 +122,7 @@ public class SystemSettings {
             .minimumConnectionsPerNode(0)
             .maximumConnectionsPerNode(100)
             .maximumSocketIdleTime(Duration.ofSeconds(55))
+            .maximumSocketIdleTimeOnCheckout(Duration.ZERO)
         )
         .circuitBreaker(ops -> ops
             .numTendIntervalsInErrorWindow(1)
@@ -208,6 +210,7 @@ public class SystemSettings {
         this.minimumConnectionsPerNode = builder.minimumConnectionsPerNode;
         this.maximumConnectionsPerNode = builder.maximumConnectionsPerNode;
         this.maximumSocketIdleTime = builder.maximumSocketIdleTime;
+        this.maximumSocketIdleTimeOnCheckout = builder.maximumSocketIdleTimeOnCheckout;
         this.numTendIntervalsInErrorWindow = builder.numTendIntervalsInErrorWindow;
         this.maximumErrorsInErrorWindow = builder.maximumErrorsInErrorWindow;
         this.tendInterval = builder.tendInterval;
@@ -247,6 +250,8 @@ public class SystemSettings {
             ? this.maximumConnectionsPerNode : base.maximumConnectionsPerNode;
         merged.maximumSocketIdleTime = this.maximumSocketIdleTime != null
             ? this.maximumSocketIdleTime : base.maximumSocketIdleTime;
+        merged.maximumSocketIdleTimeOnCheckout = this.maximumSocketIdleTimeOnCheckout != null
+            ? this.maximumSocketIdleTimeOnCheckout : base.maximumSocketIdleTimeOnCheckout;
 
         // Circuit Breaker
         merged.numTendIntervalsInErrorWindow = this.numTendIntervalsInErrorWindow != null
@@ -280,6 +285,7 @@ public class SystemSettings {
     public Integer getMinimumConnectionsPerNode() { return minimumConnectionsPerNode; }
     public Integer getMaximumConnectionsPerNode() { return maximumConnectionsPerNode; }
     public Duration getMaximumSocketIdleTime() { return maximumSocketIdleTime; }
+    public Duration getMaximumSocketIdleTimeOnCheckout() { return maximumSocketIdleTimeOnCheckout; }
     public Integer getNumTendIntervalsInErrorWindow() { return numTendIntervalsInErrorWindow; }
     public Integer getMaximumErrorsInErrorWindow() { return maximumErrorsInErrorWindow; }
     public Duration getTendInterval() { return tendInterval; }
@@ -302,6 +308,7 @@ public class SystemSettings {
         return Objects.equals(minimumConnectionsPerNode, that.minimumConnectionsPerNode) &&
                Objects.equals(maximumConnectionsPerNode, that.maximumConnectionsPerNode) &&
                Objects.equals(maximumSocketIdleTime, that.maximumSocketIdleTime) &&
+               Objects.equals(maximumSocketIdleTimeOnCheckout, that.maximumSocketIdleTimeOnCheckout) &&
                Objects.equals(numTendIntervalsInErrorWindow, that.numTendIntervalsInErrorWindow) &&
                Objects.equals(maximumErrorsInErrorWindow, that.maximumErrorsInErrorWindow) &&
                Objects.equals(tendInterval, that.tendInterval) &&
@@ -316,7 +323,7 @@ public class SystemSettings {
     @Override
     public int hashCode() {
         return Objects.hash(minimumConnectionsPerNode, maximumConnectionsPerNode, maximumSocketIdleTime,
-           numTendIntervalsInErrorWindow, maximumErrorsInErrorWindow, tendInterval,
+           maximumSocketIdleTimeOnCheckout, numTendIntervalsInErrorWindow, maximumErrorsInErrorWindow, tendInterval,
            implicitBatchWriteTransactions, sleepBetweenAttempts, numberOfAttempts, metrics,
            discovery, translation);
     }
@@ -327,6 +334,7 @@ public class SystemSettings {
                "minConns=" + minimumConnectionsPerNode +
                ", maxConns=" + maximumConnectionsPerNode +
                ", socketIdleTime=" + maximumSocketIdleTime +
+               ", socketIdleTimeOnCheckout=" + maximumSocketIdleTimeOnCheckout +
                ", errorWindow=" + numTendIntervalsInErrorWindow +
                ", maxErrors=" + maximumErrorsInErrorWindow +
                ", tendInterval=" + tendInterval +
@@ -346,6 +354,7 @@ public class SystemSettings {
         private Integer minimumConnectionsPerNode;
         private Integer maximumConnectionsPerNode;
         private Duration maximumSocketIdleTime;
+        private Duration maximumSocketIdleTimeOnCheckout;
         private Integer numTendIntervalsInErrorWindow;
         private Integer maximumErrorsInErrorWindow;
         private Duration tendInterval;
@@ -514,6 +523,26 @@ public class SystemSettings {
          * @return this tweaks instance for method chaining
          */
         ConnectionsTweaks maximumSocketIdleTime(Duration duration);
+
+        /**
+         * Sets the maximum time a pooled connection may have been idle when a command takes it
+         * from the pool. A connection idle longer is closed and another is used. Zero disables
+         * the check.
+         * <p>
+         * {@link #maximumSocketIdleTime} only trims connections above
+         * {@link #minimumConnectionsPerNode}, so the reserve connections kept by
+         * minimumConnectionsPerNode are never closed for being idle. Set this when something
+         * between the client and the server drops idle connections, such as an AWS Network Load
+         * Balancer (350 second idle timeout), or a server with {@code proto-fd-idle-ms} set: use a
+         * value a few seconds under that timeout, so a command never uses a connection that was
+         * already dropped.
+         * <p>
+         * Default: 0 (no check)
+         *
+         * @param duration maximum idle time at checkout, or zero for no check
+         * @return this tweaks instance for method chaining
+         */
+        ConnectionsTweaks maximumSocketIdleTimeOnCheckout(Duration duration);
     }
 
     /**
@@ -640,6 +669,12 @@ public class SystemSettings {
         @Override
         public ConnectionsTweaks maximumSocketIdleTime(Duration duration) {
             builder.maximumSocketIdleTime = duration;
+            return this;
+        }
+
+        @Override
+        public ConnectionsTweaks maximumSocketIdleTimeOnCheckout(Duration duration) {
+            builder.maximumSocketIdleTimeOnCheckout = duration;
             return this;
         }
     }

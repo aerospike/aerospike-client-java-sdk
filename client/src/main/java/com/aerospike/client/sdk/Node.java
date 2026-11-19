@@ -1053,22 +1053,22 @@ public class Node implements Closeable {
 
             if (conn != null) {
                 // Found socket.
-                // Verify that socket is active.
-                //if (cluster.isConnCurrentTran(conn.getLastUsed())) {
-                try {
-                    conn.setTimeout(socketTimeout);
-                    conn.setPooled(true);
-                    conn.setReceived(false);
-                    return conn;
+                // Verify that socket has not been idle too long.
+                if (cluster.isConnCurrentTran(conn.getLastUsed())) {
+                    try {
+                        conn.setTimeout(socketTimeout);
+                        conn.setPooled(true);
+                        conn.setReceived(false);
+                        return conn;
+                    }
+                    catch (Throwable e) {
+                        // Set timeout failed. Something is probably wrong with timeout
+                        // value itself, so don't empty queue retrying.  Just get out.
+                        closeConnection(conn);
+                        throw new AerospikeException.Connection(e);
+                    }
                 }
-                catch (Throwable e) {
-                    // Set timeout failed. Something is probably wrong with timeout
-                    // value itself, so don't empty queue retrying.  Just get out.
-                    closeConnection(conn);
-                    throw new AerospikeException.Connection(e);
-                }
-                //}
-                //pool.closeIdle(this, conn);
+                pool.closeIdle(conn);
             }
             else if (pool.incrTotal() < pool.getMaxSize()) {
                 // Socket not found and queue has available slot.

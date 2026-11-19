@@ -404,6 +404,13 @@ public class Cluster implements Closeable {
         SeedRefresher refresher = null;
         Host[] seeds = null;
 
+        Duration checkoutIdle = settings.getMaximumSocketIdleTimeOnCheckout();
+
+        if (checkoutIdle != null && checkoutIdle.isNegative()) {
+            throw new AerospikeException("Invalid maximumSocketIdleTimeOnCheckout: " + checkoutIdle +
+                ". Must be >= 0");
+        }
+
         try {
             if (! update || ! ds.equals(effectiveSystemSettings.getDiscovery())) {
                 provider = createSeedProvider(ds);
@@ -456,6 +463,10 @@ public class Cluster implements Closeable {
 
         if (settings.getMaximumSocketIdleTime() != null) {
             def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
+        }
+
+        if (settings.getMaximumSocketIdleTimeOnCheckout() != null) {
+            def.maxSocketIdleNanosTran = settings.getMaximumSocketIdleTimeOnCheckout().toNanos();
         }
 
         TranslationSettings ts = settings.getTranslation();
@@ -1506,6 +1517,16 @@ public class Cluster implements Closeable {
         this.serverVersionGE82 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
         //this.serverVersionGE821 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2_1); TODO Restore
         this.versionGETopK = min.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);  // TODO Delete
+    }
+
+    /**
+     * Return true if a pooled connection last used at {@code lastUsed}, a {@link System#nanoTime()}
+     * value, may be used by a command: maximumSocketIdleTimeOnCheckout is zero, or the connection
+     * has not been idle longer.
+     */
+    public final boolean isConnCurrentTran(long lastUsed) {
+        long max = def.maxSocketIdleNanosTran;
+        return max == 0 || (System.nanoTime() - lastUsed) <= max;
     }
 
     /**

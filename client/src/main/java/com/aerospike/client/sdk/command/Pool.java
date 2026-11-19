@@ -170,7 +170,11 @@ public final class Pool {
         return (System.nanoTime() - lastUsed) <= node.cluster.getClusterDefinition().getMaxSocketIdleNanosTrim();
     }
 
-    private void closeIdle(Connection conn) {
+    /**
+     * Close a connection taken from the pool that has been idle too long, without counting an
+     * error.
+     */
+    public void closeIdle(Connection conn) {
         total.getAndDecrement();
         node.closeIdleConnection(conn);
     }

@@ -78,6 +78,7 @@ public class ClusterDefinition {
     TlsBuilder tlsBuilder;
     AuthMode authMode = AuthMode.NONE;
     long maxSocketIdleNanosTrim = TimeUnit.SECONDS.toNanos(55);
+    long maxSocketIdleNanosTran;
     int minConnsPerNode;
     int maxConnsPerNode = 100;
     int connPoolsPerNode = 1;
@@ -155,6 +156,7 @@ public class ClusterDefinition {
         this.tlsBuilder = other.tlsBuilder;
         this.authMode = other.authMode;
         this.maxSocketIdleNanosTrim = other.maxSocketIdleNanosTrim;
+        this.maxSocketIdleNanosTran = other.maxSocketIdleNanosTran;
         this.minConnsPerNode = other.minConnsPerNode;
         this.maxConnsPerNode = other.maxConnsPerNode;
         this.connPoolsPerNode = other.connPoolsPerNode;
@@ -791,6 +793,26 @@ public class ClusterDefinition {
      */
     public long getMaxSocketIdleNanosTrim() {
         return maxSocketIdleNanosTrim;
+    }
+
+    /**
+     * Gets the maximum time a pooled connection may have been idle when a command takes it from
+     * the pool. Zero means no check.
+     *
+     * @return the maximum socket idle time at checkout as a Duration
+     */
+    public Duration getMaximumSocketIdleTimeOnCheckout() {
+        return Duration.ofNanos(maxSocketIdleNanosTran);
+    }
+
+    /**
+     * Gets the maximum time in nanoseconds a pooled connection may have been idle when a command
+     * takes it from the pool. Zero means no check.
+     *
+     * @return the maximum socket idle time at checkout in nanoseconds
+     */
+    public long getMaxSocketIdleNanosTran() {
+        return maxSocketIdleNanosTran;
     }
 
     /**
