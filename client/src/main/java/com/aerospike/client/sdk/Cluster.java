@@ -612,7 +612,7 @@ public class Cluster implements Closeable {
 
     final void setSeeds(Host[] hosts) {
         if (def.tlsBuilder != null) {
-            defaultTlsNames(hosts);
+            hosts = defaultTlsNames(hosts);
         }
         tend.setSeeds(hosts);
     }
