@@ -769,7 +769,7 @@ public class AerospikeException extends RuntimeException {
 
     /**
      * Exception thrown when the address translator has no mapping for a server advertised endpoint
-     * and {@link ClusterDefinition#translationOnMiss(com.aerospike.client.sdk.discovery.TranslationMissMode)} is
+     * and {@link com.aerospike.client.sdk.discovery.TranslationSettings#getOnMiss()} is
      * {@link com.aerospike.client.sdk.discovery.TranslationMissMode#STRICT}. No node is created for the
      * endpoint. Not retryable.
      */

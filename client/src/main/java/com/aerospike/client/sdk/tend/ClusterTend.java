@@ -874,15 +874,26 @@ public class ClusterTend implements Runnable {
         if (! translatorClosed.compareAndSet(false, true)) {
             return;
         }
+        closeTranslator(addressTranslator, def);
+    }
+
+    /**
+     * Close a translator and log, not throw, a close failure. Used directly when cluster
+     * construction fails before the {@code ClusterTend} that owns the translator exists.
+     */
+    public static void closeTranslator(AddressTranslator translator, ClusterDefinition def) {
+        if (translator == null) {
+            return;
+        }
 
         try {
-            addressTranslator.close();
+            translator.close();
         }
         catch (Throwable e) {
             if (log.isWarnEnabled()) {
                 log.atWarn()
                     .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                    .log("Address translator " + translatorName() + " close failed: " + Util.getErrorMessage(e));
+                    .log("Address translator " + translatorName(translator) + " close failed: " + Util.getErrorMessage(e));
             }
         }
     }

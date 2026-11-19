@@ -162,9 +162,8 @@ public class SystemSettingsRegistry {
             boolean hasClusterSpecific = clusterSettings.containsKey(discoveredName);
             if (hasClusterSpecific) {
                 SystemSettings effectiveSettings = getEffectiveSettings(info);
-                cluster.applySystemSettings(effectiveSettings);
 
-                if (log.isInfoEnabled()) {
+                if (apply(cluster, discoveredName, effectiveSettings) && log.isInfoEnabled()) {
                     log.info("Discovered cluster name '" + discoveredName +
                             "', upgraded to cluster-specific system settings");
                 }
@@ -173,6 +172,29 @@ public class SystemSettingsRegistry {
                 log.info("Discovered cluster name '" + discoveredName +
                         "', continuing with default system settings");
             }
+        }
+    }
+
+    /**
+     * Apply settings to one running cluster and log, not throw, a failure, so one cluster's bad
+     * settings neither stop the update of the others nor reach the caller (the config file
+     * monitor, or the tend thread when a cluster name is discovered). Settings rejected by
+     * validation leave the cluster on its previous settings; see {@link Cluster#applySystemSettings}.
+     *
+     * @return true if the settings were applied
+     */
+    private static boolean apply(Cluster cluster, String clusterName, SystemSettings settings) {
+        try {
+            cluster.applySystemSettings(settings);
+            return true;
+        }
+        catch (Throwable t) {
+            if (log.isErrorEnabled()) {
+                log.error("Failed to apply system settings to cluster " +
+                    (clusterName != null ? "'" + clusterName + "'" : "(unnamed)") +
+                    ": " + t.getMessage(), t);
+            }
+            return false;
         }
     }
 
@@ -243,8 +265,7 @@ public class SystemSettingsRegistry {
                 SystemSettings newEffective = getEffectiveSettings(info);
 
                 // Only apply if something actually changed
-                if (!oldEffective.equals(newEffective)) {
-                    cluster.applySystemSettings(newEffective);
+                if (!oldEffective.equals(newEffective) && apply(cluster, info.clusterName, newEffective)) {
                     if (log.isInfoEnabled()) {
                         String name = info.clusterName != null ? info.clusterName : "(unnamed)";
 
@@ -282,9 +303,8 @@ public class SystemSettingsRegistry {
                 if (clusterName.equals(info.clusterName)) {
                     Cluster cluster = entry.getKey();
                     SystemSettings effectiveSettings = getEffectiveSettings(info);
-                    cluster.applySystemSettings(effectiveSettings);
 
-                    if (log.isInfoEnabled()) {
+                    if (apply(cluster, clusterName, effectiveSettings) && log.isInfoEnabled()) {
                         log.info("Applied cluster-specific settings to: " + clusterName);
                     }
                 }
@@ -318,9 +338,8 @@ public class SystemSettingsRegistry {
                 if (clusterName.equals(info.clusterName)) {
                     Cluster cluster = entry.getKey();
                     SystemSettings effectiveSettings = getEffectiveSettings(info);
-                    cluster.applySystemSettings(effectiveSettings);
 
-                    if (log.isInfoEnabled()) {
+                    if (apply(cluster, clusterName, effectiveSettings) && log.isInfoEnabled()) {
                         log.info("Reverted to default settings for cluster: " + clusterName);
                     }
                 }

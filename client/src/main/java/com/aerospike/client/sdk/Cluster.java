@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.DiscoverySettings;
 import com.aerospike.client.sdk.discovery.DnsSeedCandidateProvider;
+import com.aerospike.client.sdk.discovery.SeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.StaticDiscoveryConfig;
 import com.aerospike.client.sdk.discovery.StaticSeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.TranslationSettings;
@@ -119,7 +120,8 @@ public class Cluster implements Closeable {
     private final AtomicBoolean singleNodeBatchReadsWarned;
     private RecordMappingFactory recordMappingFactory = null;
     private volatile SystemSettings effectiveSystemSettings = SystemSettings.DEFAULT;
-    private SeedRefresher seedRefresher;
+    private volatile SeedRefresher seedRefresher;
+    private final Object seedLock = new Object();
     private final Map<String,InetAddress> validAddresses = new ConcurrentHashMap<>();
     private MetricsSettings metricsSettings;
     private final Object metricsLock = new Object();
@@ -169,9 +171,9 @@ public class Cluster implements Closeable {
         closed = new AtomicBoolean();
         singleNodeBatchReadsWarned = new AtomicBoolean();
 
-        applySystemSettings(effectiveSettings);
-
         try {
+            applySystemSettings(effectiveSettings);
+
             Host[] seeds = seedRefresher.discover();
 
             // Default TLS names when TLS enabled.
@@ -191,10 +193,18 @@ public class Cluster implements Closeable {
             }
         }
         catch (Throwable t) {
-            seedRefresher.abort();
+            // applySystemSettings() cleans up its own refresher or provider and leaves
+            // seedRefresher null when it fails.
+            if (seedRefresher != null) {
+                seedRefresher.abort();
+            }
 
             if (tend != null) {
                 tend.closeTranslator();
+            }
+            else {
+                // Failed before ClusterTend, which owns the translator, was created.
+                ClusterTend.closeTranslator(def.getAddressTranslator(), def);
             }
             throw t;
         }
@@ -364,8 +374,14 @@ public class Cluster implements Closeable {
     }
 
     /**
-     * Applies system settings dynamically to this cluster.
-     * Called by {@link SystemSettingsRegistry} when settings are updated.
+     * Applies system settings to this cluster. Called by the constructor and by
+     * {@link SystemSettingsRegistry} when settings are updated.
+     *
+     * <p>Every step that can fail (building the seed candidate provider, validating the discovery
+     * settings and, on an update, the first refresh of a new provider) runs before any setting is
+     * changed. A rejected update throws and leaves the cluster running with its previous settings
+     * and seed refresher. On an update that changes the discovery settings, the new refresher is
+     * started and its seeds published before the old refresher is closed.</p>
      *
      * <p><b>Note:</b> This is an internal method and should not be called directly.
      * System settings are automatically managed by the registry.</p>
@@ -379,6 +395,47 @@ public class Cluster implements Closeable {
 
         //System.out.println("FINAL SYSTEM SETTINGS=" + settings.toString());
 
+        // The constructor discovers and starts its refresher itself, after ClusterTend exists.
+        boolean update = seedRefresher != null;
+        int tendInterval = (settings.getTendInterval() != null)?
+            (int)settings.getTendInterval().toMillis() : def.tendInterval;
+        DiscoverySettings ds = settings.getDiscovery();
+        SeedCandidateProvider provider = null;
+        SeedRefresher refresher = null;
+        Host[] seeds = null;
+
+        try {
+            if (! update || ! ds.equals(effectiveSystemSettings.getDiscovery())) {
+                provider = createSeedProvider(ds);
+                refresher = new SeedRefresher(provider, def, ds, def.getHosts(), this::setSeeds);
+                refresher.validate(tendInterval);
+
+                if (update) {
+                    seeds = refresher.discover();
+
+                    if (def.isTlsEnabled()) {
+                        seeds = defaultTlsNames(seeds);
+                    }
+                    refresher.start(seeds);
+                }
+            }
+            else {
+                // Same discovery settings, but the tend mode refresh schedule depends on the
+                // tend interval.
+                seedRefresher.validate(tendInterval);
+            }
+        }
+        catch (Throwable t) {
+            if (refresher != null) {
+                refresher.abort();
+            }
+            else if (provider != null) {
+                SeedRefresher.closeProvider(provider);
+            }
+            throw t;
+        }
+
+        // Nothing below rejects the settings.
         if (settings.getMinimumConnectionsPerNode() != null) {
             setMinConnsPerNode(settings.getMinimumConnectionsPerNode());
         }
@@ -395,9 +452,7 @@ public class Cluster implements Closeable {
             def.errorRateWindow = settings.getNumTendIntervalsInErrorWindow();
         }
 
-        if (settings.getTendInterval() != null) {
-            def.tendInterval = (int)settings.getTendInterval().toMillis();
-        }
+        def.tendInterval = tendInterval;
 
         if (settings.getMaximumSocketIdleTime() != null) {
             def.maxSocketIdleNanosTrim = settings.getMaximumSocketIdleTime().toNanos();
@@ -406,81 +461,100 @@ public class Cluster implements Closeable {
         TranslationSettings ts = settings.getTranslation();
         def.translationOnMiss = ts.getOnMiss();
 
-        DiscoverySettings ds = settings.getDiscovery();
-        SeedRefresher refresher = null;
-        boolean seedProviderChanged = false;
-
-        if (seedRefresher == null || !ds.equals(effectiveSystemSettings.getDiscovery())) {
-            String provider = ds.getProvider();
-
-            if (provider.length() == 0) {
-                def.seedCandidateProvider = new StaticSeedCandidateProvider(def.getHosts());
-            }
-            else if (provider.equals(StaticDiscoveryConfig.DNS)) {
-                def.seedCandidateProvider = new DnsSeedCandidateProvider(ds.getDns());
-            }
-            else if (provider.equals(StaticDiscoveryConfig.AWS_TAGS)) {
-                def.seedCandidateProvider = new AwsEc2TagSeedCandidateProvider(ds.getAws());
-            }
-            else {
-                def.seedCandidateProvider = buildSeedProvider(provider, ds.getOptions(),
-                    ds.getProviderFactories());
-            }
-            seedProviderChanged = true;
+        if (refresher != null) {
+            def.seedCandidateProvider = provider;
+            replaceSeedRefresher(refresher, seeds);
         }
 
         this.effectiveSystemSettings = settings;
 
-        try {
-            if (log.isInfoEnabled()) {
-                log.atInfo()
-                    .addKeyValue(Cluster.CONTEXT, def.clusterName)
-                    .log("System settings updated for cluster '" +
-                        (def.clusterName != null ? def.clusterName : "(unnamed)") +
-                        "'. Note: Settings will take effect on next connection.");
-            }
+        if (log.isInfoEnabled()) {
+            log.atInfo()
+                .addKeyValue(Cluster.CONTEXT, def.clusterName)
+                .log("System settings updated for cluster '" +
+                    (def.clusterName != null ? def.clusterName : "(unnamed)") +
+                    "'. Note: Settings will take effect on next connection.");
+        }
 
-            if (log.isDebugEnabled()) {
-                log.atDebug()
-                    .addKeyValue(Cluster.CONTEXT, def.getClusterName())
-                    .log(
-                        "\tMinConnsPerNode={};MaxConnsPerNode={};MaxErrorRate={};ErrorRateWindow={};TendInterval={}ms;MaxSocketIdleNanos={}ns",
-                        this.def.minConnsPerNode,
-                        this.def.maxConnsPerNode,
-                        this.def.maxErrorRate,
-                        this.def.errorRateWindow,
-                        this.def.tendInterval,
-                        this.def.maxSocketIdleNanosTrim
-                );
-            }
+        if (log.isDebugEnabled()) {
+            log.atDebug()
+                .addKeyValue(Cluster.CONTEXT, def.getClusterName())
+                .log(
+                    "\tMinConnsPerNode={};MaxConnsPerNode={};MaxErrorRate={};ErrorRateWindow={};TendInterval={}ms;MaxSocketIdleNanos={}ns",
+                    this.def.minConnsPerNode,
+                    this.def.maxConnsPerNode,
+                    this.def.maxErrorRate,
+                    this.def.errorRateWindow,
+                    this.def.tendInterval,
+                    this.def.maxSocketIdleNanosTrim
+            );
+        }
 
-            if (seedProviderChanged) {
-                seedRefresher = refresher = new SeedRefresher(def.seedCandidateProvider, def, ds, def.getHosts(), this::setSeeds);
-                seedRefresher.validate(def.tendInterval);
-            }
+        // Metrics run last. A metrics failure is thrown with every other setting applied.
+        if (settings.getMetrics() != null) {
+            MetricsSettings metrics = settings.getMetrics();
 
-            if (settings.getMetrics() != null) {
-                MetricsSettings metrics = settings.getMetrics();
-
-                if (metrics.getEnabled()) {
-                    synchronized(metricsLock) {
-                        enableMetricsInternal(metrics);
-                    }
+            if (metrics.getEnabled()) {
+                synchronized(metricsLock) {
+                    enableMetricsInternal(metrics);
                 }
-                else if (metricsEnabled) {
-                    synchronized(metricsLock) {
-                        disableMetricsInternal();
-                    }
+            }
+            else if (metricsEnabled) {
+                synchronized(metricsLock) {
+                    disableMetricsInternal();
                 }
             }
         }
-        catch (Throwable t) {
-            if (refresher != null) {
-                refresher.abort();
+    }
+
+    private SeedCandidateProvider createSeedProvider(DiscoverySettings ds) {
+        String provider = ds.getProvider();
+
+        if (provider.length() == 0) {
+            return new StaticSeedCandidateProvider(def.getHosts());
+        }
+
+        if (provider.equals(StaticDiscoveryConfig.DNS)) {
+            return new DnsSeedCandidateProvider(ds.getDns());
+        }
+
+        if (provider.equals(StaticDiscoveryConfig.AWS_TAGS)) {
+            return new AwsEc2TagSeedCandidateProvider(ds.getAws());
+        }
+        return buildSeedProvider(provider, ds.getOptions(), ds.getProviderFactories());
+    }
+
+    /**
+     * Install a new seed refresher. On an update, publish its first seeds and close the old one.
+     * The tend thread calls the refresher only while holding {@link #seedLock}, so after the swap
+     * it never calls the old refresher again. A cluster that closed during the update gets no
+     * new refresher; it is aborted instead.
+     */
+    private void replaceSeedRefresher(SeedRefresher refresher, Host[] seeds) {
+        SeedRefresher old;
+        boolean installed;
+
+        synchronized (seedLock) {
+            installed = ! closed.get();
+            old = seedRefresher;
+
+            if (installed) {
+                seedRefresher = refresher;
             }
-            else {
-                SeedRefresher.closeProvider(def.seedCandidateProvider);
-            }
+        }
+
+        if (! installed) {
+            // close() has run, or will, against the refresher installed before this update.
+            refresher.abort();
+            return;
+        }
+
+        if (seeds != null) {
+            setSeeds(seeds);
+        }
+
+        if (old != null) {
+            old.close();
         }
     }
 
@@ -521,11 +595,19 @@ public class Cluster implements Closeable {
     }
 
     public final void closeSeedRefresher() {
-        seedRefresher.close();
+        currentSeedRefresher().close();
     }
 
     public final void tendSeedRefresher(int tendCount) {
-        seedRefresher.tend(tendCount, def.getTendInterval());
+        synchronized (seedLock) {
+            seedRefresher.tend(tendCount, def.getTendInterval());
+        }
+    }
+
+    private SeedRefresher currentSeedRefresher() {
+        synchronized (seedLock) {
+            return seedRefresher;
+        }
     }
 
     final void setSeeds(Host[] hosts) {
@@ -1690,8 +1772,10 @@ public class Cluster implements Closeable {
 
         tend.close();
 
-        if (! tendRunning || seedRefresher.isThreaded()) {
-            seedRefresher.close();
+        SeedRefresher refresher = currentSeedRefresher();
+
+        if (! tendRunning || refresher.isThreaded()) {
+            refresher.close();
         }
 
         if (! tendRunning) {
