@@ -769,8 +769,8 @@ public class AerospikeException extends RuntimeException {
 
     /**
      * Exception thrown when the address translator has no mapping for a server advertised endpoint
-     * and {@link com.aerospike.client.policy.ClientPolicy#translationOnMiss} is
-     * {@link com.aerospike.client.discovery.TranslationMissMode#STRICT}. No node is created for the
+     * and {@link ClusterDefinition#translationOnMiss(com.aerospike.client.sdk.discovery.TranslationMissMode)} is
+     * {@link com.aerospike.client.sdk.discovery.TranslationMissMode#STRICT}. No node is created for the
      * endpoint. Not retryable.
      */
     public static final class TranslationMiss extends AerospikeException {
@@ -800,8 +800,8 @@ public class AerospikeException extends RuntimeException {
     }
 
     /**
-     * Exception thrown when {@link com.aerospike.client.policy.ClientPolicy#useServicesAlternate}
-     * is true and a node has no alternate-access-address. No node is created for it. Not retryable.
+     * Exception thrown when {@link ClusterDefinition#usingServicesAlternate()}
+     * is set and a node has no alternate-access-address. No node is created for it. Not retryable.
      */
     public static final class AlternateAddressMissing extends AerospikeException {
         private static final long serialVersionUID = 1L;

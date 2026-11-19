@@ -364,7 +364,7 @@ public class ClusterTend implements Runnable {
                 if (seed.tlsName != null && def.getTlsBuilder() == null) {
                     // Fail immediately for known configuration errors like this.
                     throw new AerospikeException.Connection("Seed host tlsName '" + seed.tlsName +
-                        "' defined but client tlsPolicy not enabled", e);
+                        "' defined but client TLS not enabled", e);
                 }
 
                 // Store exception and try next seed.
@@ -845,7 +845,9 @@ public class ClusterTend implements Runnable {
     /**
      * Return connection recoverQueue size. The queue contains connections that have timed out and
      * need to be drained before returning the connection to a connection pool. The recoverQueue
-     * is only used when {@link com.aerospike.client.policy.Policy#timeoutDelay} is true.
+     * is only used when
+     * {@link com.aerospike.client.sdk.policy.ResolvedSettings#getWaitForSocketResponseAfterCallFailsMs()}
+     * is true.
      * <p>
      * Since recoverQueue is a linked list where the size() calculation is expensive, a separate
      * counter is used to track recoverQueue.size().

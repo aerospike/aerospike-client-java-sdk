@@ -531,37 +531,12 @@ public class ClusterDefinition {
      * Default: null (use {@link com.aerospike.client.sdk.discovery.StaticMapAddressTranslator} with
      * {@link #ipMap})
      * <p>
-     * YAML keys: {@code static.client.translation.provider} ({@code static-map}, {@code port-map},
-     * {@code pass-through} or a name registered with {@link #registerAddressTranslator}) with
+     * YAML keys: {@code static.client.translation.provider} ({@code static-map}, {@code port-map} or
+     * {@code pass-through}) with
      * {@code static.client.translation.static_map} or {@code static.client.translation.port_map}.
      */
     public ClusterDefinition addressTranslator(AddressTranslator addressTranslator) {
         this.addressTranslator = addressTranslator;
-        return this;
-    }
-
-    /**
-     * Action taken when the address translator has no mapping for a server advertised endpoint.
-     * Applies to every translator, including the default
-     * {@link com.aerospike.client.discovery.StaticMapAddressTranslator} built from {@link #ipMap}.
-     * YAML key: {@code static.client.translation.on_miss}.
-     * <ul>
-     * <li>{@link TranslationMissMode#PASS_THROUGH} ({@code pass_through}): connect to the advertised
-     * endpoint unchanged, as {@link #ipMap} does for an unmapped address. When
-     * {@link #addressTranslator} is set, the miss is logged at warning level once per node and
-     * advertised endpoint.</li>
-     * <li>{@link TranslationMissMode#STRICT} ({@code strict}): do not connect to the advertised
-     * endpoint and do not create a node for it. The miss fails with
-     * {@link com.aerospike.client.AerospikeException.TranslationMiss}, which names the node, the
-     * advertised endpoint and the translator. A missed peer is logged at warning level and
-     * retried on the next cluster tend.</li>
-     * </ul>
-     * A null value is treated as {@link TranslationMissMode#PASS_THROUGH}.
-     * <p>
-     * Default: {@link TranslationMissMode#PASS_THROUGH}
-     */
-    public ClusterDefinition translationOnMiss(TranslationMissMode translationOnMiss) {
-        this.translationOnMiss = translationOnMiss;
         return this;
     }
 
