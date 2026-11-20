@@ -44,16 +44,17 @@ public class VectorExpTest {
             VectorExp.distance(VectorDistanceMetric.COSINE_SIMILARITY, query, Exp.vectorBin("embedding")))
             .getBytes();
 
-        // [cosine-opcode, vector-bin-expression, full-vector BLOB literal].
-        assertEquals((byte)(0x90 | 3), packed[0]);
-        assertEquals(54, packed[1] & 0xff);
-        assertEquals((byte)(0x90 | 3), packed[2]);
-        assertEquals(81, packed[3] & 0xff);
-        assertEquals(10, packed[4] & 0xff);
+        // [vector-distance op, cosine metric, vector-bin-expression, full-vector BLOB literal].
+        assertEquals((byte)(0x90 | 4), packed[0]);
+        assertEquals(52, packed[1] & 0xff);
+        assertEquals(2, packed[2] & 0xff);
+        assertEquals((byte)(0x90 | 3), packed[3]);
+        assertEquals(81, packed[4] & 0xff);
+        assertEquals(10, packed[5] & 0xff);
 
         // The query literal is a BLOB containing the complete VECTOR wire value.
         final int expectedHeader = 0xa0 | (queryBytes.length + 1);
-        final int literalStart = 2 + 4 + "embedding".length();
+        final int literalStart = 3 + 4 + "embedding".length();
         assertEquals((byte)expectedHeader, packed[literalStart]);
         assertEquals(ParticleType.BLOB, packed[literalStart + 1] & 0xff);
 
@@ -62,6 +63,10 @@ public class VectorExpTest {
         assertArrayEquals(queryBytes, embedded);
     }
 
+    /**
+     * Every metric uses the one vector distance op and passes the metric as a plain integer
+     * argument, matching as_vector_distance_metric in the C client.
+     */
     @Test
     void distanceEncodesEachMetricCode() {
         final Vector query = Vector.ofFloat32(new float[] {1.0f, 2.0f});
@@ -70,7 +75,9 @@ public class VectorExpTest {
             final byte[] packed = Exp.build(
                 VectorExp.distance(metric, query, Exp.vectorBin("v"))).getBytes();
 
-            assertEquals(expectedOpcode(metric), packed[1] & 0xff);
+            assertEquals((byte)(0x90 | 4), packed[0], metric.toString());
+            assertEquals(52, packed[1] & 0xff, metric.toString());
+            assertEquals(expectedMetric(metric), packed[2] & 0xff, metric.toString());
         }
     }
 
@@ -85,17 +92,17 @@ public class VectorExpTest {
         final byte[] packed = Exp.build(
             VectorExp.distance(VectorDistanceMetric.EUCLIDEAN_SQUARED, query, Exp.vectorBin("v"))).getBytes();
 
-        final int literalStart = 2 + 4 + 1;
+        final int literalStart = 3 + 4 + 1;
         final byte[] embedded = Arrays.copyOfRange(
             packed, literalStart + 2, literalStart + 2 + queryBytes.length);
         assertArrayEquals(queryBytes, embedded);
     }
 
-    private static int expectedOpcode(VectorDistanceMetric metric) {
+    private static int expectedMetric(VectorDistanceMetric metric) {
         return switch (metric) {
-            case EUCLIDEAN_SQUARED -> 52;
-            case DOT_PRODUCT -> 53;
-            case COSINE_SIMILARITY -> 54;
+            case EUCLIDEAN_SQUARED -> 0;
+            case DOT_PRODUCT -> 1;
+            case COSINE_SIMILARITY -> 2;
         };
     }
 

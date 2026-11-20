@@ -47,7 +47,7 @@ public final class VectorExp {
         if (metric == null || query == null || bin == null) {
             throw new NullPointerException("metric, query, and bin are required");
         }
-        return new Exp.VectorDist(Exp.vectorDistOpcode(metric), query.getWireBytes(), bin);
+        return new Exp.VectorDist(metric, query.getWireBytes(), bin);
     }
 
     private VectorExp() {
