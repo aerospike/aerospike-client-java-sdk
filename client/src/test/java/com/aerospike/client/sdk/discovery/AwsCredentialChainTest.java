@@ -16,6 +16,10 @@
  */
 package com.aerospike.client.sdk.discovery;
 
+import static com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProviderTest.KEY;
+import static com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProviderTest.SECRET;
+import static com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProviderTest.TOKEN;
+import static com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProviderTest.assertNoSecret;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -55,13 +59,6 @@ import com.aerospike.client.sdk.discovery.StubAwsServer.Request;
  * expiry and the hook.
  */
 class AwsCredentialChainTest {
-	/**
-	 * The legacy test took these from AwsEc2TagSeedCandidateProviderTest, which is not ported yet.
-	 */
-	static final String KEY = "AKIDEXAMPLE";
-	static final String SECRET = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY";
-	static final String TOKEN = "FwoGZXIvYXdzEXAMPLESESSIONTOKEN";
-
 	private static final SeedCandidateContext INIT = new SeedCandidateContext(null, new Host[0], 0);
 	private static final String ROLE_ARN = "arn:aws:iam::123456789012:role/seed-role";
 	private static final String WEB_TOKEN = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkVYQU1QTEUifQ.web-identity-token";
@@ -115,15 +112,6 @@ class AwsCredentialChainTest {
 
 		try (Stream<Path> files = Files.walk(dir)) {
 			files.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
-		}
-	}
-
-	static void assertNoSecret(String text, String signature) {
-		assertFalse(text.contains(SECRET), text);
-		assertFalse(text.contains(TOKEN), text);
-
-		if (! signature.isEmpty()) {
-			assertFalse(text.contains(signature), text);
 		}
 	}
 
