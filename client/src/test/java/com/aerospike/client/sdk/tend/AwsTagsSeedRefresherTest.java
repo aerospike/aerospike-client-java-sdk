@@ -53,7 +53,7 @@ import com.aerospike.client.sdk.discovery.StaticDiscoveryConfig;
 import com.aerospike.client.sdk.discovery.StubAwsServer;
 import com.aerospike.client.sdk.discovery.StubAwsServer.Reply;
 
-class AwsTagsSeedRefresherTest {
+public class AwsTagsSeedRefresherTest {
 	private static final Host[] INIT = new Host[] {new Host("10.0.0.1", 3000)};
 	private static final int MARGIN = 50;
 	private static final Map<String,List<String>> FILTER = Map.of("tag:aerospike-cluster", List.of("prod-a"));

@@ -34,7 +34,7 @@ import com.aerospike.client.sdk.discovery.Endpoint;
 import com.aerospike.client.sdk.discovery.StaticMapAddressTranslator;
 import com.aerospike.client.sdk.discovery.TranslationMissMode;
 
-class DiscoveryResultCodeTest {
+public class DiscoveryResultCodeTest {
 	@Test
 	void strictMissIsTranslationMiss() {
 		Endpoint advertised = new Endpoint("BB9A", null, "10.0.0.7", 3000, Endpoint.SourceList.ALTERNATE);

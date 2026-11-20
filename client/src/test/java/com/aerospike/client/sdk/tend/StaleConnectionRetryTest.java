@@ -61,7 +61,7 @@ import com.aerospike.client.sdk.util.Version;
  * attempt once more on a new connection, without consuming a retry or counting an error. A write
  * whose request was sent is never sent again.
  */
-class StaleConnectionRetryTest {
+public class StaleConnectionRetryTest {
 	private static final String NAMESPACE = "test";
 	private static final int TIMEOUT = 2000;
 	private static final int RST_WAIT_MS = 200;

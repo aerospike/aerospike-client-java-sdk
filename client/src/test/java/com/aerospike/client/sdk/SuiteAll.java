@@ -24,6 +24,8 @@ import org.junit.platform.suite.api.Suite;
     SuiteCore.class,
     SuiteCluster.class,
     SuiteDiscovery.class,
+    SuiteTend.class,
+    SuiteCommand.class,
 })
 public class SuiteAll {
 }

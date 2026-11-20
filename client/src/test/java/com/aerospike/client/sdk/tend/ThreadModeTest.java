@@ -64,7 +64,7 @@ import com.aerospike.client.sdk.discovery.SeedMergePolicy;
 import com.aerospike.client.sdk.discovery.StaticDiscoveryConfig;
 import com.aerospike.client.sdk.discovery.StaticSeedCandidateProvider;
 
-class ThreadModeTest {
+public class ThreadModeTest {
 	private static final Host DEAD_SEED = new Host("127.0.0.1", 1);
 	private static final Host S = new Host("10.0.1.1", 3000);
 	private static final Host A = new Host("10.0.0.1", 3000);

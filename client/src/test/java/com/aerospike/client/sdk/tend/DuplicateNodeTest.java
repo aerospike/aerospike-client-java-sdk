@@ -58,7 +58,7 @@ import com.aerospike.client.sdk.discovery.GuardedResolverProvider;
  * Tends driven one at a time from the test thread never leave two nodes with one name. The tend
  * thread is stopped once the cluster is created.
  */
-class DuplicateNodeTest {
+public class DuplicateNodeTest {
 	private static final String X = "BB9E000000000001";
 	private static final String Y = "BB9F000000000001";
 

@@ -45,7 +45,7 @@ import com.aerospike.client.sdk.discovery.GuardedResolverProvider;
  * Peer validation of a host name that resolves to several addresses starts a connect to one address
  * at a time, 100 ms apart, and validates the first that completes.
  */
-class StaggeredConnectTest {
+public class StaggeredConnectTest {
 	private static final String NODE = "BB9D000000000001";
 	private static final long STAGGER = 100;
 	private static final long MARGIN = 250;

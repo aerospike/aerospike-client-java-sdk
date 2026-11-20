@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.query.IndexCollectionType;
 
-class MsgFieldParserTest {
+public class MsgFieldParserTest {
 
     @Test
     void parsesIndexNameAndRangeFields() {

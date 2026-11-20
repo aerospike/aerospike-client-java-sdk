@@ -19,9 +19,6 @@ package com.aerospike.client.sdk;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
-import com.aerospike.client.sdk.command.BatchNodesSingleNodeTest;
-import com.aerospike.client.sdk.command.CommandContainerToStringTest;
-import com.aerospike.client.sdk.command.IndexProbeCommandTest;
 import com.aerospike.client.sdk.policy.AllowSingleNodeBatchReadsSettingTest;
 import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
 import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
@@ -63,7 +60,6 @@ import com.aerospike.client.sdk.util.PackerTest;
     BinBuilderValueTest.class,
     BackgroundIndexFilterWireTest.class,
     BackgroundOperationBuilderValidationTest.class,
-    BatchNodesSingleNodeTest.class,
     ByteBufferValueTest.class,
     CdtGetOrRemoveBuilderDispatchTest.class,
     CdtGetOrRemoveBuilderPathTest.class,
@@ -75,14 +71,12 @@ import com.aerospike.client.sdk.util.PackerTest;
     CdtPathOperationTest.class,
     CdtSelectorParityTest.class,
     CdtVectorFlagTest.class,
-    CommandContainerToStringTest.class,
     ContainerToStringTest.class,
     CtxSerdeTest.class,
     ExpressionToStringTest.class,
     FilterOverrideTest.class,
     FilterWireRangeTest.class,
     HistogramTest.class,
-    IndexProbeCommandTest.class,
     IndexProbePlannerRoutingTest.class,
     IndexProbePlannerWhereFlagsTest.class,
     IndexRangeWireTest.class,

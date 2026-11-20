@@ -41,7 +41,7 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
 
-class ZeroNodeReseedTest {
+public class ZeroNodeReseedTest {
 	private static final Host DEAD_SEED = new Host("127.0.0.1", 1);
 	private static final String SEED_PREFIX = "Seed 127.0.0.1 ";
 

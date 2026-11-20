@@ -53,7 +53,7 @@ import com.aerospike.client.sdk.command.Buffer;
 import com.aerospike.client.sdk.discovery.AddressTranslator;
 import com.aerospike.client.sdk.discovery.Endpoint;
 
-class ClusterViewChangeTest {
+public class ClusterViewChangeTest {
 	private final Map<String,String> view = new ConcurrentHashMap<>();
 	private final Map<String,FakeNode> servers = new ConcurrentHashMap<>();
 	private final AtomicInteger generation = new AtomicInteger(1);

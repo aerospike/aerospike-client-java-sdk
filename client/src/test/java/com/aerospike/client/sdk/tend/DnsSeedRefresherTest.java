@@ -49,7 +49,7 @@ import com.aerospike.client.sdk.discovery.DnsSeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.StaticDiscoveryConfig;
 import com.aerospike.client.sdk.discovery.StubDnsServer;
 
-class DnsSeedRefresherTest {
+public class DnsSeedRefresherTest {
 	private static final Host[] INIT = new Host[] {new Host("10.0.0.1", 3000)};
 	private static final ClusterDefinition DEF = new ClusterDefinition("127.0.0.1", 1);
 

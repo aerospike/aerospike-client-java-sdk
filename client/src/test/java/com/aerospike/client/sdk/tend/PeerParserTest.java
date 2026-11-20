@@ -30,7 +30,7 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.discovery.TranslationMissMode;
 
-class PeerParserTest {
+public class PeerParserTest {
 	private static final String PEERS = "peers-clear-std\t5,3000,[[BB9A,,[10.0.0.1:3001,10.0.0.9]],[BB9C,,[10.0.0.3]],[BB9B,,[10.0.0.2]]]\n";
 
 	private static List<Peer> parse(TranslationMissMode mode) throws Exception {

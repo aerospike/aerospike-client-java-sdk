@@ -52,7 +52,7 @@ import com.aerospike.client.sdk.discovery.PassThroughAddressTranslator;
 import com.aerospike.client.sdk.discovery.TranslationMissMode;
 import com.aerospike.client.sdk.util.Version;
 
-class PassThroughTranslationTest {
+public class PassThroughTranslationTest {
 	private final List<FakeNode> servers = new ArrayList<>();
 	private final List<Node> nodes = new ArrayList<>();
 	private Cluster cluster;

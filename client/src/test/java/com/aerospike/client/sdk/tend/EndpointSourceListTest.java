@@ -41,7 +41,7 @@ import com.aerospike.client.sdk.discovery.TranslationMissMode;
  * U-13: {@link PeerParser} sets {@link Endpoint#sourceList} from useServicesAlternate, and a
  * port-map keyed from the wrong list is detectable.
  */
-class EndpointSourceListTest {
+public class EndpointSourceListTest {
 	private static final String STD = "peers-clear-std\t5,3000,[[BB9A,,[10.0.0.1]],[BB9B,,[10.0.0.2:3001]]]\n";
 	private static final String ALT = "peers-clear-alt\t5,3000,[[BB9A,,[203.0.113.1:30001]],[BB9B,,[203.0.113.2:30002]]]\n";
 	private static final Map<String,String> STD_PORT_MAP = Map.of("10.0.0.1:3000", "lb.example.com:31001",

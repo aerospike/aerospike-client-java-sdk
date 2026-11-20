@@ -41,7 +41,7 @@ import com.aerospike.client.sdk.discovery.Endpoint.SourceList;
 import com.aerospike.client.sdk.discovery.StaticMapAddressTranslator;
 import com.aerospike.client.sdk.discovery.TranslationMissMode;
 
-class AddressTranslationTest {
+public class AddressTranslationTest {
 	private static final Endpoint MISSED = new Endpoint("BB9", "tls1", "10.0.0.9", 3000, SourceList.STANDARD);
 	private static final AddressTranslator STATIC_MAP = new StaticMapAddressTranslator(Map.of("10.0.0.1", "192.168.1.1"));
 

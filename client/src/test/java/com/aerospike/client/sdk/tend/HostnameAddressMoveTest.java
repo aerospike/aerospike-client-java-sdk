@@ -61,7 +61,7 @@ import com.aerospike.client.sdk.policy.Behavior;
  * A node on a hostname with several addresses moves to another address of the hostname once it has
  * failed three tends in a row, trying one address per tend.
  */
-class HostnameAddressMoveTest {
+public class HostnameAddressMoveTest {
 	private static final int TEND_INTERVAL = 250;
 	private static final long MOVE_BOUND = 20L * TEND_INTERVAL;
 	private static final long MARGIN = 150;

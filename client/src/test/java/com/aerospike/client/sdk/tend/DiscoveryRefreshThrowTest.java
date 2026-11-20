@@ -52,7 +52,7 @@ import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
 import com.aerospike.client.sdk.discovery.SeedCandidateContext;
 import com.aerospike.client.sdk.discovery.SeedCandidateProvider;
 
-class DiscoveryRefreshThrowTest {
+public class DiscoveryRefreshThrowTest {
 	private static final String REFRESH_FAILED = "Seed candidate refresh failed: ";
 	private static final String NAME = "throwing";
 

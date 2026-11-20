@@ -53,7 +53,7 @@ import com.aerospike.client.sdk.command.Connection;
 import com.aerospike.client.sdk.discovery.Endpoint;
 import com.aerospike.client.sdk.util.Version;
 
-class AlternateAddressMissingTest {
+public class AlternateAddressMissingTest {
 	private final List<FakeNode> servers = new ArrayList<>();
 	private final List<Node> nodes = new ArrayList<>();
 	private Cluster cluster;

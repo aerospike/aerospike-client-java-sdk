@@ -55,7 +55,7 @@ import com.aerospike.client.sdk.discovery.SeedCandidateProvider;
 import com.aerospike.client.sdk.discovery.SeedMergePolicy;
 import com.aerospike.client.sdk.discovery.StaticSeedCandidateProvider;
 
-class SeedCandidateProviderSpiTest {
+public class SeedCandidateProviderSpiTest {
 	private static final Host DEAD_SEED = new Host("127.0.0.1", 1);
 	private static final Host OTHER_SEED = new Host("127.0.0.1", 2);
 	private static final String NAME = "spi";

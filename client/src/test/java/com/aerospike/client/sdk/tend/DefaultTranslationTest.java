@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.discovery.AddressTranslator;
 import com.aerospike.client.sdk.discovery.StaticMapAddressTranslator;
 import com.aerospike.client.sdk.discovery.TranslationMissMode;
 
-class DefaultTranslationTest {
+public class DefaultTranslationTest {
 	private static final Host DEAD_SEED = new Host("127.0.0.1", 1);
 	private static final Map<String,String> IP_MAP = Map.of("10.0.0.1", "192.168.1.1", "node2.internal", "node2.external",
 		"2001:db8::1", "2001:db8::99");

@@ -32,7 +32,7 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
 
-class SeedProviderCloseTest {
+public class SeedProviderCloseTest {
 	private static final Host DEAD_SEED = new Host("127.0.0.1", 1);
 
 	/**

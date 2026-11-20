@@ -47,7 +47,7 @@ import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
 import com.aerospike.client.sdk.discovery.DiscoverySettings;
 
-class DiscoveryRefreshTest {
+public class DiscoveryRefreshTest {
 	private static final Host DEAD_SEED = new Host("127.0.0.1", 1);
 	private static final Host REFRESHED = new Host("127.0.0.1", 2);
 	private static final ClusterDefinition DEF = new ClusterDefinition(DEAD_SEED);

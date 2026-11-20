@@ -40,7 +40,7 @@ import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
 import com.aerospike.client.sdk.discovery.DiscoverySettings;
 
-class SeedRefresherTest {
+public class SeedRefresherTest {
 	private static final Host[] INIT = new Host[] {new Host("10.0.0.1", 3000)};
 	private static final Host A = new Host("10.0.0.2", 3000);
 	private static final Host B = new Host("10.0.0.3", 3000);

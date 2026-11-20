@@ -59,7 +59,7 @@ import com.aerospike.client.sdk.discovery.Endpoint;
 import com.aerospike.client.sdk.discovery.PassThroughAddressTranslator;
 import com.aerospike.client.sdk.util.Version;
 
-class TranslationCollisionTest {
+public class TranslationCollisionTest {
 	private final List<FakeNode> servers = new ArrayList<>();
 	private final List<Node> nodes = new ArrayList<>();
 	private Cluster cluster;

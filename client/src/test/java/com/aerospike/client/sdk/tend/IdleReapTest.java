@@ -46,7 +46,7 @@ import com.aerospike.client.sdk.util.Version;
  * U-12: idle connections are reaped under the AWS NLB idle timeout of 350 seconds, by default and,
  * with minConnsPerNode set, when maximumSocketIdleTimeOnCheckout is set below that timeout.
  */
-class IdleReapTest {
+public class IdleReapTest {
 	private static final long NLB_IDLE_TIMEOUT_SECS = 350;
 	private static final int MAX_SOCKET_IDLE_UNDER_NLB = 340;
 

@@ -42,7 +42,7 @@ import com.aerospike.client.sdk.discovery.DiscoverySettings;
 import com.aerospike.client.sdk.discovery.DiscoverySettings.DiscoveryTweaks;
 import com.aerospike.client.sdk.discovery.SeedMergePolicy;
 
-class SeedMergePolicyTest {
+public class SeedMergePolicyTest {
 	private static final Host S1 = new Host("10.0.0.1", 3000);
 	private static final Host S2 = new Host("10.0.0.2", 3000);
 	private static final Host D1 = new Host("10.0.1.1", 3000);

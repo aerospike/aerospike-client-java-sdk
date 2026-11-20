@@ -46,7 +46,7 @@ import com.aerospike.client.sdk.discovery.AddressTranslator;
 import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
 import com.aerospike.client.sdk.discovery.Endpoint;
 
-class AddressTranslatorCloseTest {
+public class AddressTranslatorCloseTest {
 	private static final Host DEAD_SEED = new Host("127.0.0.1", 1);
 
 	/**

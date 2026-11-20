@@ -54,7 +54,7 @@ import com.aerospike.client.sdk.discovery.PortMapAddressTranslator;
 import com.aerospike.client.sdk.discovery.TranslationMissMode;
 import com.aerospike.client.sdk.util.Version;
 
-class PortMapTranslationTest {
+public class PortMapTranslationTest {
 	private final List<FakeNode> servers = new ArrayList<>();
 	private final List<Node> nodes = new ArrayList<>();
 	private Cluster cluster;
