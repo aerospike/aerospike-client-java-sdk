@@ -35,22 +35,29 @@ import com.aerospike.client.sdk.command.Connection;
  */
 final class PeerReply {
 	static List<Peer> parse(Cluster cluster, String reply) throws Exception {
+		List<Peer> peers = new ArrayList<>();
+		parse(cluster, reply, peers);
+		return peers;
+	}
+
+	/**
+	 * Parse into {@code peers} and return the parser, for its generation.
+	 */
+	static PeerParser parse(Cluster cluster, String reply, List<Peer> peers) throws Exception {
 		try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
 			Thread thread = new Thread(() -> reply(server, reply));
 			thread.start();
 
 			Connection conn = new Connection(new InetSocketAddress(server.getInetAddress(), server.getLocalPort()), 5000,
 				cluster);
-			List<Peer> peers = new ArrayList<>();
 
 			try {
-				new PeerParser(cluster, null, conn, peers);
+				return new PeerParser(cluster, null, conn, peers);
 			}
 			finally {
 				conn.close();
 				thread.join();
 			}
-			return peers;
 		}
 	}
 
