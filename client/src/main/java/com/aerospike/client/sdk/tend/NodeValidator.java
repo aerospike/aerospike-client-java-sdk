@@ -166,6 +166,7 @@ public final class NodeValidator {
 
         if (addresses.length > 1) {
             validateAny(cluster, host, addresses);
+            return;
         }
 
         Throwable exception = null;
