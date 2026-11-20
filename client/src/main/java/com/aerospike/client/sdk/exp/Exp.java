@@ -1439,9 +1439,7 @@ public abstract class Exp {
     private static final int INT_RSCAN = 41;
     private static final int MIN = 50;
     private static final int MAX = 51;
-    private static final int VECTOR_EUCLIDEAN_DIST = 52;
-    private static final int VECTOR_DOT_PRODUCT = 53;
-    private static final int VECTOR_COSINE_SIM = 54;
+    private static final int VECTOR_DISTANCE = 52;
     private static final int DIGEST_MODULO = 64;
     private static final int DEVICE_SIZE = 65;
     private static final int LAST_UPDATE = 66;
@@ -1595,33 +1593,27 @@ public abstract class Exp {
      * For internal use only. Built by {@link com.aerospike.client.sdk.exp.VectorExp#distance}.
      */
     static final class VectorDist extends Exp {
-        private final int opcode;
+        private final VectorDistanceMetric metric;
         private final byte[] query;
         private final Exp bin;
 
-        VectorDist(final int opcode, final byte[] query, final Exp bin) {
-            this.opcode = opcode;
+        VectorDist(final VectorDistanceMetric metric, final byte[] query, final Exp bin) {
+            this.metric = metric;
             this.query = query;
             this.bin = bin;
         }
 
         @Override
         public void pack(final Packer packer) {
-            // Encode the query vector as particle bytes.
+            // [VECTOR_DISTANCE, metric, bin, query]. The metric is a plain integer, so a new
+            // metric needs no new op code. Encode the query vector as particle bytes.
             packer.markVector();
-            packer.packArrayBegin(3);
-            packer.packInt(opcode);
+            packer.packArrayBegin(4);
+            packer.packInt(VECTOR_DISTANCE);
+            packer.packInt(metric.getCode());
             bin.pack(packer);
             packer.packParticleBytes(query);
         }
-    }
-
-    static int vectorDistOpcode(final VectorDistanceMetric metric) {
-        return switch (metric) {
-            case EUCLIDEAN_SQUARED -> VECTOR_EUCLIDEAN_DIST;
-            case DOT_PRODUCT -> VECTOR_DOT_PRODUCT;
-            case COSINE_SIMILARITY -> VECTOR_COSINE_SIM;
-        };
     }
 
     private static final class Bin extends Exp {
