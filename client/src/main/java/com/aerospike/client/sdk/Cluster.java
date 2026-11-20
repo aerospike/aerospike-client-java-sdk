@@ -1790,12 +1790,17 @@ public class Cluster implements Closeable {
         // only if it never ran. A discovery thread is stopped here, so close waits for its refresh in
         // flight.
         boolean tendRunning = tend.isTendRunning();
+        SeedRefresher refresher = currentSeedRefresher();
+
+        // Stop a discovery thread before waiting for the tend thread. Otherwise the exiting tend
+        // thread stops it first and close does not wait for its refresh in flight.
+        if (refresher.isThreaded()) {
+            refresher.close();
+        }
 
         tend.close();
 
-        SeedRefresher refresher = currentSeedRefresher();
-
-        if (! tendRunning || refresher.isThreaded()) {
+        if (! tendRunning && ! refresher.isThreaded()) {
             refresher.close();
         }
 
