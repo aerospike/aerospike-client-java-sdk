@@ -48,7 +48,7 @@ import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.discovery.DnsSeedCandidateProvider.RecordType;
 import com.aerospike.client.sdk.discovery.DnsSettings.DnsTweaks;
 
-class DnsSeedCandidateProviderTest {
+public class DnsSeedCandidateProviderTest {
 	private static final SeedCandidateContext CTX = new SeedCandidateContext(null, new Host[0], 0);
 	private static final Pattern IP_LITERAL = Pattern.compile("^(\\d{1,3}(\\.\\d{1,3}){3}|[0-9a-fA-F:]*:[0-9a-fA-F:.]*)$");
 	private static final long MARGIN = 50;

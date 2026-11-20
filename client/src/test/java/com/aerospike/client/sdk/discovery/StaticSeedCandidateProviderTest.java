@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.Host;
 
-class StaticSeedCandidateProviderTest {
+public class StaticSeedCandidateProviderTest {
 	private static final SeedCandidateContext CTX = new SeedCandidateContext(null, new Host[0], 0);
 
 	@Test

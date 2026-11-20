@@ -35,7 +35,7 @@ import com.aerospike.client.sdk.discovery.Endpoint.SourceList;
 /**
  * U-2: pass-through {@code translate()} does no name lookup and no socket connect.
  */
-class PassThroughAddressTranslatorNoIoTest {
+public class PassThroughAddressTranslatorNoIoTest {
 	@Test
 	void guardDetectsConnect() throws Exception {
 		AddressTranslator connecting = advertised -> {

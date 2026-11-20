@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test;
  * canonical request, string to sign and Authorization header.</li>
  * </ul>
  */
-class AwsSigV4Test {
+public class AwsSigV4Test {
 	private static final String SECRET = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY";
 	private static final String EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 

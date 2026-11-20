@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.discovery.Endpoint.SourceList;
 
-class PassThroughAddressTranslatorTest {
+public class PassThroughAddressTranslatorTest {
 	private static void assertUnchanged(String host, String tlsName, int port) {
 		for (SourceList sourceList : SourceList.values()) {
 			Optional<Host> result = PassThroughAddressTranslator.INSTANCE.translate(

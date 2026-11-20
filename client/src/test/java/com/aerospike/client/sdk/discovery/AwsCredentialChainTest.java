@@ -58,7 +58,7 @@ import com.aerospike.client.sdk.discovery.StubAwsServer.Request;
  * Each credential source of the AWS credential chain against {@link StubAwsServer}, chain order,
  * expiry and the hook.
  */
-class AwsCredentialChainTest {
+public class AwsCredentialChainTest {
 	private static final SeedCandidateContext INIT = new SeedCandidateContext(null, new Host[0], 0);
 	private static final String ROLE_ARN = "arn:aws:iam::123456789012:role/seed-role";
 	private static final String WEB_TOKEN = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkVYQU1QTEUifQ.web-identity-token";

@@ -46,7 +46,7 @@ public final class StubNodeServer implements AutoCloseable {
 		FIN, RST
 	}
 
-	private static final int INFO = 1;
+	//private static final int INFO = 1;
 	private static final int MSG = 3;
 
 	private final ServerSocket server;

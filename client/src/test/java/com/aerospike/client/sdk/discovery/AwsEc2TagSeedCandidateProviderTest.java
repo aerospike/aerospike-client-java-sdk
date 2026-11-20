@@ -58,7 +58,7 @@ import com.aerospike.client.sdk.discovery.AwsSettings.AwsTweaks;
 import com.aerospike.client.sdk.discovery.StubAwsServer.Reply;
 import com.aerospike.client.sdk.discovery.StubAwsServer.Request;
 
-class AwsEc2TagSeedCandidateProviderTest {
+public class AwsEc2TagSeedCandidateProviderTest {
 	static final String KEY = "AKIDEXAMPLE";
 	static final String SECRET = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY";
 	static final String TOKEN = "FwoGZXIvYXdzEXAMPLESESSIONTOKEN";

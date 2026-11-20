@@ -31,7 +31,7 @@ import com.aerospike.client.sdk.AerospikeException;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.discovery.Endpoint.SourceList;
 
-class PortMapAddressTranslatorTest {
+public class PortMapAddressTranslatorTest {
 	private static final String NODE_A = "BB9020011AC4202";
 	private static final String NODE_B = "BB9030011AC4202";
 

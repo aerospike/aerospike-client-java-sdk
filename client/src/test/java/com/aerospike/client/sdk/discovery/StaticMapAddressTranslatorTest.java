@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.discovery.Endpoint.SourceList;
 
-class StaticMapAddressTranslatorTest {
+public class StaticMapAddressTranslatorTest {
 	private static Map<String,String> ipMap() {
 		Map<String,String> map = new HashMap<String,String>();
 		map.put("10.0.0.1", "192.168.1.1");

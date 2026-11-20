@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.policy.BehaviorYamlConfig;
 /**
  * U-11: no public discovery or translation identifier matches {@code /nlb/i}.
  */
-class NlbIdentifierTest {
+public class NlbIdentifierTest {
 	private static final Pattern NLB = Pattern.compile("nlb", Pattern.CASE_INSENSITIVE);
 
 	@Test

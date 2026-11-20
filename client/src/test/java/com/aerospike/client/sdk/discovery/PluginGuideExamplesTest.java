@@ -36,7 +36,7 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.tend.ClusterTend;
 
-class PluginGuideExamplesTest {
+public class PluginGuideExamplesTest {
 	static final class HostListSeedProvider implements SeedCandidateProvider {
 		private volatile List<Host> hosts;
 

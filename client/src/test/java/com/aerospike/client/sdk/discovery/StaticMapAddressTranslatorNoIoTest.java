@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.discovery.Endpoint.SourceList;
 
-class StaticMapAddressTranslatorNoIoTest {
+public class StaticMapAddressTranslatorNoIoTest {
 	@Test
 	void guardDetectsLookup() throws Exception {
 		GuardedResolverProvider.arm();

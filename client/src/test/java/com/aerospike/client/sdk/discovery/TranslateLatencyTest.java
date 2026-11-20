@@ -37,7 +37,7 @@ import com.aerospike.client.sdk.discovery.Endpoint.SourceList;
  * rounds it overlaps, and the median ignores up to three disturbed rounds. A translator whose p99
  * is above 1 ms puts every round p99 above 1 ms, so the median is above it too.
  */
-class TranslateLatencyTest {
+public class TranslateLatencyTest {
 	private static final int WARMUP = 200_000;
 	private static final int ROUNDS = 7;
 	private static final int CALLS_PER_ROUND = 20_000;

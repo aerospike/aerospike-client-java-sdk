@@ -46,7 +46,6 @@ import com.aerospike.client.sdk.ClusterDefinition;
 import com.aerospike.client.sdk.Host;
 import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.discovery.AwsEc2TagSeedCandidateProvider;
-import com.aerospike.client.sdk.discovery.AwsSettings;
 import com.aerospike.client.sdk.discovery.DiscoveryExecutionMode;
 import com.aerospike.client.sdk.discovery.DiscoverySettings;
 import com.aerospike.client.sdk.discovery.DiscoverySettings.DiscoveryTweaks;
