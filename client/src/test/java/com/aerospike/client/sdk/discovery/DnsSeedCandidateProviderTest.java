@@ -305,7 +305,9 @@ public class DnsSeedCandidateProviderTest {
 		}
 	}
 
+
 	@Test
+	@SuppressWarnings("resource")
 	void truncatedAnswerWithUnansweredTcpReturnsWithinTimeout() throws Exception {
 		try (StubDnsServer silent = new StubDnsServer(true).hangTcp();
 			StubDnsServer truncated = new StubDnsServer().a("a.example.com", "10.0.0.1").truncate().hangTcp()) {
