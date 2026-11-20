@@ -65,7 +65,7 @@ import com.aerospike.client.sdk.exp.Exp;
  * the two implementations drift apart. If the duplication is ever collapsed into one implementation, this
  * test becomes redundant and should be deleted.</p>
  */
-class CdtSelectorParityTest {
+public class CdtSelectorParityTest {
 
     /**
      * Lower bound on the shared surface, so a reflection or filtering mistake that silently discovers

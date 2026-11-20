@@ -34,7 +34,7 @@ import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
 /** Command-buffer VECTOR flag tests. */
-class VectorWriteGuardWireTest {
+public class VectorWriteGuardWireTest {
     @Test
     void vectorDistanceQueryProjectionIsFlagged() {
         assertTrue(buildQueryBuffer(true).hasVector(),

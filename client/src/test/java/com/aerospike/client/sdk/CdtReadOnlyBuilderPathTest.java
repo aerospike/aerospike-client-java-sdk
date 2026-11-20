@@ -46,7 +46,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
  * {@code ALL_CHILDREN}, which no classic read terminal handles, so
  * {@code onEachChild().getValues()} compiles but throws — see {@code selectorAfterEachChildIsRejected}.</p>
  */
-class CdtReadOnlyBuilderPathTest {
+public class CdtReadOnlyBuilderPathTest {
 
     /** Context after {@code onEachChild()} on a builder rooted at one map key. */
     private static final CTX[] EACH_CHILD_CTX = { CTX.mapKey(ROOT_KEY), CTX.allChildren() };

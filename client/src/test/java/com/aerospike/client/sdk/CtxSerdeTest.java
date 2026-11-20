@@ -40,7 +40,7 @@ import com.aerospike.client.sdk.util.Packer;
 /**
  * Pure unit tests for {@link CTX} msgpack serialization and deserialization (no server).
  */
-class CtxSerdeTest {
+public class CtxSerdeTest {
 
     @Test
     void andFilterRoundTripsAsId0x204WithExpression() {

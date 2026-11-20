@@ -38,7 +38,7 @@ import com.aerospike.client.sdk.query.Filter;
 import com.aerospike.client.sdk.vector.Vector;
 
 /** Verifies VECTOR detection in CDT values and contexts. */
-class CdtVectorFlagTest {
+public class CdtVectorFlagTest {
     private static final String BIN = "b";
 
     private static Value vectorValue() {

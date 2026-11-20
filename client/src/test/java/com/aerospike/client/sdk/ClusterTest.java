@@ -35,7 +35,7 @@ public class ClusterTest {
     public static Cluster cluster;
     public static Session session;
     public static Session sessionWithSendKey;
-    static boolean initializedBySuite = false;
+    public static boolean initializedBySuite = false;
 
     @BeforeAll
     public static void initCluster() {
@@ -111,7 +111,7 @@ public class ClusterTest {
      * Called from {@link #initCluster()} (before subclass {@code @BeforeAll}) and
      * {@link #waitForPartitionMap()} (before each test).
      */
-    protected static void ensurePartitionMapReady() {
+    public static void ensurePartitionMapReady() {
         if (cluster == null || args.namespace == null) {
             return;
         }

@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.suite;
 
 import java.io.File;
 
@@ -23,6 +23,66 @@ import org.junit.platform.suite.api.BeforeSuite;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
+import com.aerospike.client.sdk.AddTest;
+import com.aerospike.client.sdk.AelErrorDetailVerbosityTest;
+import com.aerospike.client.sdk.AelMaterializerWhereTest;
+import com.aerospike.client.sdk.AppendTest;
+import com.aerospike.client.sdk.Args;
+import com.aerospike.client.sdk.BackgroundIndexFilterTest;
+import com.aerospike.client.sdk.BackgroundTaskTest;
+import com.aerospike.client.sdk.BatchTest;
+import com.aerospike.client.sdk.BitExpTest;
+import com.aerospike.client.sdk.CdtExpTest;
+import com.aerospike.client.sdk.CdtMapKeyValueReadOrderTest;
+import com.aerospike.client.sdk.CdtOperateComplexTest;
+import com.aerospike.client.sdk.CdtOperateTest;
+import com.aerospike.client.sdk.CdtPathIntegrationTest;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.ClusterTest;
+import com.aerospike.client.sdk.ConnectionPoolSettingsIntegrationTest;
+import com.aerospike.client.sdk.DeleteBinTest;
+import com.aerospike.client.sdk.DurableDeleteTests;
+import com.aerospike.client.sdk.ErrorDetailVerbosityTest;
+import com.aerospike.client.sdk.ErrorHandlingSpecTest;
+import com.aerospike.client.sdk.ExecuteCompletableFutureTest;
+import com.aerospike.client.sdk.ExpOperationTest;
+import com.aerospike.client.sdk.ExpireTest;
+import com.aerospike.client.sdk.FilterExpTest;
+import com.aerospike.client.sdk.GenerationTest;
+import com.aerospike.client.sdk.HLLExpTest;
+import com.aerospike.client.sdk.Host;
+import com.aerospike.client.sdk.KeyBusyIntegrationTest;
+import com.aerospike.client.sdk.ListExpTest;
+import com.aerospike.client.sdk.ListMapTest;
+import com.aerospike.client.sdk.MapExpTest;
+import com.aerospike.client.sdk.NavigatableRecordStreamSortTest;
+import com.aerospike.client.sdk.OpTypeTest;
+import com.aerospike.client.sdk.OperateBitTest;
+import com.aerospike.client.sdk.OperateHllTest;
+import com.aerospike.client.sdk.OperateListTest;
+import com.aerospike.client.sdk.OperateMapTest;
+import com.aerospike.client.sdk.OperateStringTest;
+import com.aerospike.client.sdk.OperateTest;
+import com.aerospike.client.sdk.PutGetTest;
+import com.aerospike.client.sdk.QueryWithPartitionPaginationTest;
+import com.aerospike.client.sdk.ReadOperationsTest;
+import com.aerospike.client.sdk.RecordStreamAdapterTest;
+import com.aerospike.client.sdk.ReplaceTest;
+import com.aerospike.client.sdk.ServerInfoTest;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.SessionExtensionTest;
+import com.aerospike.client.sdk.SingleNodeBatchReadIntegrationTest;
+import com.aerospike.client.sdk.SystemSettings;
+import com.aerospike.client.sdk.TopKIntegrationTest;
+import com.aerospike.client.sdk.TouchTest;
+import com.aerospike.client.sdk.TxnCommitStatusTest;
+import com.aerospike.client.sdk.TxnTest;
+import com.aerospike.client.sdk.TypedQueryMappingTest;
+import com.aerospike.client.sdk.UdfTest;
+import com.aerospike.client.sdk.VectorExpIntegrationTest;
+import com.aerospike.client.sdk.VectorIntegrationTest;
+import com.aerospike.client.sdk.VectorLimitsProbeTest;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 import com.aerospike.client.sdk.query.AelBitHllTest;

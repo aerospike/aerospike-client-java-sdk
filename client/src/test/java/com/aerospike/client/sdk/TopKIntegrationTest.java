@@ -29,7 +29,7 @@ import com.aerospike.client.sdk.query.Order;
 import com.aerospike.client.sdk.query.BinDataType;
 import com.aerospike.client.sdk.util.Version;
 
-class TopKIntegrationTest extends ClusterTest {
+public class TopKIntegrationTest extends ClusterTest {
     @BeforeAll
     static void requireTopKServer() {
         Assumptions.assumeTrue(

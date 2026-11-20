@@ -47,7 +47,7 @@ import com.aerospike.client.sdk.query.PreparedAel;
  * <p>The {@code collect*} half is shared with {@link CdtReadOnlyBuilder} and is covered by
  * {@code CdtSelectorParityTest} instead, so it is deliberately not repeated here.</p>
  */
-class CdtGetOrRemoveBuilderPathTest {
+public class CdtGetOrRemoveBuilderPathTest {
 
     /** Context after {@code onEachChild()} on a builder rooted at one map key. */
     private static final CTX[] EACH_CHILD_CTX = { CTX.mapKey(ROOT_KEY), CTX.allChildren() };

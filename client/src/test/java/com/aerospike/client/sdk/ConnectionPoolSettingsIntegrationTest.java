@@ -33,7 +33,7 @@ import com.aerospike.client.sdk.policy.Behavior;
 
 // FIXME: tests assertion values should take care of dynamic configs
 @Disabled("Disabled due to failures when dynamic config is enabled")
-class ConnectionPoolSettingsIntegrationTest {
+public class ConnectionPoolSettingsIntegrationTest {
 
     private static final Duration SOCKET_IDLE_TRIM = Duration.ofMillis(50);
     private static final int TIGHT_MAX_CONNS_PER_NODE = 8;

@@ -36,7 +36,7 @@ import com.aerospike.client.sdk.query.Order;
 import com.aerospike.client.sdk.query.BinDataType;
 import com.aerospike.client.sdk.query.QueryBuilder;
 
-class QueryTopKWireTest {
+public class QueryTopKWireTest {
     /* TODO Implement when server supports string order.
     @Test
     void concatenatesTwoOrderBySpecsAndBigEndianLimit() {

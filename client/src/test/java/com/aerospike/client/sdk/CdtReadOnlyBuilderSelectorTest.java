@@ -50,7 +50,7 @@ import com.aerospike.client.sdk.cdt.MapReturnType;
  *
  * <p>Start and end arguments are always distinct so a transposed pair fails.</p>
  */
-class CdtReadOnlyBuilderSelectorTest {
+public class CdtReadOnlyBuilderSelectorTest {
 
     private static final byte[] BYTES_START = { 1, 2 };
     private static final byte[] BYTES_END = { 3, 4 };

@@ -40,7 +40,7 @@ import com.aerospike.client.sdk.exp.LoopVarPart;
 /**
  * Client-side tests for {@link CdtOperation} packing and validation (no server).
  */
-class CdtPathOperationTest {
+public class CdtPathOperationTest {
 
     private static final String BIN = "cdtPath";
     private static final Expression MODIFY_EXP =

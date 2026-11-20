@@ -54,7 +54,7 @@ import com.aerospike.client.sdk.mapper.AddressMapper;
  * verb means something different on each: {@code setTo} becomes a list {@code set} or a map {@code put},
  * while {@code update} and {@code upsert} are map-only and must be rejected on a list.</p>
  */
-class CdtGetOrRemoveBuilderWriteTest {
+public class CdtGetOrRemoveBuilderWriteTest {
 
     private enum Verb { SET_TO, INSERT, UPDATE, UPSERT, ADD }
 

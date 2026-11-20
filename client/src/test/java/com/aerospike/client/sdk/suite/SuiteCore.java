@@ -14,21 +14,33 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.suite;
 
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
-import com.aerospike.client.sdk.policy.AllowSingleNodeBatchReadsSettingTest;
-import com.aerospike.client.sdk.policy.AsyncRecordStreamTest;
-import com.aerospike.client.sdk.policy.BehaviorFileMonitorRestartTest;
-import com.aerospike.client.sdk.policy.BehaviorTest;
-import com.aerospike.client.sdk.policy.BehaviorYamlTest;
-import com.aerospike.client.sdk.policy.QueryProducerCancellationTest;
-import com.aerospike.client.sdk.policy.SystemBehaviorTest;
-import com.aerospike.client.sdk.exp.ExpressionToStringTest;
-import com.aerospike.client.sdk.exp.ServerCompiledFilterWireTest;
-import com.aerospike.client.sdk.exp.VectorExpTest;
+import com.aerospike.client.sdk.BackgroundIndexFilterWireTest;
+import com.aerospike.client.sdk.BackgroundOperationBuilderValidationTest;
+import com.aerospike.client.sdk.BinBuilderOptionsTest;
+import com.aerospike.client.sdk.BinBuilderValueTest;
+import com.aerospike.client.sdk.ByteBufferValueTest;
+import com.aerospike.client.sdk.CdtGetOrRemoveBuilderDispatchTest;
+import com.aerospike.client.sdk.CdtGetOrRemoveBuilderPathTest;
+import com.aerospike.client.sdk.CdtGetOrRemoveBuilderWriteTest;
+import com.aerospike.client.sdk.CdtPathExpressionFluentTest;
+import com.aerospike.client.sdk.CdtPathOperationTest;
+import com.aerospike.client.sdk.CdtReadOnlyBuilderPathTest;
+import com.aerospike.client.sdk.CdtReadOnlyBuilderSelectorTest;
+import com.aerospike.client.sdk.CdtReadOnlyBuilderTerminalTest;
+import com.aerospike.client.sdk.CdtSelectorParityTest;
+import com.aerospike.client.sdk.CdtVectorFlagTest;
+import com.aerospike.client.sdk.ContainerToStringTest;
+import com.aerospike.client.sdk.CtxSerdeTest;
+import com.aerospike.client.sdk.QueryPlanExecuteWireTest;
+import com.aerospike.client.sdk.QueryTopKWireTest;
+import com.aerospike.client.sdk.StringApiPackagingTest;
+import com.aerospike.client.sdk.VectorWriteGuardWireTest;
+import com.aerospike.client.sdk.WriteKindTest;
 import com.aerospike.client.sdk.metrics.HistogramTest;
 import com.aerospike.client.sdk.query.AelPlaceholderBinderTest;
 import com.aerospike.client.sdk.query.FilterOverrideTest;
@@ -51,11 +63,6 @@ import com.aerospike.client.sdk.util.PackerTest;
 @Suite
 @SelectClasses({
     AelPlaceholderBinderTest.class,
-    AllowSingleNodeBatchReadsSettingTest.class,
-    AsyncRecordStreamTest.class,
-    BehaviorFileMonitorRestartTest.class,
-    BehaviorTest.class,
-    BehaviorYamlTest.class,
     BinBuilderOptionsTest.class,
     BinBuilderValueTest.class,
     BackgroundIndexFilterWireTest.class,
@@ -73,7 +80,6 @@ import com.aerospike.client.sdk.util.PackerTest;
     CdtVectorFlagTest.class,
     ContainerToStringTest.class,
     CtxSerdeTest.class,
-    ExpressionToStringTest.class,
     FilterOverrideTest.class,
     FilterWireRangeTest.class,
     HistogramTest.class,
@@ -86,18 +92,14 @@ import com.aerospike.client.sdk.util.PackerTest;
     QueryHintTest.class,
     QueryPlanExecuteWireTest.class,
     QueryPlanTest.class,
-    QueryProducerCancellationTest.class,
     QueryTopKValidationTest.class,
     QueryTopKWireTest.class,
     QueryWhereWireTest.class,
-    ServerCompiledFilterWireTest.class,
     SortPropertiesValidationTest.class,
     StringApiPackagingTest.class,
-    SystemBehaviorTest.class,
     TopKMergeTest.class,
     TopKMergingRecordStreamTest.class,
     WriteKindTest.class,
-    VectorExpTest.class,
     VectorTest.class,
     VectorWriteGuardWireTest.class,
 })

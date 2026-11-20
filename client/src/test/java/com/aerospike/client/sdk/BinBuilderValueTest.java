@@ -42,7 +42,7 @@ import com.aerospike.client.sdk.cdt.MapOrder;
  * picks the wrong {@code Bin} factory, or a write that is queued as an add. The table pins the pairing of
  * each overload to the operation it produces.</p>
  */
-class BinBuilderValueTest {
+public class BinBuilderValueTest {
 
     private static final byte[] BYTES = { 1, 2, 3 };
     private static final List<?> LIST = List.of(1L, 2L);

@@ -14,7 +14,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.suite;
 
 import java.io.File;
 
@@ -23,6 +23,14 @@ import org.junit.platform.suite.api.BeforeSuite;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
+import com.aerospike.client.sdk.Args;
+import com.aerospike.client.sdk.Cluster;
+import com.aerospike.client.sdk.ClusterDefinition;
+import com.aerospike.client.sdk.ClusterTest;
+import com.aerospike.client.sdk.Host;
+import com.aerospike.client.sdk.NodeChurnPartitionBehaviorTest;
+import com.aerospike.client.sdk.Session;
+import com.aerospike.client.sdk.SystemSettings;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.policy.Behavior.Selectors;
 

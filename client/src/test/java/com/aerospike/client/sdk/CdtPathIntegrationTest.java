@@ -53,7 +53,7 @@ import com.aerospike.client.sdk.util.Version;
  * {@code selectByPath}/{@code modifyByPath}, and fluent path terminals
  * ({@code onEachChild}, {@code collectValues}, {@code modifyBy}, {@code removeMatches}, …).
  */
-class CdtPathIntegrationTest extends ClusterTest {
+public class CdtPathIntegrationTest extends ClusterTest {
 
     private static final String BIN = "cdtPath";
 

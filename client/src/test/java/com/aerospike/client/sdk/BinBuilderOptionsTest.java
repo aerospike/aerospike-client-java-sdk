@@ -50,7 +50,7 @@ import com.aerospike.client.sdk.CdtOperationCapture.CapturingOperationBuilder;
  * <p>Pairing the two forms off against each other states exactly that, and does it without a table that
  * would have to be extended by hand every time an operation is added.</p>
  */
-class BinBuilderOptionsTest {
+public class BinBuilderOptionsTest {
 
     /** Lower bound on the pairs found, so a filtering mistake cannot quietly pass over an empty set. */
     private static final int EXPECTED_PAIRS = 30;

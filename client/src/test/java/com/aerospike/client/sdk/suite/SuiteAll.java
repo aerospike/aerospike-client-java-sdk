@@ -14,24 +14,20 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.aerospike.client.sdk;
+package com.aerospike.client.sdk.suite;
 
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
-import com.aerospike.client.sdk.command.BatchNodesSingleNodeTest;
-import com.aerospike.client.sdk.command.CommandContainerToStringTest;
-import com.aerospike.client.sdk.command.IndexProbeCommandTest;
-import com.aerospike.client.sdk.command.MsgFieldParserTest;
-import com.aerospike.client.sdk.command.TxnCommandTest;
-
 @Suite
 @SelectClasses({
-    BatchNodesSingleNodeTest.class,
-    CommandContainerToStringTest.class,
-    IndexProbeCommandTest.class,
-    MsgFieldParserTest.class,
-    TxnCommandTest.class
+    SuiteCore.class,
+    SuiteCluster.class,
+    SuiteDiscovery.class,
+    SuiteTend.class,
+    SuiteCommand.class,
+    SuiteExp.class,
+    SuitePolicy.class,
 })
-public class SuiteCommand {
+public class SuiteAll {
 }

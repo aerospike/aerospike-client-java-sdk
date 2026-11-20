@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.policy.Behavior;
 
-class SessionExtensionTest extends ClusterTest {
+public class SessionExtensionTest extends ClusterTest {
 
     static class CustomSession extends Session {
         private final String label;
