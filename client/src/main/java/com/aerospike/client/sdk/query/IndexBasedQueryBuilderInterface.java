@@ -127,6 +127,9 @@ public interface IndexBasedQueryBuilderInterface<T extends IndexBasedQueryBuilde
     /**
      * Sets the Top-K limit, pairing with {@link #orderBy(String, BinDataType, Order)}.
      *
+     * <p>For the timeouts and server limits that apply to a Top-K query, see
+     * {@link QueryBuilder#topK(int)}.</p>
+     *
      * @return this QueryBuilder for method chaining
      */
     T topK(int k);

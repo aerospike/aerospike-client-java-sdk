@@ -58,6 +58,16 @@ public final class QueryNodeExecutor extends NodeExecutor {
         return cb;
     }
 
+    /**
+     * A Top-K query is not retried after a timeout: a node sends nothing until it has ranked every
+     * record, so there is no partial result to resume from and a retry would only run the scan
+     * again. See {@link com.aerospike.client.sdk.query.QueryBuilder#topK(int)}.
+     */
+    @Override
+    protected boolean retryOnTimeout() {
+        return ! query.shouldSendTopK();
+    }
+
     @Override
     protected boolean parseRow() {
         BVal bval = new BVal();

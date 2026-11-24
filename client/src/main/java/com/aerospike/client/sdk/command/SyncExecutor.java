@@ -236,6 +236,12 @@ public abstract class SyncExecutor {
                 throw ae;
             }
 
+            // A timeout, from the socket or from the server, that the command cannot recover from
+            // by running again is reported to the caller instead of retried.
+            if (exception.getResultCode() == ResultCode.TIMEOUT && ! retryOnTimeout()) {
+                break;
+            }
+
             // Check maxRetries.
             if (iteration > cmd.maxRetries) {
                 break;
@@ -335,6 +341,14 @@ public abstract class SyncExecutor {
 
     protected boolean isWrite() {
         return false;
+    }
+
+    /**
+     * Whether the command is retried after a client or server timeout. A command overrides this
+     * when running again after a timeout would only repeat the work that timed out.
+     */
+    protected boolean retryOnTimeout() {
+        return true;
     }
 
     protected abstract Node getNode();

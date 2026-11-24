@@ -275,7 +275,7 @@ AerospikeException ex = AerospikeException.toException(
 | 19 | `KEY_MISMATCH` | Key type mismatch | `AerospikeException` |
 | 20 | `INVALID_NAMESPACE` | Namespace not found | `InvalidNamespace` |
 | 21 | `BIN_NAME_TOO_LONG` | Bin name exceeds 15 chars or max bins exceeded | `BinException` |
-| 22 | `FAIL_FORBIDDEN` | Operation not allowed at this time | `AerospikeException` |
+| 22 | `FAIL_FORBIDDEN` | Operation not allowed at this time, for example a Top-K query refused by a node at its Top-K limit (not retried, see `QueryBuilder.topK(int)`) | `AerospikeException` |
 | 23 | `ELEMENT_NOT_FOUND` | CDT element not found (update-only) | `ElementNotFoundException` |
 | 24 | `ELEMENT_EXISTS` | CDT element already exists (create-only) | `ElementExistsException` |
 | 25 | `ENTERPRISE_ONLY` | Enterprise feature on Community server | `AerospikeException` |
@@ -328,6 +328,6 @@ AerospikeException ex = AerospikeException.toException(
 | 206 | `INDEX_MAXCOUNT` | Maximum number of indices exceeded | `IndexException` |
 | 210 | `QUERY_ABORTED` | Query aborted | `QueryException` |
 | 211 | `QUERY_QUEUEFULL` | Query queue full | `QueryException` |
-| 212 | `QUERY_TIMEOUT` | Query timed out on server | `QueryException` |
+| 212 | `QUERY_TIMEOUT` | Query timed out on server, for example a long query stopped at its server run-time limit (not retried, see `QueryBuilder.topK(int)`) | `QueryException` |
 | 213 | `QUERY_GENERIC` | Generic query error | `QueryException` |
 | *other* | — | Unrecognized code | `AerospikeException` |
