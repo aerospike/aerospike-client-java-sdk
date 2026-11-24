@@ -17,6 +17,8 @@
 package com.aerospike.client.sdk;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +42,7 @@ class QueryTopKWireTest {
     /* TODO Implement when server supports string order.
     @Test
     void concatenatesTwoOrderBySpecsAndBigEndianLimit() {
-        QueryCommand command = command(true);
+        QueryCommand command = command();
         Map<Integer, byte[]> fields = fields(command);
 
         assertArrayEquals(new byte[] {
@@ -61,26 +63,29 @@ class QueryTopKWireTest {
         ResolvedSettings settings = Behavior.DEFAULT.getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
         QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder, false);
-        command.setSendTopK(true);
 
         Map<Integer, byte[]> fields = fields(command);
         assertArrayEquals(new byte[] {1, 0, 0, 4, 'r', 'a', 'n', 'k'}, fields.get(FieldType.ORDER_BY));
         assertArrayEquals(new byte[] {0, 0, 0, 3}, fields.get(FieldType.TOP_K));
     }
 
-    /* TODO Implement when server supports string order.
     @Test
-    void omitsPushdownFieldsForMixedVersionFallback() {
-        Map<Integer, byte[]> fields = fields(command(false));
+    void queryWithoutTopKOmitsPushdownFields() {
+        Session session = new Session(null, Behavior.DEFAULT);
+        DataSet dataSet = DataSet.of("test", "topk_wire");
+        QueryBuilder builder = new QueryBuilder(session, dataSet);
+        ResolvedSettings settings = Behavior.DEFAULT.getSettings(
+            Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
+        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder, false);
 
+        Map<Integer, byte[]> fields = fields(command);
         assertFalse(fields.containsKey(FieldType.ORDER_BY));
         assertFalse(fields.containsKey(FieldType.TOP_K));
         assertTrue(fields.containsKey(FieldType.NAMESPACE));
     }
-    */
 
     /* TODO Implement when server supports string order.
-    private static QueryCommand command(boolean sendTopK) {
+    private static QueryCommand command() {
         Session session = new Session(null, Behavior.DEFAULT);
         DataSet dataSet = DataSet.of("test", "topk_wire");
         QueryBuilder builder = new QueryBuilder(session, dataSet)
@@ -89,9 +94,7 @@ class QueryTopKWireTest {
             .topK(25);
         ResolvedSettings settings = Behavior.DEFAULT.getSettings(
             Behavior.OpKind.READ, Behavior.OpShape.QUERY, Behavior.Mode.ANY);
-        QueryCommand command = new QueryCommand(null, dataSet, null, null, settings, builder, false);
-        command.setSendTopK(sendTopK);
-        return command;
+        return new QueryCommand(null, dataSet, null, null, settings, builder, false);
     }
     */
 

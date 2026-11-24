@@ -193,6 +193,17 @@ public class IndexQueryBuilderImpl extends QueryImpl {
 
         // Validate Top-K configuration.
         qb.validateTopKQueryState();
+
+        // Every node ranks its own records for a Top-K query, so an older node fails the query
+        // instead of leaving the client to rank the records of that node.
+        boolean hasTopK = qb.getOrderBySpec() != null;
+
+        if (hasTopK && !cluster.supportsTopK()) {
+            String message = "orderBy/topK is not supported by all nodes in the cluster; it requires " +
+                "server version 8.2.1+ on every node. Lowest server version is " + cluster.getServerVersion();
+            throw AerospikeException.toException(QueryBuilder.TOP_K_CLIENT_ERROR, message);
+        }
+
         warnQueryDoesNotParticipateInTransaction(qb);
 
         // Check for operations - not supported on servers < 8.1.2

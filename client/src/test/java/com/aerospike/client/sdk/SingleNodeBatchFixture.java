@@ -63,11 +63,18 @@ public final class SingleNodeBatchFixture {
      * Return a node that is never connected. It reports itself active.
      */
     public static Node node(Cluster cluster, String name) {
+        return node(cluster, name, Version.SERVER_VERSION_8_1_3);
+    }
+
+    /**
+     * Return a node that is never connected and reports the given server version. It reports itself active.
+     */
+    public static Node node(Cluster cluster, String name, Version version) {
         NodeValidator nv = new NodeValidator();
         nv.name = name;
         nv.primaryHost = new Host("127.0.0.1", 9);
         nv.primaryAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 9);
-        nv.version = Version.SERVER_VERSION_8_1_3;
+        nv.version = version;
         return new Node(cluster, nv);
     }
 
