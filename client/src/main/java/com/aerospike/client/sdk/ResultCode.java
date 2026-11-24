@@ -209,6 +209,10 @@ public final class ResultCode {
 
     /**
      * Operation not allowed at this time.
+     *
+     * <p>For example, a server refuses a new Top-K query while it is running its limit of Top-K
+     * queries. The client does not retry such a query. See
+     * {@link com.aerospike.client.sdk.query.QueryBuilder#topK(int)}.</p>
      */
     public static final int FAIL_FORBIDDEN = 22;
 
@@ -483,7 +487,11 @@ public final class ResultCode {
     public static final int QUERY_QUEUEFULL = 211;
 
     /**
-     * Secondary index query timed out on server.
+     * Query timed out on server.
+     *
+     * <p>For example, a server stops a long query that has run longer than its run-time limit.
+     * The client does not retry such a query. See
+     * {@link com.aerospike.client.sdk.query.QueryBuilder#topK(int)}.</p>
      */
     public static final int QUERY_TIMEOUT = 212;
 

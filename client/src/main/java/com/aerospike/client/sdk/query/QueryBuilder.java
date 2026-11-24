@@ -409,6 +409,46 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
      * older, for example during a rolling upgrade, the query fails before anything is sent, with
      * {@link ResultCode#PARSE_ERROR} (a client error). Queries without Top-K are not affected.</p>
      *
+     * <p><b>Timeouts and server limits.</b> A Top-K query is a long query on the server. A node
+     * that runs it sends nothing until it has ranked every record it reads, so a Top-K query over
+     * a large set can run for a long time. A server can end such a query, or refuse it, and the
+     * client can give up on it:</p>
+     * <ul>
+     *   <li><b>Run-time limit:</b> a server can stop a long query that has run longer than its
+     *       {@code query-max-run-time-ms} setting (namespace or set). The query fails with
+     *       {@link ResultCode#QUERY_TIMEOUT}, thrown as an {@link AerospikeException.QueryException}.
+     *       A Top-K query never returns a partial result when it is stopped.</li>
+     *   <li><b>Top-K concurrency cap:</b> a server can limit how many Top-K queries run on a node
+     *       at once ({@code order-by-jobs-limit}). A node at its limit refuses a new Top-K query,
+     *       and the query fails with {@link ResultCode#FAIL_FORBIDDEN}, thrown as an
+     *       {@link AerospikeException} with no more specific subclass. Set the error detail
+     *       verbosity to {@link com.aerospike.client.sdk.ErrorDetailVerbosity#MESSAGE} to get the
+     *       server's reason in the message, for example {@code order-by queries running on this
+     *       node at 'order-by-jobs-limit' N - retry later}.</li>
+     *   <li><b>Call timeouts:</b> the client fails the query with
+     *       {@link AerospikeException.Timeout} when a node sends nothing for longer than
+     *       {@code waitForCallToComplete}, or than {@code abandonCallAfter} when that is shorter
+     *       and not zero. A Top-K node is silent until it has ranked every record, so these two
+     *       settings bound how long a Top-K node may take.</li>
+     * </ul>
+     *
+     * <p>The client does not retry {@link ResultCode#QUERY_TIMEOUT} or
+     * {@link ResultCode#FAIL_FORBIDDEN}: a retry would only repeat the work that hit the limit, or
+     * add load to a node that refused the query. The application decides whether to run the
+     * query again, for example later and with backoff. Servers without these settings behave as
+     * before.</p>
+     *
+     * <p>The client does not retry a Top-K query that fails with {@link AerospikeException.Timeout}
+     * either, whether the client gave up waiting for a node or the server sent the timeout: a
+     * node has no partial result to resume from, so a retry would only run the scan again. For a
+     * Top-K query over a large set, raise {@code waitForCallToComplete}, or set it to zero so that
+     * only {@code abandonCallAfter} applies (and no wait is limited if that is zero too).</p>
+     *
+     * <p>Use a selective {@code where} clause, or a smaller set, so the query reads fewer
+     * records. It then finishes sooner, holds a Top-K slot for less time, and is less likely to
+     * reach a limit. A filter expression is applied after a record is read, so it shortens the
+     * result but not the run.</p>
+     *
      * @param k the maximum number of records to return, inclusive range {@code [1, 1000]}
      * @return this QueryBuilder for method chaining
      * @throws AerospikeException with {@link ResultCode#PARSE_ERROR} (a client error) if k is out of range
