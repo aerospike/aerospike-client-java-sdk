@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.aerospike.client.sdk.AerospikeException;
@@ -35,6 +36,7 @@ import com.aerospike.client.sdk.ErrorStrategy;
 import com.aerospike.client.sdk.ResultCode;
 import com.aerospike.client.sdk.exp.Exp;
 import com.aerospike.client.sdk.exp.VectorExp;
+import com.aerospike.client.sdk.util.Version;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
@@ -465,6 +467,8 @@ public class QueryTopKValidationTest extends ClusterTest {
 
     @Test
     void hybridVectorTopKQueryShapeExecutesOnCapableServer() {
+        Assumptions.assumeTrue(cluster.supportsTopK(), "Top-K requires server version 8.2.1+ on every node");
+
         Vector queryVector = Vector.ofFloat32(new float[] {0.10f, 0.95f, 0.40f, 0.08f});
 
         QueryBuilder qb = new QueryBuilder(session, dataSet())
@@ -485,12 +489,16 @@ public class QueryTopKValidationTest extends ClusterTest {
     }
 
     @Test
-    void clusterAdvertisesTopKSupport() {
-        assertTrue(cluster.supportsTopK());
+    void clusterSupportsTopKWhenServerIsAtLeast821() {
+        boolean atLeast821 = cluster.getServerVersion().isGreaterOrEqual(Version.SERVER_VERSION_8_2_1);
+
+        assertEquals(atLeast821, cluster.supportsTopK());
     }
 
     @Test
     void executingATopKQueryAgainstThisClusterIsAccepted() {
+        Assumptions.assumeTrue(cluster.supportsTopK(), "Top-K requires server version 8.2.1+ on every node");
+
         QueryBuilder qb = new QueryBuilder(session, dataSet())
             .orderBy("n", BinDataType.INTEGER, Order.ASC)
             .topK(5);
@@ -500,6 +508,20 @@ public class QueryTopKValidationTest extends ClusterTest {
                 results.next().recordOrThrow();
             }
         }
+    }
+
+    @Test
+    void executingATopKQueryAgainstAnOlderClusterIsRejectedBeforeSending() {
+        Assumptions.assumeFalse(cluster.supportsTopK(), "Every node supports Top-K");
+
+        QueryBuilder qb = new QueryBuilder(session, dataSet())
+            .orderBy("n", BinDataType.INTEGER, Order.ASC)
+            .topK(5);
+
+        AerospikeException ae = assertThrows(AerospikeException.class, qb::execute);
+
+        assertEquals(QueryBuilder.TOP_K_CLIENT_ERROR, ae.getResultCode());
+        assertTrue(ae.getMessage().contains("not supported by all nodes in the cluster"), ae.getMessage());
     }
 
     @Test

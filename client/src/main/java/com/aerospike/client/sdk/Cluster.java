@@ -121,8 +121,7 @@ public class Cluster implements Closeable {
     private boolean serverVersionGE8;
     private boolean serverVersionGE812;
     private boolean serverVersionGE82;
-    // private boolean serverVersionGE821; // TODO Restore
-    private boolean versionGETopK;   // TODO Delete
+    private boolean serverVersionGE821;
     private volatile boolean allNodesSupportVector = true; // TODO Delete
     private boolean metricsEnabled;
     private boolean metricsOperationalEnabled;
@@ -1229,10 +1228,11 @@ public class Cluster implements Closeable {
      * Whether this cluster's minimum server version supports Top-K queries
      * ({@code orderBy(...)}/{@code topK(...)} on {@link com.aerospike.client.sdk.query.QueryBuilder}).
      *
-     * <p>Requires server version 8.1.3 or newer on every connected node.</p>
+     * <p>Requires server version 8.2.1 or newer on every connected node. A Top-K query fails
+     * before it is sent when any node is older, for example during a rolling upgrade.</p>
      */
     public boolean supportsTopK() {
-        return versionGETopK;
+        return serverVersionGE821;
     }
 
     /** Whether all connected nodes support VECTOR. */
@@ -1270,8 +1270,7 @@ public class Cluster implements Closeable {
         this.serverVersionGE8 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_0);
         this.serverVersionGE812 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2);
         this.serverVersionGE82 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2);
-        //this.serverVersionGE821 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2_1); TODO Restore
-        this.versionGETopK = min.isGreaterOrEqual(Version.SERVER_VERSION_8_1_3);  // TODO Delete
+        this.serverVersionGE821 = min.isGreaterOrEqual(Version.SERVER_VERSION_8_2_1);
     }
 
     /**

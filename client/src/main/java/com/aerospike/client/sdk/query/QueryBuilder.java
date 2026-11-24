@@ -403,6 +403,12 @@ public class QueryBuilder extends AbstractFilterableBuilder implements
     /**
      * Sets the Top-K limit, pairing with {@link #orderBy(String, BinDataType, Order)}.
      *
+     * <p><b>Server version.</b> A Top-K query needs server version 8.2.1 or later on every node,
+     * because each node ranks its own records and sends only its local top k, and the client merges
+     * the results of the nodes. The client checks the cluster when the query runs. When any node is
+     * older, for example during a rolling upgrade, the query fails before anything is sent, with
+     * {@link ResultCode#PARSE_ERROR} (a client error). Queries without Top-K are not affected.</p>
+     *
      * @param k the maximum number of records to return, inclusive range {@code [1, 1000]}
      * @return this QueryBuilder for method chaining
      * @throws AerospikeException with {@link ResultCode#PARSE_ERROR} (a client error) if k is out of range

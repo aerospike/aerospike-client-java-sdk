@@ -194,6 +194,8 @@ public class VectorExpIntegrationTest extends ClusterTest {
 
     @Test
     public void vectorKnnTopKReturnsNearestRecordsInDistanceOrder() {
+        Assumptions.assumeTrue(cluster.supportsTopK(), "Top-K requires server version 8.2.1+ on every node");
+
         final DataSet dataSet = DataSet.of(args.namespace, "vector_knn_topk");
         for (int i = 0; i < 6; i++) {
             final Key key = dataSet.id("knn-" + i);

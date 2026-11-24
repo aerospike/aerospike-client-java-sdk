@@ -234,6 +234,40 @@ public class CommonExample extends Example {
             System.out.printf("   Key: %s -> %b\n", rr.getKey(), rr.asBoolean());
         });
 
+        System.out.println("Foreground primary index query");
+
+        rs = session.query(set)
+        	.recordsPerSecond(5000)
+        	.execute();
+
+        try {
+	        int count = 0;
+
+	        while (rs.hasNext()) {
+	            System.out.println(rs.next());
+	            count++;
+	        }
+	        System.out.println("Query count: " + count);
+        }
+        finally {
+        	rs.close();
+        }
+
+        ResolvedSettings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
+        System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
+
+        Exp exp = Exp.or(
+                Exp.eq(Exp.stringBin("name"), Exp.val("Tim")),
+                Exp.gt(Exp.intBin("age"), Exp.val(21))
+        );
+        System.out.println(exp);
+
+        System.out.println("Create index");
+
+        session.createIndex(set, "ageidx", "age", IndexType.INTEGER, IndexCollectionType.DEFAULT).waitTillComplete();
+
+        requireStringAel();
+
         // Test filtering out
         System.out.println("Test filtering out");
 
@@ -279,40 +313,6 @@ public class CommonExample extends Example {
         catch (AerospikeException ae) {
             System.out.printf("Exception received as expected: %s (%s)\n", ae.getMessage(), ae.getClass().getSimpleName());
         }
-
-        System.out.println("Foreground primary index query");
-
-        rs = session.query(set)
-        	.recordsPerSecond(5000)
-        	.execute();
-
-        try {
-	        int count = 0;
-
-	        while (rs.hasNext()) {
-	            System.out.println(rs.next());
-	            count++;
-	        }
-	        System.out.println("Query count: " + count);
-        }
-        finally {
-        	rs.close();
-        }
-
-        ResolvedSettings settings = Behavior.DEFAULT.getSettings(OpKind.READ, OpShape.QUERY, Mode.CP);
-        System.out.printf("Batch mode maxConcurrentNodes = %d\n", settings.getMaxConcurrentNodes());
-
-        Exp exp = Exp.or(
-                Exp.eq(Exp.stringBin("name"), Exp.val("Tim")),
-                Exp.gt(Exp.intBin("age"), Exp.val(21))
-        );
-        System.out.println(exp);
-
-        System.out.println("Create index");
-
-        session.createIndex(set, "ageidx", "age", IndexType.INTEGER, IndexCollectionType.DEFAULT).waitTillComplete();
-
-        requireStringAel();
 
         System.out.println("Foreground secondary index query");
 

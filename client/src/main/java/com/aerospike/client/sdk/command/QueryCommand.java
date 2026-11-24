@@ -52,8 +52,6 @@ public final class QueryCommand extends Command {
     public final List<OrderBySpec> orderBySpecs;
     /** Top-K limit, paired with non-empty {@link #orderBySpecs}. */
     public final Integer topK;
-    /** True only for a partition round whose every target supports Top-K pushdown. */
-    private volatile boolean sendTopK;
     /** Field {@code 44} execute payload when plan-driven; {@code null} on legacy path. */
     final byte[] executeWhereBytes;
 
@@ -147,12 +145,13 @@ public final class QueryCommand extends Command {
         return planDriven;
     }
 
-    public void setSendTopK(boolean sendTopK) {
-        this.sendTopK = sendTopK;
-    }
-
+    /**
+     * Whether the Top-K fields are sent, so that each node ranks its own records and sends only its
+     * local top k. A Top-K query only runs when every node supports it, so this holds for every
+     * Top-K query. See {@link com.aerospike.client.sdk.query.QueryBuilder#topK(int)}.
+     */
     public boolean shouldSendTopK() {
-        return sendTopK;
+        return ! orderBySpecs.isEmpty();
     }
 
     public void execute(AsyncRecordStream stream) {

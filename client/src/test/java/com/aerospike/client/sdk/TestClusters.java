@@ -45,6 +45,7 @@ public final class TestClusters {
         set(cluster, "serverVersionGE8", version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_0));
         set(cluster, "serverVersionGE812", version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_1_2));
         set(cluster, "serverVersionGE82", version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_2));
+        set(cluster, "serverVersionGE821", version != null && version.isGreaterOrEqual(Version.SERVER_VERSION_8_2_1));
     }
 
     private static void set(Cluster cluster, String name, Object value) {
