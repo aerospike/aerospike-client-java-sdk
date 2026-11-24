@@ -27,21 +27,35 @@ import com.aerospike.client.sdk.exp.VectorExp;
 import com.aerospike.client.sdk.policy.Behavior;
 import com.aerospike.client.sdk.query.Order;
 import com.aerospike.client.sdk.query.BinDataType;
+import com.aerospike.client.sdk.util.Version;
 import com.aerospike.client.sdk.vector.Vector;
 import com.aerospike.client.sdk.vector.VectorDistanceMetric;
 
 /**
  * Walkthrough of native vector bins and a hybrid predicate-cohort + Top-K similarity query.
+ * Skipped unless every node supports Top-K, see {@link com.aerospike.client.sdk.Cluster#supportsTopK()}.
  */
 public class VectorTopKQueryExample extends Example {
 
     @Override
     public void runExample() throws Exception {
+        requireTopK();
+
         Session session = cluster().createSession(Behavior.DEFAULT);
         DataSet products = dataSet("vector_topk_demo");
 
         seedCatalog(session, products);
         runHybridTopKQuery(session, products);
+    }
+
+    /**
+     * Skip with {@link ExampleSkipException} unless every node supports Top-K, which also covers vector bins.
+     */
+    private void requireTopK() throws ExampleSkipException {
+        if (!cluster().supportsTopK()) {
+            Version version = cluster().getServerVersion();
+            throw new ExampleSkipException("server is " + version + "; Top-K requires 8.2.1+ on every node");
+        }
     }
 
     private void seedCatalog(Session session, DataSet products) {
